@@ -1,4 +1,4 @@
-const APP_VERSION = '8';
+const APP_VERSION = '9';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
