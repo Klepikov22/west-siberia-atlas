@@ -1,4 +1,4 @@
-const APP_VERSION = '16';
+const APP_VERSION = '17';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -64,22 +64,31 @@ function ensureHoverBox(){
 function showHoverLater(payload, originalEvent){
   clearTimeout(state.hoverTimer);
   state.hoverPayload=payload;
-  moveHover(originalEvent);
+  state.lastHoverEvent=originalEvent || state.lastHoverEvent;
+  moveHover(originalEvent || state.lastHoverEvent);
   state.hoverTimer=setTimeout(()=>{
+    if(!state.hoverPayload) return;
     const box=ensureHoverBox();
     const rows=[];
     if(payload.subtitle) rows.push(`<div class="hover-subtitle">${escapeHtml(payload.subtitle)}</div>`);
     if(payload.population!=null && !Number.isNaN(Number(payload.population))) rows.push(`<div class="hover-row"><span>население</span><b>${num(payload.population)}</b></div>`);
     if(payload.density!=null && !Number.isNaN(Number(payload.density))) rows.push(`<div class="hover-row"><span>плотность</span><b>${num1(payload.density)}</b></div>`);
+    if(payload.extra) rows.push(`<div class="hover-extra">${escapeHtml(payload.extra)}</div>`);
     box.innerHTML=`<div class="hover-title">${escapeHtml(payload.title||'объект')}</div>${rows.join('')}`;
     box.style.display='block';
+    moveHover(state.lastHoverEvent);
     requestAnimationFrame(()=>box.classList.add('visible'));
   }, 500);
 }
 function moveHover(originalEvent){
   const box=ensureHoverBox(); if(!originalEvent) return;
-  const x=(originalEvent.clientX||0)+14, y=(originalEvent.clientY||0)+14;
-  box.style.left=x+'px'; box.style.top=y+'px';
+  state.lastHoverEvent=originalEvent;
+  let x=(originalEvent.clientX||0)+16, y=(originalEvent.clientY||0)+16;
+  const rect=box.getBoundingClientRect();
+  const w=rect.width || 220, h=rect.height || 90;
+  if(x+w+14>window.innerWidth) x=(originalEvent.clientX||0)-w-16;
+  if(y+h+14>window.innerHeight) y=(originalEvent.clientY||0)-h-16;
+  box.style.left=Math.max(10,x)+'px'; box.style.top=Math.max(10,y)+'px';
 }
 function hideHover(){
   clearTimeout(state.hoverTimer);
@@ -100,13 +109,16 @@ function clearCenterLabels(){
   if(state.centerLabelOverlay) state.centerLabelOverlay.innerHTML='';
   state.centerLabelItems=[];
 }
-function addCenterLabel(latlng, text, priority=0){
+function addCenterLabel(latlng, text, priority=0, meta={}){
   const overlay=ensureCenterLabelOverlay(); if(!overlay || !text) return;
   const el=document.createElement('div');
-  el.className='center-map-label';
-  el.textContent=text;
+  const cls=['center-map-label'];
+  if(meta.city) cls.push('city-label');
+  if(meta.large) cls.push('large-city-label');
+  el.className=cls.join(' ');
+  el.textContent=cleanCenterLabelName(text);
   overlay.appendChild(el);
-  state.centerLabelItems.push({latlng, el, priority});
+  state.centerLabelItems.push({latlng, el, priority, city:!!meta.city, large:!!meta.large, pop:meta.pop||0});
 }
 function updateCenterLabels(){
   if(!state.map || !state.centerLabelItems) return;
@@ -116,16 +128,43 @@ function updateCenterLabels(){
   const items=[...state.centerLabelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
   for(const item of items){
     const pnt=state.map.latLngToContainerPoint(item.latlng);
-    let ok=show && z>=4.25 && pnt.x>35 && pnt.x<size.x-35 && pnt.y>35 && pnt.y<size.y-35;
+    const inside=pnt.x>38 && pnt.x<size.x-38 && pnt.y>38 && pnt.y<size.y-38;
+    let zoomOk = item.city ? z>=3.45 : z>=5.15;
+    if(!item.city && state.centerLabelItems.length<80) zoomOk = z>=4.45;
+    let ok=show && inside && zoomOk;
     item.el.style.transform=`translate(${Math.round(pnt.x)}px, ${Math.round(pnt.y)}px) translate(-50%, -145%)`;
     item.el.style.display=ok?'block':'none';
     if(ok){
       const r=item.el.getBoundingClientRect();
-      const pad=4; const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
+      const pad=item.large?7:5; const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
       if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){ item.el.style.display='none'; }
       else placed.push(rr);
     }
   }
+}
+function cleanCenterLabelName(name){
+  let n=String(name||'').trim();
+  n=n.replace(/^г[.\s]+/i,'').replace(/^город\s+/i,'');
+  n=n.replace(/\s*\(.*?сельское население.*?\)\s*/i,'');
+  return n;
+}
+function looksLikeAdminUnitName(name){ return /(уезд|округ|район|область|край|волость|сельское население)/i.test(String(name||'')); }
+function isCityCenter(p){
+  const name=String(p?.name||''); const unit=String(p?.unit_name||'');
+  const text=(name+' '+unit).toLowerCase();
+  if(/(^|\s)г[.\s]/i.test(name) || /(^|\s)г[.\s]/i.test(unit)) return true;
+  if(text.includes('город') || text.includes('горсовет') || text.includes('городской')) return true;
+  const src=String(p?.center_pop_urban_source||'').toLowerCase();
+  const pop=Number(p?.center_pop_urban);
+  if(Number(p?.year)<1926 && src.includes('pop_urban') && pop>0 && !looksLikeAdminUnitName(name)) return true;
+  return false;
+}
+function largeCityThreshold(year){ if(Number(year)<1926) return 20000; if(Number(year)<=1939) return 50000; return 100000; }
+function labelPriority(p){
+  const pop=pointPopulation(p); const city=isCityCenter(p); const large=city && pop>=largeCityThreshold(p?.year||state.year);
+  if(large) return 100000000+pop;
+  if(city) return 50000000+pop;
+  return pop;
 }
 function pointPopulation(p){
   const keys=['center_pop_urban','Pop_urban','Pop_Urban','urban_pop','Городское_население_1959','Городское_оба_пола','population'];
@@ -164,6 +203,7 @@ async function init(){
   if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
   ensureHoverBox(); ensureCenterLabelOverlay();
+  document.addEventListener('mousemove', ev=>{ if(state.hoverPayload && state.hoverBox && state.hoverBox.style.display !== 'none') moveHover(ev); }, {passive:true});
   bindUi(); bindSelectionHandlers(); setTool('pan');
   state.map.on('zoomend moveend', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
   await refreshAll();
@@ -297,18 +337,25 @@ async function refreshCenters(){
   const pops=gj.features.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup();
+  const labelSeen=new Set();
   gj.features.forEach(f=>{
     if(!f.geometry || f.geometry.type!=='Point') return;
     const coords=f.geometry.coordinates; const latlng=L.latLng(coords[1], coords[0]); const p=f.properties||{};
     const pop=pointPopulation(p); const r=centerRadius(pop,maxCenterPop);
-    const m=L.circleMarker(latlng,{radius:r, color:'#3a2607', weight:1.45, fillColor:'#f6c85f', fillOpacity:.86, opacity:.98});
+    const city=isCityCenter(p); const large=city && pop>=largeCityThreshold(state.year);
+    const m=L.circleMarker(latlng,{radius:r, color:large?'#201105':'#3a2607', weight:large?2.1:1.45, fillColor:large?'#ffd25e':'#f6c85f', fillOpacity:large?.92:.86, opacity:.98});
     m.feature=f;
-    m.on('mouseover',(e)=>showHoverLater({title:p.name||'центр', subtitle:p.unit_name || p.admin_parent || 'центр', population:pop}, e.originalEvent));
+    m.on('mouseover',(e)=>showHoverLater({title:cleanCenterLabelName(p.name||'центр'), subtitle:p.unit_name || p.admin_parent || (city?'город':'центр'), population:pop, extra:city?'город / городской центр':'центр'}, e.originalEvent));
     m.on('mousemove',(e)=>moveHover(e.originalEvent));
     m.on('mouseout', hideHover);
     m.on('click',(e)=>{ L.DomEvent.stopPropagation(e); showCenterFeature(f,m); });
     centerGroup.addLayer(m);
-    addCenterLabel(latlng, p.name || p.unit_name || '', pop);
+    const labelText=p.name || p.unit_name || '';
+    const key=cleanCenterLabelName(labelText).toLowerCase();
+    if(key && !labelSeen.has(key)){
+      labelSeen.add(key);
+      addCenterLabel(latlng, labelText, labelPriority(p), {city, large, pop});
+    }
   });
   state.layers.centers=centerGroup; state.layers.labels=null;
   refreshVisibility(); updateCenterLabels();
