@@ -1,14 +1,13 @@
-const APP_VERSION = '5';
+const APP_VERSION = '6';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', hydroOrder:'above',
+  manifest:null, year:null, mode:'admin_parent', theme:'light',
   layers:{}, cache:{}, map:null, colors:{}, selectedIds:new Set(), adminLayerById:new Map(),
   currentGeoJSON:null, _lastVals:[], labelItems:[], selectedFeature:null
 };
 
-const DEFAULT_EXPANDED_BOUNDS = [[42.485993,57.411848],[74.021644,92.272637]]; // [south,west],[north,east], expanded about 200 km
 const palette = ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'];
 const ramp = ['#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'];
 
@@ -32,10 +31,15 @@ function valField(){ return state.mode==='population'?'population':state.mode===
 function themeStyle(){
   const dark = state.theme === 'dark';
   return {
-    river: dark ? '#5ebce6' : '#4aa9cf', lakeFill: dark ? '#1d75a6' : '#d7edf3', lakeLine: dark ? '#61c7ee' : '#62adc6',
-    oceanFill: dark ? '#123247' : '#dbecea', oceanLine: dark ? '#5fc7ee' : '#74b5c8',
-    adminLine: dark ? '#d9c29c' : '#746a5c', selectedLine: '#a65b00', railway: dark ? '#f3e7d0' : '#17140f',
-    adminFillOpacity: dark ? .48 : .58, circleLine: dark ? '#3a2709' : '#6d4f1a', circleFill: '#d9a441'
+    river: dark ? '#58bde7' : '#4da8c7',
+    waterFill: dark ? '#12384f' : '#d8edf1',
+    waterLine: dark ? '#66c9f0' : '#6eb4c9',
+    adminLine: dark ? '#d9c29c' : '#746a5c',
+    selectedLine: '#a65b00',
+    railway: dark ? '#f3e7d0' : '#18130e',
+    adminFillOpacity: dark ? .46 : .43,
+    circleLine: dark ? '#2f210b' : '#6d4f1a',
+    circleFill: '#d9a441'
   };
 }
 
@@ -45,24 +49,35 @@ async function init(){
   state.year = state.manifest.years.includes(1914)?1914:state.manifest.years[0];
   setYearLabels(); buildTimeline();
   const b = state.manifest.map_bounds_4326_expanded_200km || [57.411848,42.485993,92.272637,74.021644];
-  const bounds = L.latLngBounds([[b[1],b[0]],[b[3],b[2]]]);
-  state.dataBounds = bounds;
-  state.softBounds = bounds.pad(0.18);
+  state.dataBounds = L.latLngBounds([[b[1],b[0]],[b[3],b[2]]]);
+  state.softBounds = state.dataBounds.pad(0.22);
   state.map = L.map('map', {
-    zoomControl:true, preferCanvas:true,
-    zoomSnap:0.25, zoomDelta:0.5,
-    scrollWheelZoom:'center', doubleClickZoom:'center', touchZoom:'center',
-    wheelPxPerZoomLevel:170, wheelDebounceTime:30,
-    inertia:true, inertiaDeceleration:4200, easeLinearity:0.12,
-    maxBounds:state.softBounds, maxBoundsViscosity:0.30,
-    zoomAnimation:true, markerZoomAnimation:false, fadeAnimation:false
+    zoomControl:true,
+    preferCanvas:true,
+    minZoom:3.5,
+    zoomSnap:0.25,
+    zoomDelta:0.35,
+    scrollWheelZoom:'center',
+    doubleClickZoom:'center',
+    touchZoom:'center',
+    wheelPxPerZoomLevel:210,
+    wheelDebounceTime:55,
+    inertia:true,
+    inertiaDeceleration:4200,
+    easeLinearity:0.16,
+    zoomAnimation:false,
+    markerZoomAnimation:false,
+    fadeAnimation:false,
+    worldCopyJump:false,
+    bounceAtZoomLimits:false
   });
   createPanes(); applyPaneOrder();
-  state.map.fitBounds(bounds, {padding:[18,18], animate:false});
+  state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
+  if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
   state.map.on('dragend', () => {
     const c = state.map.getCenter();
-    if(!state.softBounds.contains(c)) state.map.panInsideBounds(state.dataBounds, {animate:true, duration:.45, easeLinearity:.12});
+    if(!state.softBounds.contains(c)) state.map.panInsideBounds(state.dataBounds, {animate:true, duration:.35, easeLinearity:.16});
   });
   state.map.on('zoomend moveend', updateLabelsVisibility);
   bindUi();
@@ -72,39 +87,21 @@ async function init(){
 }
 
 function createPanes(){
-  const panes = ['reliefPane','adminPane','riversPane','waterPane','railwayPane','circlesPane','centersPane','labelsPane'];
+  const panes = ['riversPane','waterPane','adminPane','railwayPane','circlesPane','centersPane','labelsPane'];
   panes.forEach(name=>{ if(!state.map.getPane(name)) state.map.createPane(name); });
   state.map.getPane('labelsPane').classList.add('leaflet-label-pane');
-  ['reliefPane','riversPane','waterPane','labelsPane'].forEach(p=>state.map.getPane(p).style.pointerEvents='none');
+  ['riversPane','waterPane','labelsPane'].forEach(p=>state.map.getPane(p).style.pointerEvents='none');
 }
 function applyPaneOrder(){
-  const above = state.hydroOrder === 'above';
-  const z = {
-    reliefPane:100,
-    adminPane:350,
-    riversPane: above ? 430 : 210,
-    waterPane: above ? 455 : 235,
-    railwayPane:520,
-    circlesPane:580,
-    centersPane:620,
-    labelsPane:640
-  };
+  const z = { riversPane:210, waterPane:235, adminPane:360, railwayPane:520, circlesPane:640, centersPane:680, labelsPane:720 };
   Object.entries(z).forEach(([pane,val])=>{ if(state.map && state.map.getPane(pane)) state.map.getPane(pane).style.zIndex=val; });
 }
 function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
   on('modeSelect','change', async e=>{state.mode=e.target.value; await refreshAdmin();});
   on('themeSelect','change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles(); updateLabelsVisibility();});
-  const orderControl=$('hydroOrderControl');
-  if(orderControl){
-    orderControl.querySelectorAll('button[data-order]').forEach(btn=>btn.addEventListener('click', async ()=>{
-      state.hydroOrder=btn.dataset.order;
-      orderControl.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
-      applyPaneOrder(); await refreshHydro(); refreshVisibility();
-    }));
-  }
-  ['toggleRelief','toggleOcean','toggleHydro','toggleCenters','toggleRailways','toggleCircles','toggleLabels'].forEach(id=>on(id,'change', refreshVisibility));
-  on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.7, easeLinearity:.12, padding:[18,18]}));
+  ['toggleHydro','toggleCenters','toggleRailways','toggleCircles','toggleLabels'].forEach(id=>on(id,'change', refreshVisibility));
+  on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.55, easeLinearity:.16, padding:[18,18], maxZoom:5}));
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
   on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
 }
@@ -120,22 +117,24 @@ function buildTimeline(){
 }
 function updateTimelineActive(){ document.querySelectorAll('.timeline-year').forEach(b=>b.classList.toggle('active', Number(b.dataset.year)===state.year)); }
 function clearLayer(name){ if(state.layers[name]){ state.map.removeLayer(state.layers[name]); state.layers[name]=null; }}
-async function refreshAll(){ await refreshRelief(); await refreshAdmin(); await refreshHydro(); await refreshCenters(); await refreshRailways(); refreshVisibility(); updateStatsAndSelection(); }
+async function refreshAll(){ await refreshAdmin(); await refreshHydro(); await refreshCenters(); await refreshRailways(); refreshVisibility(); updateStatsAndSelection(); }
 
-async function refreshRelief(){ clearLayer('relief'); const b=await loadJson(state.manifest.layers.raster.relief_bounds); const [w,s,e,n]=b.bounds_4326; state.layers.relief=L.imageOverlay(state.manifest.layers.raster.relief_preview, [[s,w],[n,e]], {opacity: state.theme==='light'?.10:.18, pane:'reliefPane'}); }
 function isReservoirFeature(f){
-  const p=f.properties||{}; const text=Object.values(p).join(' ').toLowerCase();
+  const p=f.properties||{}; if(p.water_kind==='ocean') return false;
+  const text=Object.values(p).join(' ').toLowerCase();
   return p.reservoir===1 || p.reservoir===true || String(p.reservoir).toLowerCase()==='true' || text.includes('reservoir') || text.includes('водохранилище') || text.includes('vodokhran');
 }
 async function refreshHydro(){
-  clearLayer('rivers'); clearLayer('lakes'); clearLayer('ocean'); applyPaneOrder(); const t=themeStyle();
+  clearLayer('rivers'); clearLayer('water'); applyPaneOrder(); const t=themeStyle();
   const showReservoirs = Number(state.year) >= 1959;
-  const rivers=await loadJson(state.manifest.layers.hydro.rivers); const lakesRaw=await loadJson(state.manifest.layers.hydro.lakes);
-  const lakes={type:'FeatureCollection', features:lakesRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f))};
-  const ocean=await loadJson(state.manifest.layers.ocean.main);
-  state.layers.rivers=L.geoJSON(rivers,{pane:'riversPane', interactive:false, style:f=>({color:t.river, weight: Math.max(.35, Number(f.properties.strokeweig||1.0)), opacity: state.theme==='light'?.58:.72})});
-  state.layers.ocean=L.geoJSON(ocean,{pane:'waterPane', interactive:false, style:{color:t.oceanLine, weight:1.05, opacity:.78, fillColor:t.oceanFill, fillOpacity: state.theme==='light'?.92:.70}});
-  state.layers.lakes=L.geoJSON(lakes,{pane:'waterPane', interactive:false, style:{color:t.lakeLine, weight:.9, opacity:.95, fillColor:t.lakeFill, fillOpacity: state.theme==='light'?.74:.62}});
+  const rivers=await loadJson(state.manifest.layers.hydro.rivers);
+  const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+  const water={type:'FeatureCollection', features:waterRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f))};
+  state.layers.rivers=L.geoJSON(rivers,{pane:'riversPane', interactive:false, style:f=>({color:t.river, weight: Math.max(.45, Number(f.properties.strokeweig||1.0)), opacity: state.theme==='light'?.62:.75})});
+  state.layers.water=L.geoJSON(water,{pane:'waterPane', interactive:false, style:f=>{
+    const ocean=(f.properties||{}).water_kind==='ocean';
+    return {color:t.waterLine, weight:ocean?1.0:.8, opacity:ocean?.82:.88, fillColor:t.waterFill, fillOpacity:ocean?(state.theme==='light'?.86:.68):(state.theme==='light'?.78:.62)};
+  }});
 }
 function adminStyle(feature, vals){
   const p=feature.properties; let fill='#999';
@@ -145,7 +144,7 @@ function adminStyle(feature, vals){
   if(state.mode==='density') fill=valueColor(Number(p.density), vals);
   if(state.mode==='urban_share') fill=valueColor(Number(p.urban_share), vals);
   const t=themeStyle(); const selected=state.selectedIds.has(featureId(feature));
-  return {color:selected?t.selectedLine:t.adminLine, weight:selected?2.8:1.0, opacity:selected?1:.86, fillColor:fill, fillOpacity:selected?Math.min(.74,t.adminFillOpacity+.16):t.adminFillOpacity};
+  return {color:selected?t.selectedLine:t.adminLine, weight:selected?2.8:1.0, opacity:selected?1:.84, fillColor:fill, fillOpacity:selected?Math.min(.64,t.adminFillOpacity+.13):t.adminFillOpacity};
 }
 async function refreshAdmin(){
   clearLayer('admin'); clearLayer('circles'); clearLayer('labels'); state.adminLayerById.clear(); state.labelItems=[];
@@ -154,7 +153,7 @@ async function refreshAdmin(){
   const admin=L.geoJSON(gj,{pane:'adminPane', style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
     l.on('click',()=>{toggleSelection(f); showFeature(f);});
-    l.on('mouseover',()=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:1.9, opacity:1}); });
+    l.on('mouseover',()=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:1.8, opacity:1}); });
     l.on('mouseout',()=>{ refreshSelectionStylesFor(id); });
   }});
   state.layers.admin=admin;
@@ -164,20 +163,20 @@ async function refreshAdmin(){
 function buildCircles(admin, gj){
   const t=themeStyle(); const maxPop=Math.max(...gj.features.map(f=>Number(f.properties.population)||0),1); const minPop=Math.min(...gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0), maxPop);
   state.maxPop=maxPop; state.minPop=minPop;
-  state.layers.circles=L.layerGroup([], {pane:'circlesPane'});
+  state.layers.circles=L.layerGroup();
   admin.eachLayer(layer=>{
     const f=layer.feature; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
     const c=layer.getBounds().getCenter(); const r=populationRadius(pop,maxPop);
-    const m=L.circleMarker(c,{pane:'circlesPane', radius:r, color:t.circleLine, weight:1.25, fillColor:t.circleFill, fillOpacity:.48, opacity:.95});
+    const m=L.circleMarker(c,{pane:'circlesPane', radius:r, color:t.circleLine, weight:1.65, fillColor:t.circleFill, fillOpacity:.72, opacity:.98});
     m.feature=f;
     m.bindTooltip(`<b>${p.name||'объект'}</b><br>Население: ${num(pop)}<br>Плотность: ${num1(p.density)} чел./км²`, {direction:'top', sticky:false, className:'circle-tooltip', opacity:.98});
     m.on('click', (e)=>{ L.DomEvent.stopPropagation(e); toggleSelection(f); showFeature(f); });
     state.layers.circles.addLayer(m);
   });
 }
-function populationRadius(pop,maxPop){ return 4 + Math.sqrt((Number(pop)||0)/(maxPop||1))*28; }
+function populationRadius(pop,maxPop){ return 5 + Math.sqrt((Number(pop)||0)/(maxPop||1))*34; }
 function buildLabels(admin, gj){
-  const labels=L.layerGroup([], {pane:'labelsPane'}); const dense=gj.features.length>120;
+  const labels=L.layerGroup(); const dense=gj.features.length>120;
   admin.eachLayer(layer=>{
     const f=layer.feature; const p=f.properties||{}; if(!p.name) return;
     const ll=layer.getBounds().getCenter();
@@ -193,28 +192,27 @@ function updateLabelsVisibility(){
   const show=$('toggleLabels') ? $('toggleLabels').checked : true; const z=state.map.getZoom(); const size=state.map.getSize(); const view=state.map.getBounds();
   state.labelItems.forEach(item=>{
     const pt=state.map.latLngToContainerPoint(item.latlng); const dense=state.currentGeoJSON && state.currentGeoJSON.features.length>120;
-    let ok=show && view.contains(item.latlng) && pt.x>80 && pt.x<size.x-80 && pt.y>35 && pt.y<size.y-35;
-    if(dense){ ok = ok && (z>=6 || (z>=5 && item.area>65000) || (z>=4.25 && item.area>160000)); }
-    else { ok = ok && (z>=3.25 || item.area>350000); }
+    let ok=show && view.contains(item.latlng) && pt.x>100 && pt.x<size.x-100 && pt.y>45 && pt.y<size.y-45;
+    if(dense){ ok = ok && (z>=6.2 || (z>=5.2 && item.area>65000) || (z>=4.4 && item.area>180000)); }
+    else { ok = ok && (z>=4.1 || item.area>350000); }
     const el=item.marker.getElement(); if(el) el.style.display=ok?'block':'none';
   });
 }
 async function refreshCenters(){ clearLayer('centers'); const path=state.manifest.layers.centers[String(state.year)]; if(!path) return; const gj=await loadJson(path); state.layers.centers=L.geoJSON(gj,{pane:'centersPane', pointToLayer:(f,latlng)=>L.circleMarker(latlng,{pane:'centersPane', radius:4.2,color:'#1b1305',weight:1.3,fillColor:'#f1c45f',fillOpacity:.95}), onEachFeature:(f,l)=>{const p=f.properties;l.bindTooltip(`<b>${p.name||'центр'}</b><br>${p.unit_name||''}`,{direction:'top',sticky:false,className:'circle-tooltip'});}}); refreshVisibility(); }
 async function refreshRailways(){ clearLayer('railways'); const gj=await loadJson(state.manifest.layers.railways.main); const yr=state.year; const filtered={type:'FeatureCollection', features:gj.features.filter(f=>{const p=f.properties; const o=Number(p.year_open); const c=p.year_close==null?null:Number(p.year_close); return o<=yr && (c==null || c>yr);})}; const t=themeStyle(); state.layers.railways=L.geoJSON(filtered,{pane:'railwayPane', style:{color:t.railway,weight:3.2,opacity:.95}, onEachFeature:(f,l)=>{const p=f.properties;l.bindTooltip(`ЖД: ${p.year_open||'—'}`,{sticky:false,className:'circle-tooltip'});}}); refreshVisibility(); updateStatsAndSelection(); }
 function refreshVisibility(){
-  const vis={relief:$('toggleRelief')?.checked, ocean:$('toggleOcean')?.checked, hydro:$('toggleHydro')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked, labels:$('toggleLabels')?.checked};
-  const order=[['relief',vis.relief],['admin',true],['rivers',vis.hydro],['ocean',vis.ocean],['lakes',vis.hydro],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers],['labels',vis.labels]];
+  const vis={hydro:$('toggleHydro')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked, labels:$('toggleLabels')?.checked};
+  const order=[['rivers',vis.hydro],['water',vis.hydro],['admin',true],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers],['labels',vis.labels]];
   order.forEach(([name,show])=>{const l=state.layers[name]; if(!l) return; if(show && !state.map.hasLayer(l)) l.addTo(state.map); if(!show && state.map.hasLayer(l)) state.map.removeLayer(l);});
-  updateLabelsVisibility();
+  updateLabelsVisibility(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 }
 function refreshVectorStyles(){
-  const t=themeStyle(); if(state.layers.relief) state.layers.relief.setOpacity(state.theme==='light'?.10:.18);
-  if(state.layers.rivers) state.layers.rivers.setStyle(f=>({color:t.river, weight:Math.max(.35, Number(f.properties.strokeweig||1.0)), opacity:state.theme==='light'?.58:.72}));
-  if(state.layers.ocean) state.layers.ocean.setStyle({color:t.oceanLine, weight:1.05, opacity:.78, fillColor:t.oceanFill, fillOpacity: state.theme==='light'?.92:.70});
-  if(state.layers.lakes) state.layers.lakes.setStyle({color:t.lakeLine, weight:.9, opacity:.95, fillColor:t.lakeFill, fillOpacity: state.theme==='light'?.74:.62});
+  const t=themeStyle();
+  if(state.layers.rivers) state.layers.rivers.setStyle(f=>({color:t.river, weight:Math.max(.45, Number(f.properties.strokeweig||1.0)), opacity:state.theme==='light'?.62:.75}));
+  if(state.layers.water) state.layers.water.setStyle(f=>{const ocean=(f.properties||{}).water_kind==='ocean'; return {color:t.waterLine, weight:ocean?1.0:.8, opacity:ocean?.82:.88, fillColor:t.waterFill, fillOpacity:ocean?(state.theme==='light'?.86:.68):(state.theme==='light'?.78:.62)};});
   if(state.layers.railways) state.layers.railways.setStyle({color:t.railway,weight:3.2,opacity:.95});
   if(state.layers.admin) refreshSelectionStyles();
-  if(state.layers.circles) state.layers.circles.eachLayer(m=>m.setStyle({color:t.circleLine, fillColor:t.circleFill}));
+  if(state.layers.circles) state.layers.circles.eachLayer(m=>m.setStyle({color:t.circleLine, fillColor:t.circleFill, fillOpacity:.72, opacity:.98}));
 }
 function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); }
 function refreshSelectionStyles(){ if(!state.layers.admin) return; state.layers.admin.eachLayer(l=>l.setStyle(adminStyle(l.feature,state._lastVals))); }
@@ -229,13 +227,14 @@ function updateStats(features){
 }
 function updateSelectionBox(){ const box=$('selectionBox'); if(!state.selectedIds.size){box.classList.add('muted'); box.innerHTML='Выборка не задана. Статистика считается по всему показанному слою.'; return;} box.classList.remove('muted'); const feats=state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:''; box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul>`; }
 function updateLegend(gj, vals){
-  const box=$('legendBox'); let html='<b>Легенда</b>';
+  const box=$('legendBox'); if(!box || !gj) return; let html='<b>Легенда</b>';
   if(state.mode==='admin_parent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
   else { ramp.forEach((c,i)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===ramp.length-1?'больше':''}</div>`}); }
+  html+=`<div class="legend-section">Гидрография</div><div class="legend-row"><span class="swatch water-swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>`;
   if($('toggleCircles')?.checked){
     const max=state.maxPop||0; const mid=max/4; html+=`<div class="legend-section">Круги населения</div>`;
     [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationRadius(v,max)*1.25); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; });
-    html+=`<div class="mini-muted">Площадь круга пропорциональна населению.</div>`;
+    html+=`<div class="mini-muted">Площадь круга пропорциональна населению. Наведите курсор на круг, чтобы увидеть значение.</div>`;
   }
   box.innerHTML=html;
 }
