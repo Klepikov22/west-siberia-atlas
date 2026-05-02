@@ -5,18 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <div id="app">
-    <aside id="leftPanel" class="panel">
-      <div class="eyebrow">Дипломный веб-атлас · v4</div>
-      <h1>Западная Сибирь: АТД и население</h1>
+    <main id="mapWrap">
+      <div id="map"></div>
 
-      <div class="year-card">
-        <span>Выбранный год</span>
-        <b id="activeYearLabel">1914</b>
+      <div id="timelineBar" aria-label="Временная шкала">
+        <div class="timeline-head"><span>Год</span><b id="timelineYearLabel">1914</b></div>
+        <div id="yearTimeline" class="timeline-track"></div>
       </div>
+    </main>
+
+    <aside id="leftPanel" class="panel floating-panel">
+      <div class="eyebrow">Дипломный веб-атлас · v5</div>
+      <h1>Западная Сибирь: АТД и население</h1>
+      <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
       <label class="control-label" for="modeSelect">Режим карты</label>
       <select id="modeSelect">
@@ -33,19 +38,20 @@
         <option value="dark">Тёмный</option>
       </select>
 
-      <label class="control-label" for="hydroOrderSelect">Положение гидрографии</label>
-      <select id="hydroOrderSelect">
-        <option value="above" selected>Поверх административного слоя</option>
-        <option value="below">Под административным слоем</option>
-      </select>
+      <div class="control-label">Положение гидрографии</div>
+      <div class="segmented" id="hydroOrderControl" role="group" aria-label="Положение гидрографии">
+        <button type="button" data-order="above" class="active">Выше АТД</button>
+        <button type="button" data-order="below">Ниже АТД</button>
+      </div>
 
       <div class="toggles">
         <label><input type="checkbox" id="toggleRelief"> Рельеф</label>
-        <label><input type="checkbox" id="toggleOcean" checked> Океан / северная окантовка</label>
-        <label><input type="checkbox" id="toggleHydro" checked> Гидрография</label>
+        <label><input type="checkbox" id="toggleOcean" checked> Океан</label>
+        <label><input type="checkbox" id="toggleHydro" checked> Реки и озёра</label>
         <label><input type="checkbox" id="toggleCenters" checked> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Круги населения</label>
+        <label><input type="checkbox" id="toggleLabels" checked> Подписи</label>
       </div>
 
       <button id="resetView" type="button">Вернуть обзорный вид</button>
@@ -58,18 +64,7 @@
       <section class="legend" id="legendBox"></section>
     </aside>
 
-    <main id="mapWrap">
-      <div id="map"></div>
-      <div id="timelineBar" aria-label="Временная шкала">
-        <div class="timeline-head">
-          <span>Временная шкала</span>
-          <b id="timelineYearLabel">1914</b>
-        </div>
-        <div id="yearTimeline" class="timeline-track"></div>
-      </div>
-    </main>
-
-    <aside id="rightPanel" class="panel">
+    <aside id="rightPanel" class="panel floating-panel">
       <h2>Объект</h2>
       <div id="featureInfo" class="feature-info muted">Кликните по району/уезду на карте. Повторный клик убирает объект из выборки.</div>
       <h2 class="section-title">Выборка</h2>
@@ -77,6 +72,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
