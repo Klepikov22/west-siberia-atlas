@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru" data-theme="light">
+<html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,10 +10,12 @@
 <body>
   <div id="app">
     <aside id="leftPanel" class="panel">
-      <div class="eyebrow">Дипломный веб-атлас</div>
+      <div class="eyebrow">Дипломный веб-атлас · v3</div>
       <h1>Западная Сибирь: АТД и население</h1>
+
       <label class="control-label" for="yearSelect">Год</label>
       <select id="yearSelect"></select>
+
       <label class="control-label" for="modeSelect">Режим карты</label>
       <select id="modeSelect">
         <option value="admin_parent">Административная принадлежность</option>
@@ -22,26 +24,39 @@
         <option value="urban_share">Доля городского населения</option>
         <option value="unit_type">Тип единицы</option>
       </select>
-      <label class="control-label" for="themeSelect">Тема</label>
+
+      <label class="control-label" for="themeSelect">Стиль интерфейса</label>
       <select id="themeSelect">
-        <option value="light" selected>Светлая</option>
-        <option value="dark">Тёмная</option>
+        <option value="light" selected>Светлый</option>
+        <option value="dark">Тёмный</option>
       </select>
+
       <div class="toggles">
         <label><input type="checkbox" id="toggleRelief"> Рельеф</label>
+        <label><input type="checkbox" id="toggleOcean" checked> Океан / северная окантовка</label>
         <label><input type="checkbox" id="toggleHydro" checked> Гидрография</label>
         <label><input type="checkbox" id="toggleCenters" checked> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Круги населения</label>
       </div>
+
       <button id="resetView" type="button">Вернуть обзорный вид</button>
+      <div class="button-row">
+        <button id="clearSelection" type="button">Очистить выборку</button>
+        <button id="selectAll" type="button">Выбрать всё</button>
+      </div>
+
       <section class="stats" id="statsBox"></section>
       <section class="legend" id="legendBox"></section>
     </aside>
+
     <main id="map"></main>
+
     <aside id="rightPanel" class="panel">
       <h2>Объект</h2>
-      <div id="featureInfo" class="feature-info muted">Кликните по району/уезду на карте.</div>
+      <div id="featureInfo" class="feature-info muted">Кликните по району/уезду на карте. Повторный клик убирает объект из выборки.</div>
+      <h2 class="section-title">Выборка</h2>
+      <div id="selectionBox" class="feature-info muted">Выборка не задана. Статистика считается по всему показанному слою.</div>
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
