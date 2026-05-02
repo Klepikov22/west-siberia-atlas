@@ -1,0 +1,49 @@
+{
+  "years": [
+    1897,
+    1914,
+    1926,
+    1939,
+    1959,
+    1970,
+    1979,
+    1989,
+    2021
+  ],
+  "layers": {
+    "admin": {
+      "1897": "data/admin/admin_1897.geojson",
+      "1914": "data/admin/admin_1914.geojson",
+      "1926": "data/admin/admin_1926.geojson",
+      "1939": "data/admin/admin_1939.geojson",
+      "1959": "data/admin/admin_1959.geojson",
+      "1970": "data/admin/admin_1970.geojson",
+      "1979": "data/admin/admin_1979.geojson",
+      "1989": "data/admin/admin_1989.geojson",
+      "2021": "data/admin/admin_2021.geojson"
+    },
+    "centers": {
+      "1897": "data/centers/centers_1897.geojson",
+      "1914": "data/centers/centers_1914.geojson",
+      "1926": "data/centers/centers_1926.geojson",
+      "1939": "data/centers/centers_1939.geojson",
+      "1959": "data/centers/centers_1959.geojson",
+      "1970": "data/centers/centers_1970.geojson",
+      "1979": "data/centers/centers_1979.geojson",
+      "1989": "data/centers/centers_1989.geojson"
+    },
+    "hydro": {
+      "rivers": "data/hydro/rivers_west_siberia.geojson",
+      "lakes": "data/hydro/lakes_west_siberia.geojson"
+    },
+    "railways": {
+      "main": "data/railways/railways.geojson"
+    },
+    "raster": {
+      "relief_preview": "data/raster/relief_preview.webp",
+      "relief_bounds": "data/raster/relief_bounds.json"
+    },
+    "population_long": "data/population_long.csv"
+  },
+  "notes": []
+}
