@@ -1,11 +1,11 @@
-const APP_VERSION = '14';
+const APP_VERSION = '15';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
-  selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, attributesPanelOpen:false,
+  selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null
 };
 
@@ -20,7 +20,7 @@ async function loadJson(path){
   const j = await r.json(); state.cache[path]=j; return j;
 }
 function featureId(f){ return f.properties.unit_id || `${f.properties.year}_${f.properties.raw_objectid || f.properties.name}`; }
-function valField(){ return state.mode==='population'?'population':state.mode==='density'?'density':state.mode==='urban_share'?'urban_share':null; }
+function valField(){ return state.mode==='population'?'population':state.mode==='density'?'density':state.mode==='urban_share'?'urban_share':state.mode==='rail_length'?'rail_length_km':state.mode==='rail_density'?'rail_density_km_1000':null; }
 function num(v){ return v==null||Number.isNaN(Number(v)) ? '—' : fmt.format(Math.round(Number(v))); }
 function num1(v){ return v==null||Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(1).replace('.',','); }
 function pct(v){ return v==null||Number.isNaN(Number(v)) ? '—' : (Number(v)*100).toFixed(1).replace('.',',')+'%'; }
@@ -95,7 +95,7 @@ function bindUi(){
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
-  ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles','toggleLabels'].forEach(id=>on(id,'change', refreshVisibility));
+  ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
   on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.45, padding:[18,18], maxZoom:5}));
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
   on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
@@ -140,6 +140,8 @@ function adminStyle(feature, vals){
   if(state.mode==='population') fill=valueColor(Number(p.population), vals);
   if(state.mode==='density') fill=valueColor(Number(p.density), vals);
   if(state.mode==='urban_share') fill=valueColor(Number(p.urban_share), vals);
+  if(state.mode==='rail_length') fill=valueColor(Number(p.rail_length_km), vals);
+  if(state.mode==='rail_density') fill=valueColor(Number(p.rail_density_km_1000), vals);
   const s=styleVars(); const selected=state.selectedIds.has(featureId(feature));
   return {color:selected?s.selectedLine:s.adminLine, weight:selected?2.8:1.05, opacity:selected?1:.92, fillColor:fill, fillOpacity:selected?Math.min(.70,s.adminFillOpacity+.14):s.adminFillOpacity};
 }
@@ -202,50 +204,26 @@ function updateLabelsVisibility(){
 }
 
 async function refreshCenters(){
-  clearLayer('centers'); clearLayer('labels'); state.labelItems=[];
-  const path=state.manifest.layers.centers[String(state.year)]; if(!path){ buildFallbackAdminCenterLabels(); refreshVisibility(); return; }
+  clearLayer('centers'); clearLayer('labels'); state.labelItems=[]; state.maxCenterPop=0;
+  const path=state.manifest.layers.centers[String(state.year)]; if(!path){ refreshVisibility(); return; }
   const gj=await loadJson(path);
   const pops=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
-  const centerGroup=L.layerGroup(); const labelGroup=L.layerGroup();
+  const centerGroup=L.layerGroup();
   gj.features.forEach(f=>{
     if(!f.geometry || f.geometry.type!=='Point') return;
     const coords=f.geometry.coordinates; const latlng=L.latLng(coords[1], coords[0]); const p=f.properties||{};
     const pop=Number(p.population)||0; const r=centerRadius(pop,maxCenterPop);
-    const m=L.circleMarker(latlng,{radius:r, color:'#3a2607', weight:1.25, fillColor:'#f6c85f', fillOpacity:.82, opacity:.98});
-    m.bindTooltip(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>Население: ${num(pop)}`, {direction:'top', sticky:false, className:'circle-tooltip', opacity:.98});
-    m.bindPopup(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>${escapeHtml(p.admin_parent||'')}<br>Население: ${num(pop)}`);
+    const m=L.circleMarker(latlng,{radius:r, color:'#3a2607', weight:1.45, fillColor:'#f6c85f', fillOpacity:.86, opacity:.98});
+    m.feature=f;
+    m.bindTooltip(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>Население: ${num(pop)}`, {direction:'top', sticky:true, className:'circle-tooltip', opacity:.98});
+    m.on('click',(e)=>{ L.DomEvent.stopPropagation(e); showCenterFeature(f,m); });
     centerGroup.addLayer(m);
-    if(p.name){
-      const labelAnchor=L.marker(latlng,{icon:L.divIcon({className:'empty-label-anchor', html:'', iconSize:[0,0], iconAnchor:[0,0]}), interactive:false, keyboard:false, zIndexOffset:1000});
-      labelAnchor.bindTooltip(escapeHtml(p.name), {permanent:true, direction:'top', offset:[0, -Math.max(10, r+8)], className:'center-permanent-tooltip', opacity:1});
-      labelGroup.addLayer(labelAnchor);
-      state.labelItems.push({marker:labelAnchor, latlng, pop, priority:pop || 0, text:p.name});
-    }
   });
-  state.layers.centers=centerGroup; state.layers.labels=labelGroup;
+  state.layers.centers=centerGroup; state.layers.labels=null;
   refreshVisibility();
-  setTimeout(updateLabelsVisibility,60);
 }
-function buildFallbackAdminCenterLabels(){
-  clearLayer('labels'); state.labelItems=[];
-  if(!state.layers.admin) return;
-  const labelGroup=L.layerGroup();
-  state.layers.admin.eachLayer(layer=>{
-    const f=layer.feature || {}; const p=f.properties || {};
-    const text = p.center || (String(p.name||'').match(/^г\.?\s|город/i) ? p.name : null);
-    if(!text) return;
-    const latlng=layer.getBounds().getCenter();
-    const pop=Number(p.population)||0;
-    const labelAnchor=L.marker(latlng,{icon:L.divIcon({className:'empty-label-anchor', html:'', iconSize:[0,0], iconAnchor:[0,0]}), interactive:false, keyboard:false, zIndexOffset:1000});
-    labelAnchor.bindTooltip(escapeHtml(text), {permanent:true, direction:'top', offset:[0,-14], className:'center-permanent-tooltip', opacity:1});
-    labelGroup.addLayer(labelAnchor);
-    state.labelItems.push({marker:labelAnchor, latlng, pop, priority:pop || Number(p.area_km2)||0, text});
-  });
-  state.layers.labels=labelGroup;
-  refreshVisibility();
-  setTimeout(updateLabelsVisibility,60);
-}
+function buildFallbackAdminCenterLabels(){ state.labelItems=[]; clearLayer('labels'); }
 function centerRadius(pop,maxPop){ return 3.2 + Math.sqrt((Number(pop)||0)/(maxPop||1))*15; }
 async function refreshRailways(){
   clearLayer('railways'); const gj=await loadJson(state.manifest.layers.railways.main); const yr=state.year;
@@ -254,8 +232,8 @@ async function refreshRailways(){
 }
 
 function refreshVisibility(){
-  const vis={hydro:$('toggleHydro')?.checked, admin:$('toggleAdmin')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked, labels:$('toggleLabels')?.checked};
-  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers],['labels',vis.labels]];
+  const vis={hydro:$('toggleHydro')?.checked, admin:$('toggleAdmin')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked};
+  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers]];
   // Пересобираем порядок слоёв каждый раз. Это грубее, но надёжнее для GitHub/Leaflet и не даёт воде съедать АТД.
   entries.forEach(([name])=>{ const l=state.layers[name]; if(l && state.map.hasLayer(l)) state.map.removeLayer(l); });
   entries.forEach(([name,show])=>{ const l=state.layers[name]; if(l && show) l.addTo(state.map); });
@@ -264,7 +242,7 @@ function refreshVisibility(){
   if(state.layers.water?.bringToBack) state.layers.water.bringToBack();
   if(state.layers.admin?.bringToFront) state.layers.admin.bringToFront();
   if(state.layers.railways?.bringToFront) state.layers.railways.bringToFront();
-  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers); bringLayerGroupToFront(state.layers.labels);
+  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers);
   updateLabelsVisibility(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 }
 function bringLayerGroupToFront(layer){ if(!layer) return; if(layer.bringToFront) layer.bringToFront(); if(layer.eachLayer) layer.eachLayer(l=>{ if(l.bringToFront) l.bringToFront(); }); }
@@ -285,24 +263,69 @@ function refreshSelectionStylesFor(id){ const l=state.adminLayerById.get(id); if
 function selectedFeatures(){ if(!state.currentGeoJSON) return []; if(!state.selectedIds.size) return state.currentGeoJSON.features; return state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); }
 function updateStatsAndSelection(){ if(!state.currentGeoJSON) return; updateStats(selectedFeatures()); updateSelectionBox(); updateLegend(state.currentGeoJSON,state._lastVals); }
 function updateStats(features){
-  const all=!state.selectedIds.size; const pops=features.map(f=>Number(f.properties.population)||0); const areas=features.map(f=>Number(f.properties.area_km2)||0); const urban=features.map(f=>Number(f.properties.urban_pop)||0); const rural=features.map(f=>Number(f.properties.rural_pop)||0); const total=sum(pops); const area=sum(areas); const density=area?total/area:null; const urbanTotal=sum(urban); const ruralTotal=sum(rural); const urbanShare=total?urbanTotal/total:null;
+  const all=!state.selectedIds.size;
+  const pops=features.map(f=>Number(f.properties.population)||0);
+  const areas=features.map(f=>Number(f.properties.area_km2)||0);
+  const urban=features.map(f=>Number(f.properties.urban_pop)||0);
+  const rural=features.map(f=>Number(f.properties.rural_pop)||0);
+  const rails=features.map(f=>Number(f.properties.rail_length_km)||0);
+  const total=sum(pops); const area=sum(areas); const density=area?total/area:null;
+  const urbanTotal=sum(urban); const ruralTotal=sum(rural); const urbanShare=total?urbanTotal/total:null;
   const railwayCount=state.layers.railways?state.layers.railways.getLayers().length:0;
-  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div></div>`;
+  const baseAte=features.filter(f=>Number(f.properties.area_km2)>=700);
+  const avgArea=avg(baseAte.map(f=>Number(f.properties.area_km2)));
+  const avgPop=avg(baseAte.map(f=>Number(f.properties.population)));
+  const avgDensity=avg(baseAte.map(f=>Number(f.properties.density)));
+  const avgRail=avg(baseAte.map(f=>Number(f.properties.rail_length_km)));
+  const avgRailD=avg(baseAte.map(f=>Number(f.properties.rail_density_km_1000)));
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const left=$('statsBox'); if(left) left.innerHTML=html;
   const right=$('rightStatsBox'); if(right) right.innerHTML=html;
+  updateGroupAnalytics(state.currentGeoJSON?.features || []);
+}
+function avg(arr){ const vals=arr.map(Number).filter(v=>!Number.isNaN(v) && Number.isFinite(v)); return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null; }
+function updateGroupAnalytics(features){
+  const box=$('groupAnalyticsBox'); if(!box) return;
+  const base=features.filter(f=>Number(f.properties.area_km2)>=700 && f.properties.admin_parent);
+  const groups=new Map();
+  base.forEach(f=>{ const p=f.properties; const key=p.admin_parent || '—'; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(f); });
+  const metrics=[
+    ['avg_area','Средняя площадь АТЕ, км²', fs=>avg(fs.map(f=>Number(f.properties.area_km2)))],
+    ['avg_pop','Среднее население АТЕ', fs=>avg(fs.map(f=>Number(f.properties.population)))],
+    ['avg_density','Средняя плотность, чел./км²', fs=>avg(fs.map(f=>Number(f.properties.density)))],
+    ['avg_rail_density','Средняя плотность ЖД, км/1000 км²', fs=>avg(fs.map(f=>Number(f.properties.rail_density_km_1000)))],
+  ];
+  let html=`<div class="analytics-title">По верхнему уровню <span>без городов и малых полигонов &lt;700 км²</span></div>`;
+  metrics.forEach(([id,title,fn])=>{
+    const rows=[...groups.entries()].map(([name,fs])=>({name, n:fs.length, value:fn(fs)})).filter(r=>r.value!==null && !Number.isNaN(r.value)).sort((a,b)=>b.value-a.value).slice(0,8);
+    const max=Math.max(...rows.map(r=>r.value),1);
+    html+=`<div class="bar-chart"><h3>${title}</h3>${rows.map(r=>`<div class="bar-row"><div class="bar-label" title="${escapeHtml(r.name)}">${escapeHtml(r.name)} <span>${r.n}</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,r.value/max*100)}%"></div></div><b>${id.includes('density')?num1(r.value):num(r.value)}</b></div>`).join('') || '<div class="mini-muted">Нет данных.</div>'}</div>`;
+  });
+  box.innerHTML=html;
 }
 function updateSelectionBox(){
-  const box=$('selectionBox'); const sel=$('selectedFeatureSelect');
+  const box=$('selectionBox'); const sel=$('selectedFeatureSelect'); const selLabel=$('selectedFeatureSelectLabel'); const info=$('featureInfo');
   const feats=state.currentGeoJSON ? state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))) : [];
   if(sel){
     sel.innerHTML='';
-    if(!feats.length){ const o=document.createElement('option'); o.value=''; o.textContent='Нет выбранных объектов'; sel.appendChild(o); sel.disabled=true; }
-    else { sel.disabled=false; const head=document.createElement('option'); head.value=''; head.textContent='Выберите объект из выборки…'; sel.appendChild(head); feats.forEach(f=>{ const o=document.createElement('option'); o.value=featureId(f); o.textContent=f.properties.name || featureId(f); sel.appendChild(o); }); }
+    if(feats.length<=1){ sel.disabled=true; sel.style.display='none'; if(selLabel) selLabel.style.display='none'; }
+    else { sel.disabled=false; sel.style.display='block'; if(selLabel) selLabel.style.display='block'; const head=document.createElement('option'); head.value=''; head.textContent='Выберите объект из выборки…'; sel.appendChild(head); feats.forEach(f=>{ const o=document.createElement('option'); o.value=featureId(f); o.textContent=f.properties.name || featureId(f); sel.appendChild(o); }); }
   }
-  if(!feats.length){box.classList.add('muted'); box.innerHTML='Выборка не задана. Статистика справа и слева считается по всему показанному слою.'; return;}
-  box.classList.remove('muted');
-  const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:'';
-  box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul><div class="mini-muted">Ниже можно переключаться между выбранными объектами и смотреть их атрибуты в карточке.</div>`;
+  if(!feats.length){
+    if(box){ box.classList.add('muted'); box.innerHTML=''; }
+    if(info){ info.classList.add('muted'); info.innerHTML=''; }
+    return;
+  }
+  if(feats.length===1){
+    if(box){ box.classList.add('muted'); box.innerHTML=''; }
+    showFeature(feats[0]);
+    return;
+  }
+  if(box){
+    box.classList.remove('muted');
+    const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:'';
+    box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul><div class="mini-muted">Ниже можно переключаться между выбранными объектами и смотреть их атрибуты в карточке.</div>`;
+  }
 }
 function objectAttributesHtml(f){
   const props=f?.properties || {};
@@ -317,6 +340,17 @@ function updateLegend(gj, vals){
   if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; html+=`<div class="legend-section">Круги населения</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationRadius(v,max)*1.25); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); html+=`<div class="mini-muted">Площадь круга пропорциональна населению. Наведите курсор на круг, чтобы увидеть значение.</div>`; }
   if($('toggleCenters')?.checked && state.maxCenterPop){ const cmax=state.maxCenterPop; const cmid=cmax/4; html+=`<div class="legend-section">Центры</div>`; [[cmax,'макс.'],[cmid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(7, centerRadius(v,cmax)*1.45); html+=`<div class="legend-row"><span class="center-circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); }
   box.innerHTML=html;
+}
+function showCenterFeature(f, marker){
+  if(state.selectedCenterLayer && state.selectedCenterLayer.setStyle){
+    state.selectedCenterLayer.setStyle({color:'#3a2607', weight:1.45, fillColor:'#f6c85f', fillOpacity:.86, opacity:.98});
+  }
+  state.selectedCenterLayer = marker;
+  if(marker && marker.setStyle){ marker.setStyle({color:'#a65b00', weight:3.2, fillColor:'#ffcf67', fillOpacity:.95, opacity:1}); }
+  const p=f.properties||{};
+  const info=$('featureInfo'); if(!info) return;
+  info.classList.remove('muted');
+  info.innerHTML=`<span class="selection-badge on">центр</span><div class="info-title">${escapeHtml(p.name||'Центр')}</div><div class="info-row"><span>Единица</span><b>${escapeHtml(p.unit_name||'—')}</b></div><div class="info-row"><span>Подчинение</span><b>${escapeHtml(p.admin_parent||'—')}</b></div><div class="info-row"><span>Население центра</span><b>${num(p.population)}</b></div>${objectAttributesHtml(f)}`;
 }
 function showFeature(f){ const p=f.properties; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect'); if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id; $('featureInfo').classList.remove('muted'); $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div><div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`; }
 
@@ -345,7 +379,7 @@ function setTool(tool){
   }
   document.body.classList.toggle('selection-tool-active', selectMode); document.body.dataset.tool = state.tool;
   const help=$('selectionToolHelp'); if(help){
-    if(state.tool==='pan') help.innerHTML='Рука: обычное перемещение карты + одиночный выбор кликом по району, кругу населения или центру.';
+    if(state.tool==='pan') help.innerHTML='Курсор: одиночный выбор кликом по району, кругу населения или центру. Карту можно двигать обычным перетаскиванием.';
     if(state.tool==='rectangle') help.innerHTML='Прямоугольная выборка: протяните рамку по карте. СКМ зажать — двигать карту. Shift — добавить, Alt — убрать.';
     if(state.tool==='polygon') help.innerHTML='Полигональная выборка: ставьте точки кликами, двойной клик или правая кнопка — завершить. СКМ зажать — двигать карту.';
   }

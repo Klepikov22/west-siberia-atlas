@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=14" />
+  <link rel="stylesheet" href="style.css?v=15" />
 </head>
 <body>
   <div id="app">
@@ -18,7 +18,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v14</div>
+      <div class="eyebrow">Дипломный веб-атлас · v15</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -28,6 +28,8 @@
         <option value="population">Население</option>
         <option value="density">Плотность населения</option>
         <option value="urban_share">Доля городского населения</option>
+        <option value="rail_length">Длина ЖД внутри АТЕ</option>
+        <option value="rail_density">Плотность ЖД</option>
         <option value="unit_type">Тип единицы</option>
       </select>
 
@@ -39,16 +41,16 @@
 
       <label class="control-label" for="toolSelect">Инструмент</label>
       <select id="toolSelect">
-        <option value="pan" selected>Рука / перемещение + одиночный выбор</option>
+        <option value="pan" selected>Курсор / одиночный выбор</option>
         <option value="rectangle">Выбор прямоугольником</option>
         <option value="polygon">Выбор полигоном</option>
       </select>
       <div class="tool-button-row" aria-label="Инструменты карты">
-        <button type="button" data-tool-button="pan" class="tool-btn active">Рука</button>
+        <button type="button" data-tool-button="pan" class="tool-btn active">Курсор</button>
         <button type="button" data-tool-button="rectangle" class="tool-btn">Рамка</button>
         <button type="button" data-tool-button="polygon" class="tool-btn">Полигон</button>
       </div>
-      <div id="selectionToolHelp" class="tool-help">Рука: двигайте карту и кликайте по объектам для одиночной выборки.</div>
+      <div id="selectionToolHelp" class="tool-help">Курсор: кликайте по объектам для одиночной выборки. Карту можно двигать обычным перетаскиванием.</div>
       <div id="selectionDrawActions" class="button-row draw-actions" style="display:none">
         <button id="finishPolygon" type="button">Завершить полигон</button>
         <button id="cancelSelectionDraw" type="button">Отменить контур</button>
@@ -60,7 +62,6 @@
         <label><input type="checkbox" id="toggleCenters" checked> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Круги населения</label>
-        <label><input type="checkbox" id="toggleLabels" checked> Подписи центров</label>
       </div>
 
       <button id="resetView" type="button">Вернуть обзорный вид</button>
@@ -77,12 +78,13 @@
     <aside id="rightPanel" class="panel floating-panel">
       <h2>Статистика слоя / выборки</h2>
       <section class="stats right-stats" id="rightStatsBox"></section>
+      <section class="feature-info group-analytics" id="groupAnalyticsBox"></section>
       <h2 class="section-title">Объект</h2>
       <div id="featureInfo" class="feature-info muted">Режим «Рука»: двигайте карту и кликайте по району/уезду для одиночной выборки.</div>
       <h2 class="section-title">Выборка</h2>
       <div id="selectionBox" class="feature-info muted">Выборка не задана. Статистика считается по всему показанному слою.</div>
-      <label class="control-label" for="selectedFeatureSelect">Перейти к выбранному объекту</label>
-      <select id="selectedFeatureSelect" class="selected-feature-select" disabled>
+      <label class="control-label" for="selectedFeatureSelect" id="selectedFeatureSelectLabel" style="display:none">Перейти к выбранному объекту</label>
+      <select id="selectedFeatureSelect" class="selected-feature-select" disabled style="display:none">
         <option value="">Нет выбранных объектов</option>
       </select>
       <h2 class="section-title">Атрибуты слоя</h2>
@@ -90,6 +92,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
