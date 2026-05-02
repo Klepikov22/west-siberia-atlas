@@ -34,16 +34,25 @@
     },
     "hydro": {
       "rivers": "data/hydro/rivers_west_siberia.geojson",
-      "lakes": "data/hydro/lakes_west_siberia.geojson"
+      "lakes": "data/hydro/lakes_west_siberia.geojson",
+      "water": "data/hydro/water_ocean_lakes_west_siberia.geojson"
     },
     "railways": {
       "main": "data/railways/railways.geojson"
     },
-    "raster": {
-      "relief_preview": "data/raster/relief_preview.webp",
-      "relief_bounds": "data/raster/relief_bounds.json"
-    },
     "population_long": "data/population_long.csv"
   },
-  "notes": []
+  "notes": [
+    "v3: добавлен слой океана; административные полигоны обрезаны разностью с Ocean.geojson; добавлена выборочная статистика.",
+    "v4: добавлена временная шкала вместо выпадающего списка годов; исправлена прокрутка страницы и дрожание зума; гидрография может быть выше/ниже АТД; водохранилища скрываются до 1959 года.",
+    "v6: рельеф полностью удалён из интерфейса; океан объединён с озёрами в единый водный слой; гидрография возвращена под АТД, но озёра и океан перекрывают реки; минимальный зум ограничен 3.5.",
+    "v8: упрощён порядок слоёв без custom panes; вода и океан возвращены под АТД; административный слой добавлен как отдельный переключатель; добавлены инструменты выбора прямоугольником и полигоном."
+  ],
+  "app_version": "v8",
+  "map_bounds_4326_expanded_200km": [
+    57.411848,
+    42.485993,
+    92.272637,
+    74.021644
+  ]
 }
