@@ -44,6 +44,7 @@ async function init(){
   document.documentElement.dataset.theme = state.theme;
   state.manifest = await loadJson('data/manifest.json');
   state.year = state.manifest.years.includes(1914)?1914:state.manifest.years[0];
+  buildLegacyYearSelectFallback();
   setYearLabels();
   buildTimeline();
   state.map = L.map('map', {
@@ -98,17 +99,19 @@ function createPanes(){
 }
 
 function bindUi(){
-  $('modeSelect').addEventListener('change', async e=>{state.mode=e.target.value; await refreshAdmin();});
-  $('themeSelect').addEventListener('change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles();});
-  $('hydroOrderSelect').addEventListener('change', async e=>{state.hydroOrder=e.target.value; await refreshHydro(); refreshVisibility();});
-  ['toggleRelief','toggleOcean','toggleHydro','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>$(id).addEventListener('change', refreshVisibility));
-  $('resetView').addEventListener('click', ()=> state.map.flyToBounds(DATA_BOUNDS, {duration:0.75, easeLinearity:0.18, padding:[18,18]}));
-  $('clearSelection').addEventListener('click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
-  $('selectAll').addEventListener('click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
+  const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
+  on('modeSelect','change', async e=>{state.mode=e.target.value; await refreshAdmin();});
+  on('themeSelect','change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles();});
+  on('hydroOrderSelect','change', async e=>{state.hydroOrder=e.target.value; await refreshHydro(); refreshVisibility();});
+  ['toggleRelief','toggleOcean','toggleHydro','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
+  on('resetView','click', ()=> state.map.flyToBounds(DATA_BOUNDS, {duration:0.75, easeLinearity:0.18, padding:[18,18]}));
+  on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
+  on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
 }
 
 function buildTimeline(){
   const track = $('yearTimeline');
+  if(!track) return;
   track.innerHTML = '';
   state.manifest.years.forEach(y=>{
     const btn=document.createElement('button');
@@ -137,6 +140,21 @@ function setTimelineActive(){
     const active = Number(btn.dataset.year) === state.year;
     btn.classList.toggle('active', active);
     if(active) setTimeout(()=>btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'}), 60);
+  });
+}
+
+function buildLegacyYearSelectFallback(){
+  const select=$('yearSelect');
+  if(!select) return;
+  select.innerHTML='';
+  state.manifest.years.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;select.appendChild(o);});
+  select.value=state.year;
+  select.addEventListener('change', async e=>{
+    state.year=Number(e.target.value);
+    state.selectedIds.clear();
+    setYearLabels();
+    setTimelineActive();
+    await refreshAll();
   });
 }
 
@@ -301,7 +319,8 @@ function refreshVisibility(){
   order.forEach(([layerName,toggle])=>{
     const layer=state.layers[layerName];
     if(!layer) return;
-    const show= toggle?$(toggle).checked:true;
+    const toggleEl = toggle ? $(toggle) : null;
+    const show= toggle ? (toggleEl ? toggleEl.checked : true) : true;
     if(show && !state.map.hasLayer(layer)) layer.addTo(state.map);
     if(!show && state.map.hasLayer(layer)) state.map.removeLayer(layer);
   });
@@ -348,6 +367,7 @@ function updateStatsAndSelection(){
   const densityMean = mean(valuesOf(features,'density'));
   const urbanShare = pop && urban ? urban/pop : null;
   const railwayCount=state.layers.railways?state.layers.railways.getLayers().length:0;
+  if(!$('statsBox')) return;
   $('statsBox').innerHTML=`
     <div class="stats-scope ${selectedMode?'selected-scope':''}">${selectedMode?'Выборка':'Весь показанный слой'} · ${labelForMode()}</div>
     <div class="stat-grid">
@@ -370,6 +390,7 @@ function updateStatsAndSelection(){
 }
 function updateSelectionBox(features, selectedMode){
   const box=$('selectionBox');
+  if(!box) return;
   if(!selectedMode){
     box.innerHTML='<div class="muted">Выборка не задана. Статистика считается по всему слою. Кликните по одному или нескольким районам/уездам, чтобы пересчитать показатели по выборке.</div>';
     return;
@@ -380,6 +401,7 @@ function updateSelectionBox(features, selectedMode){
 
 function updateLegend(gj, vals){
   const box=$('legendBox');
+  if(!box) return;
   let html='<b>Легенда</b>';
   if(state.mode==='admin_parent'||state.mode==='unit_type'){
     const field=state.mode;
@@ -393,8 +415,10 @@ function updateLegend(gj, vals){
 function showFeature(f){
   const p=f.properties;
   const selected = state.selectedIds.has(featureId(f));
-  $('featureInfo').classList.remove('muted');
-  $('featureInfo').innerHTML=`<div class="info-title">${p.name||'Без названия'}</div>
+  const info=$('featureInfo');
+  if(!info) return;
+  info.classList.remove('muted');
+  info.innerHTML=`<div class="info-title">${p.name||'Без названия'}</div>
   <div class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'} · клик по полигону переключает</div>
   <div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div>
   <div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div>
