@@ -1,4 +1,4 @@
-const APP_VERSION = '15';
+const APP_VERSION = '16';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -6,7 +6,7 @@ const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
-  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null
+  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[]
 };
 
 const palette = ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'];
@@ -50,6 +50,89 @@ function styleVars(){
   };
 }
 
+
+function ensureHoverBox(){
+  if(state.hoverBox) return state.hoverBox;
+  const box=document.createElement('div');
+  box.id='mapHoverCard';
+  box.className='map-hover-card';
+  box.style.display='none';
+  document.body.appendChild(box);
+  state.hoverBox=box;
+  return box;
+}
+function showHoverLater(payload, originalEvent){
+  clearTimeout(state.hoverTimer);
+  state.hoverPayload=payload;
+  moveHover(originalEvent);
+  state.hoverTimer=setTimeout(()=>{
+    const box=ensureHoverBox();
+    const rows=[];
+    if(payload.subtitle) rows.push(`<div class="hover-subtitle">${escapeHtml(payload.subtitle)}</div>`);
+    if(payload.population!=null && !Number.isNaN(Number(payload.population))) rows.push(`<div class="hover-row"><span>население</span><b>${num(payload.population)}</b></div>`);
+    if(payload.density!=null && !Number.isNaN(Number(payload.density))) rows.push(`<div class="hover-row"><span>плотность</span><b>${num1(payload.density)}</b></div>`);
+    box.innerHTML=`<div class="hover-title">${escapeHtml(payload.title||'объект')}</div>${rows.join('')}`;
+    box.style.display='block';
+    requestAnimationFrame(()=>box.classList.add('visible'));
+  }, 500);
+}
+function moveHover(originalEvent){
+  const box=ensureHoverBox(); if(!originalEvent) return;
+  const x=(originalEvent.clientX||0)+14, y=(originalEvent.clientY||0)+14;
+  box.style.left=x+'px'; box.style.top=y+'px';
+}
+function hideHover(){
+  clearTimeout(state.hoverTimer);
+  state.hoverTimer=null; state.hoverPayload=null;
+  if(state.hoverBox){ state.hoverBox.classList.remove('visible'); setTimeout(()=>{ if(!state.hoverPayload && state.hoverBox) state.hoverBox.style.display='none'; }, 170); }
+}
+function ensureCenterLabelOverlay(){
+  if(state.centerLabelOverlay) return state.centerLabelOverlay;
+  const mapEl=state.map?.getContainer?.(); if(!mapEl) return null;
+  const overlay=document.createElement('div');
+  overlay.id='centerLabelOverlay';
+  overlay.className='center-label-overlay';
+  mapEl.appendChild(overlay);
+  state.centerLabelOverlay=overlay;
+  return overlay;
+}
+function clearCenterLabels(){
+  if(state.centerLabelOverlay) state.centerLabelOverlay.innerHTML='';
+  state.centerLabelItems=[];
+}
+function addCenterLabel(latlng, text, priority=0){
+  const overlay=ensureCenterLabelOverlay(); if(!overlay || !text) return;
+  const el=document.createElement('div');
+  el.className='center-map-label';
+  el.textContent=text;
+  overlay.appendChild(el);
+  state.centerLabelItems.push({latlng, el, priority});
+}
+function updateCenterLabels(){
+  if(!state.map || !state.centerLabelItems) return;
+  const show=$('toggleCenters')?.checked !== false;
+  const z=state.map.getZoom(); const size=state.map.getSize();
+  const placed=[];
+  const items=[...state.centerLabelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
+  for(const item of items){
+    const pnt=state.map.latLngToContainerPoint(item.latlng);
+    let ok=show && z>=4.25 && pnt.x>35 && pnt.x<size.x-35 && pnt.y>35 && pnt.y<size.y-35;
+    item.el.style.transform=`translate(${Math.round(pnt.x)}px, ${Math.round(pnt.y)}px) translate(-50%, -145%)`;
+    item.el.style.display=ok?'block':'none';
+    if(ok){
+      const r=item.el.getBoundingClientRect();
+      const pad=4; const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
+      if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){ item.el.style.display='none'; }
+      else placed.push(rr);
+    }
+  }
+}
+function pointPopulation(p){
+  const keys=['center_pop_urban','Pop_urban','Pop_Urban','urban_pop','Городское_население_1959','Городское_оба_пола','population'];
+  for(const k of keys){ const v=Number(p?.[k]); if(!Number.isNaN(v) && v>0) return v; }
+  return 0;
+}
+
 async function init(){
   document.documentElement.dataset.theme = state.theme;
   state.manifest = await loadJson('data/manifest.json');
@@ -80,11 +163,12 @@ async function init(){
   state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
   if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
+  ensureHoverBox(); ensureCenterLabelOverlay();
   bindUi(); bindSelectionHandlers(); setTool('pan');
-  state.map.on('zoomend moveend', updateLabelsVisibility);
+  state.map.on('zoomend moveend', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
   await refreshAll();
-  setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility();},250);
-  window.addEventListener('resize', () => setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility();},120));
+  setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},250);
+  window.addEventListener('resize', () => setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},120));
 }
 
 function bindUi(){
@@ -152,8 +236,9 @@ async function refreshAdmin(){
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
     l.on('click',()=>{ if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
-    l.on('mouseover',()=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:1.9, opacity:1}); });
-    l.on('mouseout',()=>{ refreshSelectionStylesFor(id); });
+    l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:1.9, opacity:1}); const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:pp.unit_type || pp.admin_parent, population:pp.population, density:pp.density}, e.originalEvent); });
+    l.on('mousemove',(e)=>moveHover(e.originalEvent));
+    l.on('mouseout',()=>{ refreshSelectionStylesFor(id); hideHover(); });
   }});
   state.layers.admin=admin; buildCircles(admin, gj);
   updateLegend(gj, vals); refreshVisibility(); updateStatsAndSelection(); updateAttributePanel();
@@ -167,7 +252,9 @@ function buildCircles(admin, gj){
     const c=layer.getBounds().getCenter(); const r=populationRadius(pop,maxPop);
     const m=L.circleMarker(c,{radius:r, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
     m.feature=f;
-    m.bindTooltip(`<b>${p.name||'объект'}</b><br>Население: ${num(pop)}<br>Плотность: ${num1(p.density)} чел./км²`, {direction:'top', sticky:false, className:'circle-tooltip', opacity:.98});
+    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:'круг населения', population:pop, density:p.density}, e.originalEvent));
+    m.on('mousemove',(e)=>moveHover(e.originalEvent));
+    m.on('mouseout', hideHover);
     m.on('click',(e)=>{L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
     state.layers.circles.addLayer(m);
   });
@@ -204,24 +291,27 @@ function updateLabelsVisibility(){
 }
 
 async function refreshCenters(){
-  clearLayer('centers'); clearLayer('labels'); state.labelItems=[]; state.maxCenterPop=0;
+  clearLayer('centers'); clearLayer('labels'); clearCenterLabels(); state.maxCenterPop=0;
   const path=state.manifest.layers.centers[String(state.year)]; if(!path){ refreshVisibility(); return; }
   const gj=await loadJson(path);
-  const pops=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
+  const pops=gj.features.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup();
   gj.features.forEach(f=>{
     if(!f.geometry || f.geometry.type!=='Point') return;
     const coords=f.geometry.coordinates; const latlng=L.latLng(coords[1], coords[0]); const p=f.properties||{};
-    const pop=Number(p.population)||0; const r=centerRadius(pop,maxCenterPop);
+    const pop=pointPopulation(p); const r=centerRadius(pop,maxCenterPop);
     const m=L.circleMarker(latlng,{radius:r, color:'#3a2607', weight:1.45, fillColor:'#f6c85f', fillOpacity:.86, opacity:.98});
     m.feature=f;
-    m.bindTooltip(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>Население: ${num(pop)}`, {direction:'top', sticky:true, className:'circle-tooltip', opacity:.98});
+    m.on('mouseover',(e)=>showHoverLater({title:p.name||'центр', subtitle:p.unit_name || p.admin_parent || 'центр', population:pop}, e.originalEvent));
+    m.on('mousemove',(e)=>moveHover(e.originalEvent));
+    m.on('mouseout', hideHover);
     m.on('click',(e)=>{ L.DomEvent.stopPropagation(e); showCenterFeature(f,m); });
     centerGroup.addLayer(m);
+    addCenterLabel(latlng, p.name || p.unit_name || '', pop);
   });
   state.layers.centers=centerGroup; state.layers.labels=null;
-  refreshVisibility();
+  refreshVisibility(); updateCenterLabels();
 }
 function buildFallbackAdminCenterLabels(){ state.labelItems=[]; clearLayer('labels'); }
 function centerRadius(pop,maxPop){ return 3.2 + Math.sqrt((Number(pop)||0)/(maxPop||1))*15; }
@@ -243,7 +333,7 @@ function refreshVisibility(){
   if(state.layers.admin?.bringToFront) state.layers.admin.bringToFront();
   if(state.layers.railways?.bringToFront) state.layers.railways.bringToFront();
   bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers);
-  updateLabelsVisibility(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
+  updateLabelsVisibility(); updateCenterLabels(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 }
 function bringLayerGroupToFront(layer){ if(!layer) return; if(layer.bringToFront) layer.bringToFront(); if(layer.eachLayer) layer.eachLayer(l=>{ if(l.bringToFront) l.bringToFront(); }); }
 function refreshVectorStyles(){
@@ -350,7 +440,7 @@ function showCenterFeature(f, marker){
   const p=f.properties||{};
   const info=$('featureInfo'); if(!info) return;
   info.classList.remove('muted');
-  info.innerHTML=`<span class="selection-badge on">центр</span><div class="info-title">${escapeHtml(p.name||'Центр')}</div><div class="info-row"><span>Единица</span><b>${escapeHtml(p.unit_name||'—')}</b></div><div class="info-row"><span>Подчинение</span><b>${escapeHtml(p.admin_parent||'—')}</b></div><div class="info-row"><span>Население центра</span><b>${num(p.population)}</b></div>${objectAttributesHtml(f)}`;
+  info.innerHTML=`<span class="selection-badge on">центр</span><div class="info-title">${escapeHtml(p.name||'Центр')}</div><div class="info-row"><span>Единица</span><b>${escapeHtml(p.unit_name||'—')}</b></div><div class="info-row"><span>Подчинение</span><b>${escapeHtml(p.admin_parent||'—')}</b></div><div class="info-row"><span>Городское население центра</span><b>${num(pointPopulation(p))}</b></div><div class="info-row"><span>Источник показателя</span><b>${escapeHtml(p.center_pop_urban_source||'—')}</b></div>${objectAttributesHtml(f)}`;
 }
 function showFeature(f){ const p=f.properties; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect'); if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id; $('featureInfo').classList.remove('muted'); $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div><div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`; }
 

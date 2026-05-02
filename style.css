@@ -63,3 +63,33 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 .leaflet-tooltip.center-permanent-tooltip{display:none!important}
 @media(max-width:1220px){.floating-panel{width:340px}#rightPanel{width:360px}}
 @media(max-width:980px){.floating-panel{width:auto!important}.group-analytics{max-height:22vh}.bar-row{grid-template-columns:1fr 1fr 58px}.toggles label{font-size:14px;min-height:30px}}
+
+/* v16: delayed hover cards and lightweight center labels */
+.map-hover-card{
+  position:fixed;
+  z-index:5000;
+  min-width:150px;
+  max-width:260px;
+  pointer-events:none;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.94);
+  color:var(--text);
+  box-shadow:0 12px 30px rgba(37,44,38,.18);
+  opacity:0;
+  transform:translateY(4px) scale(.985);
+  transition:opacity .18s ease, transform .18s ease;
+  backdrop-filter:blur(10px);
+  font-size:13px;
+}
+:root[data-theme="dark"] .map-hover-card{background:rgba(22,26,32,.94);box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.map-hover-card.visible{opacity:1;transform:translateY(0) scale(1)}
+.hover-title{font-weight:900;font-size:14px;line-height:1.18;margin-bottom:4px}
+.hover-subtitle{color:var(--muted);font-weight:700;font-size:12px;margin-bottom:6px}
+.hover-row{display:flex;justify-content:space-between;gap:14px;border-top:1px solid var(--line);padding-top:5px;margin-top:5px;color:var(--muted)}
+.hover-row b{color:var(--text)}
+.center-label-overlay{position:absolute;inset:0;z-index:650;pointer-events:none;overflow:hidden}
+.center-map-label{position:absolute;left:0;top:0;display:none;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.78);border:1px solid rgba(150,140,120,.32);box-shadow:0 4px 12px rgba(80,80,70,.10);color:#25313b;font-weight:800;font-size:11px;line-height:1.15;text-shadow:0 1px 0 rgba(255,255,255,.65)}
+:root[data-theme="dark"] .center-map-label{background:rgba(19,23,29,.72);color:#eef3f4;text-shadow:0 1px 0 rgba(0,0,0,.7);border-color:rgba(255,255,255,.14)}
+#featureInfo:empty,#selectionBox:empty{display:none!important}
