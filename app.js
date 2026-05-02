@@ -1,4 +1,4 @@
-const APP_VERSION = '12';
+const APP_VERSION = '13';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -99,6 +99,7 @@ function bindUi(){
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
   on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
   on('toggleAttributePanel','click', ()=>{ state.attributesPanelOpen = !state.attributesPanelOpen; updateAttributePanel(); });
+  on('selectedFeatureSelect','change', e=>{ const id=e.target.value; if(!id || !state.currentGeoJSON) return; const f=state.currentGeoJSON.features.find(x=>featureId(x)===id); if(f){ showFeature(f); const layer=state.adminLayerById.get(id); if(layer){ state.map.fitBounds(layer.getBounds(), {padding:[80,80], maxZoom:6.5, animate:true, duration:.35}); } } });
 }
 function setYearLabels(){ const a=$('activeYearLabel'), t=$('timelineYearLabel'); if(a) a.textContent=state.year; if(t) t.textContent=state.year; }
 function buildTimeline(){
@@ -188,7 +189,8 @@ function updateLabelsVisibility(){
     else ok = ok && z>=3.5;
     if(ok){
       el.style.display='block';
-      const rect=el.getBoundingClientRect();
+      const labelEl = el.querySelector('.center-label') || el;
+      const rect=labelEl.getBoundingClientRect();
       const pad=4;
       const r={left:rect.left-pad,right:rect.right+pad,top:rect.top-pad,bottom:rect.bottom+pad};
       const overlaps=placed.some(q=>!(r.right<q.left || r.left>q.right || r.bottom<q.top || r.top>q.bottom));
@@ -214,7 +216,7 @@ async function refreshCenters(){
     m.bindPopup(`<b>${p.name||'центр'}</b><br>${p.unit_name||''}<br>${p.admin_parent||''}<br>Население: ${num(pop)}`);
     centerGroup.addLayer(m);
     if(p.name){
-      const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${p.name}</div>`, iconSize:[170,24], iconAnchor:[-8,20]});
+      const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${p.name}</div>`, iconSize:[1,1], iconAnchor:[0,0]});
       const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
       labelGroup.addLayer(label);
       state.labelItems.push({marker:label, latlng, pop, priority:pop || 0, text:p.name});
@@ -233,7 +235,7 @@ function buildFallbackAdminCenterLabels(){
     if(!text) return;
     const latlng=layer.getBounds().getCenter();
     const pop=Number(p.population)||0;
-    const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${text}</div>`, iconSize:[170,24], iconAnchor:[-8,20]});
+    const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${text}</div>`, iconSize:[1,1], iconAnchor:[0,0]});
     const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
     labelGroup.addLayer(label);
     state.labelItems.push({marker:label, latlng, pop, priority:pop || Number(p.area_km2)||0, text});
@@ -274,7 +276,7 @@ function refreshVectorStyles(){
   refreshVisibility();
 }
 
-function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); }
+function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); showFeature(f); }
 function refreshSelectionStyles(){ if(!state.layers.admin) return; state.layers.admin.eachLayer(l=>l.setStyle(adminStyle(l.feature,state._lastVals))); }
 function refreshSelectionStylesFor(id){ const l=state.adminLayerById.get(id); if(l) l.setStyle(adminStyle(l.feature,state._lastVals)); }
 function selectedFeatures(){ if(!state.currentGeoJSON) return []; if(!state.selectedIds.size) return state.currentGeoJSON.features; return state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); }
@@ -282,9 +284,28 @@ function updateStatsAndSelection(){ if(!state.currentGeoJSON) return; updateStat
 function updateStats(features){
   const all=!state.selectedIds.size; const pops=features.map(f=>Number(f.properties.population)||0); const areas=features.map(f=>Number(f.properties.area_km2)||0); const urban=features.map(f=>Number(f.properties.urban_pop)||0); const rural=features.map(f=>Number(f.properties.rural_pop)||0); const total=sum(pops); const area=sum(areas); const density=area?total/area:null; const urbanTotal=sum(urban); const ruralTotal=sum(rural); const urbanShare=total?urbanTotal/total:null;
   const railwayCount=state.layers.railways?state.layers.railways.getLayers().length:0;
-  $('statsBox').innerHTML=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div></div>`;
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div></div>`;
+  const left=$('statsBox'); if(left) left.innerHTML=html;
+  const right=$('rightStatsBox'); if(right) right.innerHTML=html;
 }
-function updateSelectionBox(){ const box=$('selectionBox'); if(!state.selectedIds.size){box.classList.add('muted'); box.innerHTML='Выборка не задана. Статистика считается по всему показанному слою.'; return;} box.classList.remove('muted'); const feats=state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:''; box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul>`; }
+function updateSelectionBox(){
+  const box=$('selectionBox'); const sel=$('selectedFeatureSelect');
+  const feats=state.currentGeoJSON ? state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))) : [];
+  if(sel){
+    sel.innerHTML='';
+    if(!feats.length){ const o=document.createElement('option'); o.value=''; o.textContent='Нет выбранных объектов'; sel.appendChild(o); sel.disabled=true; }
+    else { sel.disabled=false; const head=document.createElement('option'); head.value=''; head.textContent='Выберите объект из выборки…'; sel.appendChild(head); feats.forEach(f=>{ const o=document.createElement('option'); o.value=featureId(f); o.textContent=f.properties.name || featureId(f); sel.appendChild(o); }); }
+  }
+  if(!feats.length){box.classList.add('muted'); box.innerHTML='Выборка не задана. Статистика справа и слева считается по всему показанному слою.'; return;}
+  box.classList.remove('muted');
+  const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:'';
+  box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul><div class="mini-muted">Ниже можно переключаться между выбранными объектами и смотреть их атрибуты в карточке.</div>`;
+}
+function objectAttributesHtml(f){
+  const props=f?.properties || {};
+  const rows=Object.entries(props).map(([k,v])=>`<div class="info-row attr-object-row"><span>${k}</span><b>${v===null||v===undefined||v===''?'—':String(v)}</b></div>`).join('');
+  return `<div class="analytics-block object-attrs"><h3>Все атрибуты объекта</h3>${rows}</div>`;
+}
 function updateLegend(gj, vals){
   const box=$('legendBox'); if(!box || !gj) return; let html='<b>Легенда</b>';
   if(state.mode==='admin_parent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
@@ -294,7 +315,7 @@ function updateLegend(gj, vals){
   if($('toggleCenters')?.checked && state.maxCenterPop){ const cmax=state.maxCenterPop; const cmid=cmax/4; html+=`<div class="legend-section">Центры</div>`; [[cmax,'макс.'],[cmid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(7, centerRadius(v,cmax)*1.45); html+=`<div class="legend-row"><span class="center-circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); }
   box.innerHTML=html;
 }
-function showFeature(f){ const p=f.properties; const id=featureId(f); const selected=state.selectedIds.has(id); $('featureInfo').classList.remove('muted'); $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div><div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>`; }
+function showFeature(f){ const p=f.properties; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect'); if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id; $('featureInfo').classList.remove('muted'); $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div><div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`; }
 
 
 function updateAttributePanel(){

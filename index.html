@@ -18,7 +18,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v12</div>
+      <div class="eyebrow">Дипломный веб-атлас · v13</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -75,10 +75,16 @@
     </aside>
 
     <aside id="rightPanel" class="panel floating-panel">
-      <h2>Объект</h2>
-      <div id="featureInfo" class="feature-info muted">Кликните по району/уезду на карте. Повторный клик убирает объект из выборки.</div>
+      <h2>Статистика слоя / выборки</h2>
+      <section class="stats right-stats" id="rightStatsBox"></section>
+      <h2 class="section-title">Объект</h2>
+      <div id="featureInfo" class="feature-info muted">Режим «Рука»: двигайте карту и кликайте по району/уезду для одиночной выборки.</div>
       <h2 class="section-title">Выборка</h2>
       <div id="selectionBox" class="feature-info muted">Выборка не задана. Статистика считается по всему показанному слою.</div>
+      <label class="control-label" for="selectedFeatureSelect">Перейти к выбранному объекту</label>
+      <select id="selectedFeatureSelect" class="selected-feature-select" disabled>
+        <option value="">Нет выбранных объектов</option>
+      </select>
       <h2 class="section-title">Атрибуты слоя</h2>
       <div id="attributePanel" class="feature-info attr-panel muted">Нажмите кнопку «Структура атрибутов слоя» слева.</div>
     </aside>
