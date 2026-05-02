@@ -43,12 +43,7 @@
       "relief_preview": "data/raster/relief_preview.webp",
       "relief_bounds": "data/raster/relief_bounds.json"
     },
-    "population_long": "data/population_long.csv",
-    "ocean": {
-      "main": "data/ocean/ocean.geojson"
-    }
+    "population_long": "data/population_long.csv"
   },
-  "notes": [
-    "v3: добавлен слой океана; административные полигоны обрезаны разностью с Ocean.geojson; добавлена выборочная статистика."
-  ]
+  "notes": []
 }
