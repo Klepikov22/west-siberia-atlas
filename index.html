@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -22,8 +22,13 @@
         <option value="urban_share">Доля городского населения</option>
         <option value="unit_type">Тип единицы</option>
       </select>
+      <label class="control-label" for="themeSelect">Тема</label>
+      <select id="themeSelect">
+        <option value="light" selected>Светлая</option>
+        <option value="dark">Тёмная</option>
+      </select>
       <div class="toggles">
-        <label><input type="checkbox" id="toggleRelief" checked> Рельеф</label>
+        <label><input type="checkbox" id="toggleRelief"> Рельеф</label>
         <label><input type="checkbox" id="toggleHydro" checked> Гидрография</label>
         <label><input type="checkbox" id="toggleCenters" checked> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
