@@ -11,3 +11,11 @@
 .center-label{pointer-events:none;color:#2b2114;font-weight:850;font-size:12px;text-align:center;text-shadow:0 1px 0 rgba(255,255,255,.95),0 0 6px rgba(255,255,255,.9);white-space:nowrap;transform:translate(8px,-8px)}
 :root[data-theme="dark"] .center-label{color:#fff4d6;text-shadow:0 1px 0 #000,0 0 7px #000}
 .center-circle-swatch{display:inline-block;border:2px solid #3a2607;background:rgba(246,200,95,.62);border-radius:50%;vertical-align:middle}.attr-panel{max-height:38vh;overflow:auto}.attr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}.attr-head span{font-size:12px;color:var(--muted);text-align:right}.attr-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}.attr-table{border-collapse:collapse;width:100%;font-size:11px}.attr-table th,.attr-table td{border-bottom:1px solid var(--line);padding:6px 7px;text-align:left;vertical-align:top}.attr-table th{position:sticky;top:0;background:var(--panel);z-index:1;color:var(--muted);font-weight:850}.attr-table td:first-child{font-weight:800;color:var(--text)}#toggleAttributePanel{margin-top:8px}
+
+/* v12: явные инструменты выбора и более надёжные подписи центров */
+.tool-button-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin:8px 0 8px}
+.tool-button-row .tool-btn{margin:0;padding:8px 6px;border-radius:11px;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+.tool-button-row .tool-btn.active{background:var(--accent-soft);border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.center-label-icon{pointer-events:none!important;z-index:1000!important}
+.center-label{display:inline-block;max-width:165px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;color:#21190e;background:rgba(255,255,255,.72);border:1px solid rgba(80,70,55,.22);border-radius:999px;padding:2px 7px;font-weight:850;font-size:12px;text-align:left;text-shadow:0 1px 0 rgba(255,255,255,.95);white-space:nowrap;box-shadow:0 2px 8px rgba(40,30,10,.12)}
+:root[data-theme="dark"] .center-label{color:#fff4d6;background:rgba(18,21,26,.76);border-color:rgba(255,255,255,.18);text-shadow:0 1px 0 #000,0 0 7px #000}

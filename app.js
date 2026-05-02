@@ -1,4 +1,4 @@
-const APP_VERSION = '11';
+const APP_VERSION = '12';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -79,7 +79,7 @@ async function init(){
   state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
   if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
-  bindUi(); bindSelectionHandlers();
+  bindUi(); bindSelectionHandlers(); setTool('pan');
   state.map.on('zoomend moveend', updateLabelsVisibility);
   await refreshAll();
   setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility();},250);
@@ -91,6 +91,7 @@ function bindUi(){
   on('modeSelect','change', async e=>{state.mode=e.target.value; await refreshAdmin();});
   on('themeSelect','change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles(); updateLabelsVisibility();});
   on('toolSelect','change', e=>setTool(e.target.value));
+  document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles','toggleLabels'].forEach(id=>on(id,'change', refreshVisibility));
@@ -172,19 +173,34 @@ function buildLabels(admin, gj){
 }
 function updateLabelsVisibility(){
   const layer=state.layers.labels; if(!layer || !state.map) return;
-  const show=$('toggleLabels') ? $('toggleLabels').checked : true; const z=state.map.getZoom(); const size=state.map.getSize(); const view=state.map.getBounds();
-  state.labelItems.forEach(item=>{
+  const show=$('toggleLabels') ? $('toggleLabels').checked : true;
+  const z=state.map.getZoom(); const size=state.map.getSize(); const view=state.map.getBounds();
+  const placed=[];
+  const items=[...state.labelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
+  items.forEach(item=>{
+    const el=item.marker.getElement(); if(!el) return;
     const pt=state.map.latLngToContainerPoint(item.latlng);
-    let ok=show && view.contains(item.latlng) && pt.x>70 && pt.x<size.x-70 && pt.y>45 && pt.y<size.y-45;
-    if(state.labelItems.length>180) ok = ok && z>=5.4;
-    else if(state.labelItems.length>80) ok = ok && z>=4.8;
-    else ok = ok && z>=4.0;
-    const el=item.marker.getElement(); if(el) el.style.display=ok?'block':'none';
+    let ok=show && view.contains(item.latlng) && pt.x>50 && pt.x<size.x-120 && pt.y>35 && pt.y<size.y-35;
+    // Подписи центров можно показывать раньше, но при очень плотном слое оставляем только на увеличении.
+    if(state.labelItems.length>420) ok = ok && z>=5.25;
+    else if(state.labelItems.length>180) ok = ok && z>=4.65;
+    else if(state.labelItems.length>70) ok = ok && z>=4.1;
+    else ok = ok && z>=3.5;
+    if(ok){
+      el.style.display='block';
+      const rect=el.getBoundingClientRect();
+      const pad=4;
+      const r={left:rect.left-pad,right:rect.right+pad,top:rect.top-pad,bottom:rect.bottom+pad};
+      const overlaps=placed.some(q=>!(r.right<q.left || r.left>q.right || r.bottom<q.top || r.top>q.bottom));
+      if(overlaps) ok=false; else placed.push(r);
+    }
+    el.style.display=ok?'block':'none';
   });
 }
+
 async function refreshCenters(){
   clearLayer('centers'); clearLayer('labels'); state.labelItems=[];
-  const path=state.manifest.layers.centers[String(state.year)]; if(!path) return;
+  const path=state.manifest.layers.centers[String(state.year)]; if(!path){ buildFallbackAdminCenterLabels(); refreshVisibility(); return; }
   const gj=await loadJson(path); const s=styleVars();
   const pops=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
@@ -198,11 +214,31 @@ async function refreshCenters(){
     m.bindPopup(`<b>${p.name||'центр'}</b><br>${p.unit_name||''}<br>${p.admin_parent||''}<br>Население: ${num(pop)}`);
     centerGroup.addLayer(m);
     if(p.name){
-      const div=L.divIcon({className:'', html:`<div class="center-label">${p.name}</div>`, iconSize:[0,0], iconAnchor:[0,0]});
-      const label=L.marker(latlng,{icon:div, interactive:false}); labelGroup.addLayer(label); state.labelItems.push({marker:label, latlng, pop});
+      const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${p.name}</div>`, iconSize:[170,24], iconAnchor:[-8,20]});
+      const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
+      labelGroup.addLayer(label);
+      state.labelItems.push({marker:label, latlng, pop, priority:pop || 0, text:p.name});
     }
   });
   state.layers.centers=centerGroup; state.layers.labels=labelGroup;
+  setTimeout(updateLabelsVisibility,0);
+}
+function buildFallbackAdminCenterLabels(){
+  clearLayer('labels'); state.labelItems=[];
+  if(!state.layers.admin) return;
+  const labelGroup=L.layerGroup();
+  state.layers.admin.eachLayer(layer=>{
+    const f=layer.feature || {}; const p=f.properties || {};
+    const text = p.center || (String(p.name||'').match(/^г\.?\s|город/i) ? p.name : null);
+    if(!text) return;
+    const latlng=layer.getBounds().getCenter();
+    const pop=Number(p.population)||0;
+    const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${text}</div>`, iconSize:[170,24], iconAnchor:[-8,20]});
+    const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
+    labelGroup.addLayer(label);
+    state.labelItems.push({marker:label, latlng, pop, priority:pop || Number(p.area_km2)||0, text});
+  });
+  state.layers.labels=labelGroup;
   setTimeout(updateLabelsVisibility,0);
 }
 function centerRadius(pop,maxPop){ return 3.2 + Math.sqrt((Number(pop)||0)/(maxPop||1))*15; }
@@ -277,10 +313,15 @@ function updateAttributePanel(){
 
 function setTool(tool){
   state.tool = tool || 'pan'; clearSelectionDrawing(); const selectMode=state.tool!=='pan';
-  if(state.map){ if(selectMode) state.map.dragging.disable(); else state.map.dragging.enable(); if(state.tool==='polygon') state.map.doubleClickZoom.disable(); else state.map.doubleClickZoom.enable(); }
+  const select=$('toolSelect'); if(select && select.value!==state.tool) select.value=state.tool;
+  document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.classList.toggle('active', btn.dataset.toolButton===state.tool));
+  if(state.map){
+    if(selectMode) state.map.dragging.disable(); else state.map.dragging.enable();
+    if(state.tool==='polygon') state.map.doubleClickZoom.disable(); else state.map.doubleClickZoom.enable();
+  }
   document.body.classList.toggle('selection-tool-active', selectMode); document.body.dataset.tool = state.tool;
   const help=$('selectionToolHelp'); if(help){
-    if(state.tool==='pan') help.innerHTML='Рука: двигайте карту и кликайте по объектам для одиночной выборки.';
+    if(state.tool==='pan') help.innerHTML='Рука: обычное перемещение карты + одиночный выбор кликом по району, кругу населения или центру.';
     if(state.tool==='rectangle') help.innerHTML='Прямоугольная выборка: протяните рамку по карте. Shift — добавить, Alt — убрать из выборки.';
     if(state.tool==='polygon') help.innerHTML='Полигональная выборка: ставьте точки кликами, двойной клик или правая кнопка — завершить.';
   }

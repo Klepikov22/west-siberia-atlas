@@ -1,0 +1,10 @@
+year,file,features_before,features_after,dissolved_groups
+1897,admin_1897.geojson,30,30,0
+1914,admin_1914.geojson,28,28,0
+1926,admin_1926.geojson,288,266,1
+1939,admin_1939.geojson,201,201,0
+1959,admin_1959.geojson,254,254,0
+1970,admin_1970.geojson,239,239,0
+1979,admin_1979.geojson,254,252,1
+1989,admin_1989.geojson,273,271,1
+2021,admin_2021.geojson,305,303,1
