@@ -10,13 +10,11 @@
 <body>
   <div id="app">
     <aside id="leftPanel" class="panel">
-      <div class="eyebrow">Дипломный веб-атлас · v4</div>
+      <div class="eyebrow">Дипломный веб-атлас · v3</div>
       <h1>Западная Сибирь: АТД и население</h1>
 
-      <div class="year-card">
-        <span>Выбранный год</span>
-        <b id="activeYearLabel">1914</b>
-      </div>
+      <label class="control-label" for="yearSelect">Год</label>
+      <select id="yearSelect"></select>
 
       <label class="control-label" for="modeSelect">Режим карты</label>
       <select id="modeSelect">
@@ -31,12 +29,6 @@
       <select id="themeSelect">
         <option value="light" selected>Светлый</option>
         <option value="dark">Тёмный</option>
-      </select>
-
-      <label class="control-label" for="hydroOrderSelect">Положение гидрографии</label>
-      <select id="hydroOrderSelect">
-        <option value="above" selected>Поверх административного слоя</option>
-        <option value="below">Под административным слоем</option>
       </select>
 
       <div class="toggles">
@@ -58,16 +50,7 @@
       <section class="legend" id="legendBox"></section>
     </aside>
 
-    <main id="mapWrap">
-      <div id="map"></div>
-      <div id="timelineBar" aria-label="Временная шкала">
-        <div class="timeline-head">
-          <span>Временная шкала</span>
-          <b id="timelineYearLabel">1914</b>
-        </div>
-        <div id="yearTimeline" class="timeline-track"></div>
-      </div>
-    </main>
+    <main id="map"></main>
 
     <aside id="rightPanel" class="panel">
       <h2>Объект</h2>
