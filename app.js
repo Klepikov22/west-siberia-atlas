@@ -1,4 +1,4 @@
-const APP_VERSION = '13';
+const APP_VERSION = '14';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -6,7 +6,7 @@ const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, attributesPanelOpen:false,
-  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null
+  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null
 };
 
 const palette = ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'];
@@ -24,6 +24,7 @@ function valField(){ return state.mode==='population'?'population':state.mode===
 function num(v){ return v==null||Number.isNaN(Number(v)) ? '—' : fmt.format(Math.round(Number(v))); }
 function num1(v){ return v==null||Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(1).replace('.',','); }
 function pct(v){ return v==null||Number.isNaN(Number(v)) ? '—' : (Number(v)*100).toFixed(1).replace('.',',')+'%'; }
+function escapeHtml(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
 function catColor(v){ if(!v) return '#9a958d'; if(!state.colors[v]) state.colors[v]=palette[Object.keys(state.colors).length%palette.length]; return state.colors[v]; }
 function valueColor(v, values){
@@ -173,25 +174,25 @@ function buildLabels(admin, gj){
   // Подписи административных полигонов временно отключены: вместо них используем подписи центров.
 }
 function updateLabelsVisibility(){
-  const layer=state.layers.labels; if(!layer || !state.map) return;
   const show=$('toggleLabels') ? $('toggleLabels').checked : true;
+  if(!state.map) return;
   const z=state.map.getZoom(); const size=state.map.getSize(); const view=state.map.getBounds();
   const placed=[];
   const items=[...state.labelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
   items.forEach(item=>{
-    const el=item.marker.getElement(); if(!el) return;
+    const tooltip = item.marker?.getTooltip ? item.marker.getTooltip() : null;
+    const el = tooltip?.getElement ? tooltip.getElement() : null;
+    if(!el) return;
     const pt=state.map.latLngToContainerPoint(item.latlng);
-    let ok=show && view.contains(item.latlng) && pt.x>50 && pt.x<size.x-120 && pt.y>35 && pt.y<size.y-35;
-    // Подписи центров можно показывать раньше, но при очень плотном слое оставляем только на увеличении.
-    if(state.labelItems.length>420) ok = ok && z>=5.25;
-    else if(state.labelItems.length>180) ok = ok && z>=4.65;
-    else if(state.labelItems.length>70) ok = ok && z>=4.1;
+    let ok=show && view.contains(item.latlng) && pt.x>55 && pt.x<size.x-55 && pt.y>42 && pt.y<size.y-42;
+    if(state.labelItems.length>420) ok = ok && z>=5.35;
+    else if(state.labelItems.length>180) ok = ok && z>=4.75;
+    else if(state.labelItems.length>70) ok = ok && z>=4.15;
     else ok = ok && z>=3.5;
     if(ok){
       el.style.display='block';
-      const labelEl = el.querySelector('.center-label') || el;
-      const rect=labelEl.getBoundingClientRect();
-      const pad=4;
+      const rect=el.getBoundingClientRect();
+      const pad=5;
       const r={left:rect.left-pad,right:rect.right+pad,top:rect.top-pad,bottom:rect.bottom+pad};
       const overlaps=placed.some(q=>!(r.right<q.left || r.left>q.right || r.bottom<q.top || r.top>q.bottom));
       if(overlaps) ok=false; else placed.push(r);
@@ -203,7 +204,7 @@ function updateLabelsVisibility(){
 async function refreshCenters(){
   clearLayer('centers'); clearLayer('labels'); state.labelItems=[];
   const path=state.manifest.layers.centers[String(state.year)]; if(!path){ buildFallbackAdminCenterLabels(); refreshVisibility(); return; }
-  const gj=await loadJson(path); const s=styleVars();
+  const gj=await loadJson(path);
   const pops=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup(); const labelGroup=L.layerGroup();
@@ -212,18 +213,19 @@ async function refreshCenters(){
     const coords=f.geometry.coordinates; const latlng=L.latLng(coords[1], coords[0]); const p=f.properties||{};
     const pop=Number(p.population)||0; const r=centerRadius(pop,maxCenterPop);
     const m=L.circleMarker(latlng,{radius:r, color:'#3a2607', weight:1.25, fillColor:'#f6c85f', fillOpacity:.82, opacity:.98});
-    m.bindTooltip(`<b>${p.name||'центр'}</b><br>${p.unit_name||''}<br>Население: ${num(pop)}`, {direction:'top', sticky:false, className:'circle-tooltip', opacity:.98});
-    m.bindPopup(`<b>${p.name||'центр'}</b><br>${p.unit_name||''}<br>${p.admin_parent||''}<br>Население: ${num(pop)}`);
+    m.bindTooltip(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>Население: ${num(pop)}`, {direction:'top', sticky:false, className:'circle-tooltip', opacity:.98});
+    m.bindPopup(`<b>${escapeHtml(p.name||'центр')}</b><br>${escapeHtml(p.unit_name||'')}<br>${escapeHtml(p.admin_parent||'')}<br>Население: ${num(pop)}`);
     centerGroup.addLayer(m);
     if(p.name){
-      const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${p.name}</div>`, iconSize:[1,1], iconAnchor:[0,0]});
-      const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
-      labelGroup.addLayer(label);
-      state.labelItems.push({marker:label, latlng, pop, priority:pop || 0, text:p.name});
+      const labelAnchor=L.marker(latlng,{icon:L.divIcon({className:'empty-label-anchor', html:'', iconSize:[0,0], iconAnchor:[0,0]}), interactive:false, keyboard:false, zIndexOffset:1000});
+      labelAnchor.bindTooltip(escapeHtml(p.name), {permanent:true, direction:'top', offset:[0, -Math.max(10, r+8)], className:'center-permanent-tooltip', opacity:1});
+      labelGroup.addLayer(labelAnchor);
+      state.labelItems.push({marker:labelAnchor, latlng, pop, priority:pop || 0, text:p.name});
     }
   });
   state.layers.centers=centerGroup; state.layers.labels=labelGroup;
-  setTimeout(updateLabelsVisibility,0);
+  refreshVisibility();
+  setTimeout(updateLabelsVisibility,60);
 }
 function buildFallbackAdminCenterLabels(){
   clearLayer('labels'); state.labelItems=[];
@@ -235,13 +237,14 @@ function buildFallbackAdminCenterLabels(){
     if(!text) return;
     const latlng=layer.getBounds().getCenter();
     const pop=Number(p.population)||0;
-    const div=L.divIcon({className:'center-label-icon', html:`<div class="center-label">${text}</div>`, iconSize:[1,1], iconAnchor:[0,0]});
-    const label=L.marker(latlng,{icon:div, interactive:false, zIndexOffset:1000});
-    labelGroup.addLayer(label);
-    state.labelItems.push({marker:label, latlng, pop, priority:pop || Number(p.area_km2)||0, text});
+    const labelAnchor=L.marker(latlng,{icon:L.divIcon({className:'empty-label-anchor', html:'', iconSize:[0,0], iconAnchor:[0,0]}), interactive:false, keyboard:false, zIndexOffset:1000});
+    labelAnchor.bindTooltip(escapeHtml(text), {permanent:true, direction:'top', offset:[0,-14], className:'center-permanent-tooltip', opacity:1});
+    labelGroup.addLayer(labelAnchor);
+    state.labelItems.push({marker:labelAnchor, latlng, pop, priority:pop || Number(p.area_km2)||0, text});
   });
   state.layers.labels=labelGroup;
-  setTimeout(updateLabelsVisibility,0);
+  refreshVisibility();
+  setTimeout(updateLabelsVisibility,60);
 }
 function centerRadius(pop,maxPop){ return 3.2 + Math.sqrt((Number(pop)||0)/(maxPop||1))*15; }
 async function refreshRailways(){
@@ -343,17 +346,46 @@ function setTool(tool){
   document.body.classList.toggle('selection-tool-active', selectMode); document.body.dataset.tool = state.tool;
   const help=$('selectionToolHelp'); if(help){
     if(state.tool==='pan') help.innerHTML='Рука: обычное перемещение карты + одиночный выбор кликом по району, кругу населения или центру.';
-    if(state.tool==='rectangle') help.innerHTML='Прямоугольная выборка: протяните рамку по карте. Shift — добавить, Alt — убрать из выборки.';
-    if(state.tool==='polygon') help.innerHTML='Полигональная выборка: ставьте точки кликами, двойной клик или правая кнопка — завершить.';
+    if(state.tool==='rectangle') help.innerHTML='Прямоугольная выборка: протяните рамку по карте. СКМ зажать — двигать карту. Shift — добавить, Alt — убрать.';
+    if(state.tool==='polygon') help.innerHTML='Полигональная выборка: ставьте точки кликами, двойной клик или правая кнопка — завершить. СКМ зажать — двигать карту.';
   }
   const actions=$('selectionDrawActions'); if(actions) actions.style.display = state.tool==='polygon' ? 'grid' : 'none';
 }
 function bindSelectionHandlers(){
-  state.map.on('mousedown', e=>{ if(state.tool!=='rectangle') return; state.dragStart=e.latlng; if(state.dragRect){state.map.removeLayer(state.dragRect); state.dragRect=null;} L.DomEvent.preventDefault(e.originalEvent); });
+  state.map.on('mousedown', e=>{
+    if(e.originalEvent && e.originalEvent.button===1){ startMiddlePan(e); return; }
+    if(state.tool!=='rectangle') return;
+    state.dragStart=e.latlng; if(state.dragRect){state.map.removeLayer(state.dragRect); state.dragRect=null;} L.DomEvent.preventDefault(e.originalEvent);
+  });
   state.map.on('mousemove', e=>{ if(state.tool!=='rectangle'||!state.dragStart) return; const b=L.latLngBounds(state.dragStart,e.latlng); if(!state.dragRect) state.dragRect=L.rectangle(b,{color:'#b7791f',weight:1.8,fillColor:'#d9a441',fillOpacity:.12,interactive:false}).addTo(state.map); else state.dragRect.setBounds(b); });
   state.map.on('mouseup', e=>{ if(state.tool!=='rectangle'||!state.dragStart) return; const b=L.latLngBounds(state.dragStart,e.latlng); applySpatialSelectionByBounds(b,e.originalEvent); clearSelectionDrawing(false); state.dragStart=null; });
   state.map.on('click', e=>{ if(state.tool!=='polygon') return; addPolygonPoint(e.latlng); });
   state.map.on('dblclick contextmenu', e=>{ if(state.tool==='polygon'){ L.DomEvent.preventDefault(e.originalEvent); finishPolygonSelection(e.originalEvent); } });
+  const container=state.map.getContainer();
+  container.addEventListener('auxclick', ev=>{ if(ev.button===1){ ev.preventDefault(); ev.stopPropagation(); } });
+}
+function startMiddlePan(e){
+  if(!state.map || !e.originalEvent) return;
+  L.DomEvent.preventDefault(e.originalEvent); L.DomEvent.stopPropagation(e.originalEvent);
+  state.middlePan={point:state.map.mouseEventToContainerPoint(e.originalEvent)};
+  state.map.getContainer().classList.add('middle-panning');
+  document.addEventListener('mousemove', onMiddlePanMove, {passive:false});
+  document.addEventListener('mouseup', endMiddlePan, {passive:false});
+}
+function onMiddlePanMove(ev){
+  if(!state.middlePan || !state.map) return;
+  ev.preventDefault();
+  const pt=state.map.mouseEventToContainerPoint(ev);
+  const last=state.middlePan.point;
+  state.map.panBy([last.x-pt.x, last.y-pt.y], {animate:false});
+  state.middlePan.point=pt;
+}
+function endMiddlePan(ev){
+  if(ev) ev.preventDefault();
+  state.middlePan=null;
+  if(state.map) state.map.getContainer().classList.remove('middle-panning');
+  document.removeEventListener('mousemove', onMiddlePanMove);
+  document.removeEventListener('mouseup', endMiddlePan);
 }
 function addPolygonPoint(latlng){
   state.polygonPoints.push(latlng); if(!state.polygonMarkers) state.polygonMarkers=L.layerGroup().addTo(state.map); L.circleMarker(latlng,{radius:4,color:'#b7791f',fillColor:'#d9a441',fillOpacity:.95,weight:1}).addTo(state.polygonMarkers);

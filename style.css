@@ -33,3 +33,11 @@
 body[data-tool="pan"] .leaflet-container{cursor:grab}
 body[data-tool="pan"] .leaflet-container:active{cursor:grabbing}
 body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
+
+
+/* v14: подписи центров через постоянные Leaflet-tooltip, а не через смещённые DivIcon-блоки */
+.empty-label-anchor{width:0!important;height:0!important;background:transparent!important;border:0!important;}
+.leaflet-tooltip.center-permanent-tooltip{pointer-events:none;background:rgba(255,255,255,.86);color:#21190e;border:1px solid rgba(80,70,55,.22);border-radius:999px;padding:2px 7px;font-weight:850;font-size:12px;line-height:1.15;text-align:center;white-space:nowrap;box-shadow:0 2px 8px rgba(40,30,10,.13);text-shadow:0 1px 0 rgba(255,255,255,.95);}
+.leaflet-tooltip.center-permanent-tooltip::before{display:none!important;}
+:root[data-theme="dark"] .leaflet-tooltip.center-permanent-tooltip{color:#fff4d6;background:rgba(18,21,26,.82);border-color:rgba(255,255,255,.18);text-shadow:0 1px 0 #000,0 0 7px #000;}
+.leaflet-container.middle-panning{cursor:grabbing!important;}
