@@ -127,23 +127,3 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 :root[data-theme="dark"] .center-map-label.large-city-label{background:rgba(55,39,18,.94);color:#fff5d6;border-color:rgba(217,179,108,.48)}
 .map-hover-card{z-index:8000;}
 .hover-extra{margin-top:6px;color:var(--muted);font-size:11px;font-weight:700;}
-
-
-/* v18: labels are Leaflet DivIcon markers, not a separate HTML overlay.
-   This fixes browsers where labels were visually pinned to the screen. */
-.center-label-overlay{display:none!important}
-.leaflet-marker-icon.center-label-icon{
-  background:transparent!important;
-  border:0!important;
-  pointer-events:none!important;
-  width:auto!important;
-  height:auto!important;
-}
-.leaflet-marker-icon.center-label-icon .center-map-label{
-  position:relative!important;
-  left:auto!important;
-  top:auto!important;
-  display:block!important;
-  transform:translate(-50%, -145%)!important;
-  white-space:nowrap;
-}

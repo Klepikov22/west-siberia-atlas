@@ -1,4 +1,4 @@
-const APP_VERSION = '18';
+const APP_VERSION = '17';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -6,7 +6,7 @@ const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
-  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], centerLabelLayer:null
+  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[]
 };
 
 const palette = ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'];
@@ -95,44 +95,30 @@ function hideHover(){
   state.hoverTimer=null; state.hoverPayload=null;
   if(state.hoverBox){ state.hoverBox.classList.remove('visible'); setTimeout(()=>{ if(!state.hoverPayload && state.hoverBox) state.hoverBox.style.display='none'; }, 170); }
 }
-function ensureCenterLabelLayer(){
-  if(state.centerLabelLayer) return state.centerLabelLayer;
-  state.centerLabelLayer = L.layerGroup();
-  state.layers.centerLabels = state.centerLabelLayer;
-  return state.centerLabelLayer;
-}
 function ensureCenterLabelOverlay(){
-  // v18: старый HTML-overlay больше не используется.
-  // Подписи теперь делаются Leaflet DivIcon-маркерами, поэтому они двигаются вместе с картой
-  // во всех браузерах и не «приклеиваются» к экрану.
-  return null;
+  if(state.centerLabelOverlay) return state.centerLabelOverlay;
+  const mapEl=state.map?.getContainer?.(); if(!mapEl) return null;
+  const overlay=document.createElement('div');
+  overlay.id='centerLabelOverlay';
+  overlay.className='center-label-overlay';
+  mapEl.appendChild(overlay);
+  state.centerLabelOverlay=overlay;
+  return overlay;
 }
 function clearCenterLabels(){
-  if(state.centerLabelLayer && state.map && state.map.hasLayer(state.centerLabelLayer)) state.map.removeLayer(state.centerLabelLayer);
-  state.centerLabelLayer = L.layerGroup();
-  state.layers.centerLabels = state.centerLabelLayer;
-  state.centerLabelItems = [];
+  if(state.centerLabelOverlay) state.centerLabelOverlay.innerHTML='';
+  state.centerLabelItems=[];
 }
 function addCenterLabel(latlng, text, priority=0, meta={}){
-  if(!text) return;
-  const group=ensureCenterLabelLayer(); if(!group) return;
+  const overlay=ensureCenterLabelOverlay(); if(!overlay || !text) return;
+  const el=document.createElement('div');
   const cls=['center-map-label'];
   if(meta.city) cls.push('city-label');
   if(meta.large) cls.push('large-city-label');
-  const html=`<div class="${cls.join(' ')}">${escapeHtml(cleanCenterLabelName(text))}</div>`;
-  const marker=L.marker(latlng, {
-    interactive:false,
-    keyboard:false,
-    riseOnHover:false,
-    icon:L.divIcon({
-      className:'center-label-icon',
-      html,
-      iconSize:null,
-      iconAnchor:[0,0]
-    })
-  });
-  group.addLayer(marker);
-  state.centerLabelItems.push({latlng, marker, priority, city:!!meta.city, large:!!meta.large, pop:meta.pop||0});
+  el.className=cls.join(' ');
+  el.textContent=cleanCenterLabelName(text);
+  overlay.appendChild(el);
+  state.centerLabelItems.push({latlng, el, priority, city:!!meta.city, large:!!meta.large, pop:meta.pop||0});
 }
 function updateCenterLabels(){
   if(!state.map || !state.centerLabelItems) return;
@@ -141,20 +127,18 @@ function updateCenterLabels(){
   const placed=[];
   const items=[...state.centerLabelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
   for(const item of items){
-    const el=item.marker?.getElement?.();
-    if(!el) continue;
     const pnt=state.map.latLngToContainerPoint(item.latlng);
     const inside=pnt.x>38 && pnt.x<size.x-38 && pnt.y>38 && pnt.y<size.y-38;
     let zoomOk = item.city ? z>=3.45 : z>=5.15;
     if(!item.city && state.centerLabelItems.length<80) zoomOk = z>=4.45;
     let ok=show && inside && zoomOk;
-    el.style.display=ok?'block':'none';
+    item.el.style.transform=`translate(${Math.round(pnt.x)}px, ${Math.round(pnt.y)}px) translate(-50%, -145%)`;
+    item.el.style.display=ok?'block':'none';
     if(ok){
-      const r=el.getBoundingClientRect();
+      const r=item.el.getBoundingClientRect();
       const pad=item.large?7:5; const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
-      if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){
-        el.style.display='none';
-      } else placed.push(rr);
+      if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){ item.el.style.display='none'; }
+      else placed.push(rr);
     }
   }
 }
@@ -218,10 +202,10 @@ async function init(){
   state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
   if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
-  ensureHoverBox();
+  ensureHoverBox(); ensureCenterLabelOverlay();
   document.addEventListener('mousemove', ev=>{ if(state.hoverPayload && state.hoverBox && state.hoverBox.style.display !== 'none') moveHover(ev); }, {passive:true});
   bindUi(); bindSelectionHandlers(); setTool('pan');
-  state.map.on('zoom move zoomend move moveend', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
+  state.map.on('zoomend moveend', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
   await refreshAll();
   setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},250);
   window.addEventListener('resize', () => setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},120));
@@ -386,7 +370,7 @@ async function refreshRailways(){
 
 function refreshVisibility(){
   const vis={hydro:$('toggleHydro')?.checked, admin:$('toggleAdmin')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked};
-  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers],['centerLabels',vis.centers]];
+  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers]];
   // Пересобираем порядок слоёв каждый раз. Это грубее, но надёжнее для GitHub/Leaflet и не даёт воде съедать АТД.
   entries.forEach(([name])=>{ const l=state.layers[name]; if(l && state.map.hasLayer(l)) state.map.removeLayer(l); });
   entries.forEach(([name,show])=>{ const l=state.layers[name]; if(l && show) l.addTo(state.map); });
@@ -395,7 +379,7 @@ function refreshVisibility(){
   if(state.layers.water?.bringToBack) state.layers.water.bringToBack();
   if(state.layers.admin?.bringToFront) state.layers.admin.bringToFront();
   if(state.layers.railways?.bringToFront) state.layers.railways.bringToFront();
-  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers); bringLayerGroupToFront(state.layers.centerLabels);
+  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers);
   updateLabelsVisibility(); updateCenterLabels(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 }
 function bringLayerGroupToFront(layer){ if(!layer) return; if(layer.bringToFront) layer.bringToFront(); if(layer.eachLayer) layer.eachLayer(l=>{ if(l.bringToFront) l.bringToFront(); }); }
