@@ -1,4 +1,4 @@
-const APP_VERSION = '17';
+const APP_VERSION = '19';
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -95,50 +95,68 @@ function hideHover(){
   state.hoverTimer=null; state.hoverPayload=null;
   if(state.hoverBox){ state.hoverBox.classList.remove('visible'); setTimeout(()=>{ if(!state.hoverPayload && state.hoverBox) state.hoverBox.style.display='none'; }, 170); }
 }
-function ensureCenterLabelOverlay(){
-  if(state.centerLabelOverlay) return state.centerLabelOverlay;
-  const mapEl=state.map?.getContainer?.(); if(!mapEl) return null;
-  const overlay=document.createElement('div');
-  overlay.id='centerLabelOverlay';
-  overlay.className='center-label-overlay';
-  mapEl.appendChild(overlay);
-  state.centerLabelOverlay=overlay;
-  return overlay;
+
+function ensureCenterLabelLayer(){
+  if(state.centerLabelLayer) return state.centerLabelLayer;
+  state.centerLabelLayer = L.layerGroup();
+  state.layers.centerLabels = state.centerLabelLayer;
+  return state.centerLabelLayer;
 }
+function ensureCenterLabelOverlay(){ return null; }
 function clearCenterLabels(){
-  if(state.centerLabelOverlay) state.centerLabelOverlay.innerHTML='';
+  if(state.centerLabelLayer && state.map && state.map.hasLayer(state.centerLabelLayer)) state.map.removeLayer(state.centerLabelLayer);
+  state.centerLabelLayer = L.layerGroup();
+  state.layers.centerLabels = state.centerLabelLayer;
   state.centerLabelItems=[];
 }
 function addCenterLabel(latlng, text, priority=0, meta={}){
-  const overlay=ensureCenterLabelOverlay(); if(!overlay || !text) return;
-  const el=document.createElement('div');
+  const group=ensureCenterLabelLayer();
+  if(!group || !text) return;
   const cls=['center-map-label'];
   if(meta.city) cls.push('city-label');
   if(meta.large) cls.push('large-city-label');
-  el.className=cls.join(' ');
-  el.textContent=cleanCenterLabelName(text);
-  overlay.appendChild(el);
-  state.centerLabelItems.push({latlng, el, priority, city:!!meta.city, large:!!meta.large, pop:meta.pop||0});
+  const marker=L.marker(latlng, {
+    opacity:0,
+    interactive:false,
+    keyboard:false,
+    zIndexOffset:1000,
+    icon:L.divIcon({className:'center-label-anchor', html:'', iconSize:[1,1], iconAnchor:[0,0]})
+  });
+  marker.bindTooltip(escapeHtml(cleanCenterLabelName(text)), {
+    permanent:true,
+    direction:'top',
+    offset:[0,-10],
+    opacity:1,
+    className:cls.join(' '),
+    interactive:false
+  });
+  group.addLayer(marker);
+  state.centerLabelItems.push({latlng, marker, priority, city:!!meta.city, large:!!meta.large, pop:meta.pop||0});
 }
 function updateCenterLabels(){
   if(!state.map || !state.centerLabelItems) return;
   const show=$('toggleCenters')?.checked !== false;
-  const z=state.map.getZoom(); const size=state.map.getSize();
+  const z=state.map.getZoom();
+  const size=state.map.getSize();
   const placed=[];
   const items=[...state.centerLabelItems].sort((a,b)=>(b.priority||0)-(a.priority||0));
   for(const item of items){
+    const tooltip=item.marker?.getTooltip?.();
+    const el=tooltip?.getElement?.();
+    if(!el) continue;
     const pnt=state.map.latLngToContainerPoint(item.latlng);
     const inside=pnt.x>38 && pnt.x<size.x-38 && pnt.y>38 && pnt.y<size.y-38;
     let zoomOk = item.city ? z>=3.45 : z>=5.15;
     if(!item.city && state.centerLabelItems.length<80) zoomOk = z>=4.45;
     let ok=show && inside && zoomOk;
-    item.el.style.transform=`translate(${Math.round(pnt.x)}px, ${Math.round(pnt.y)}px) translate(-50%, -145%)`;
-    item.el.style.display=ok?'block':'none';
+    el.style.display=ok?'block':'none';
     if(ok){
-      const r=item.el.getBoundingClientRect();
-      const pad=item.large?7:5; const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
-      if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){ item.el.style.display='none'; }
-      else placed.push(rr);
+      const r=el.getBoundingClientRect();
+      const pad=item.large?7:5;
+      const rr={left:r.left-pad,right:r.right+pad,top:r.top-pad,bottom:r.bottom+pad};
+      if(placed.some(q=>!(rr.right<q.left || rr.left>q.right || rr.bottom<q.top || rr.top>q.bottom))){
+        el.style.display='none';
+      } else placed.push(rr);
     }
   }
 }
@@ -202,10 +220,10 @@ async function init(){
   state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
   if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
-  ensureHoverBox(); ensureCenterLabelOverlay();
+  ensureHoverBox(); ensureCenterLabelLayer();
   document.addEventListener('mousemove', ev=>{ if(state.hoverPayload && state.hoverBox && state.hoverBox.style.display !== 'none') moveHover(ev); }, {passive:true});
   bindUi(); bindSelectionHandlers(); setTool('pan');
-  state.map.on('zoomend moveend', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
+  state.map.on('zoomend moveend zoom move', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
   await refreshAll();
   setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},250);
   window.addEventListener('resize', () => setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},120));
@@ -370,7 +388,7 @@ async function refreshRailways(){
 
 function refreshVisibility(){
   const vis={hydro:$('toggleHydro')?.checked, admin:$('toggleAdmin')?.checked, centers:$('toggleCenters')?.checked, railways:$('toggleRailways')?.checked, circles:$('toggleCircles')?.checked};
-  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers]];
+  const entries=[['rivers',vis.hydro],['water',vis.hydro],['admin',vis.admin],['railways',vis.railways],['circles',vis.circles],['centers',vis.centers],['centerLabels',vis.centers]];
   // Пересобираем порядок слоёв каждый раз. Это грубее, но надёжнее для GitHub/Leaflet и не даёт воде съедать АТД.
   entries.forEach(([name])=>{ const l=state.layers[name]; if(l && state.map.hasLayer(l)) state.map.removeLayer(l); });
   entries.forEach(([name,show])=>{ const l=state.layers[name]; if(l && show) l.addTo(state.map); });
@@ -379,7 +397,7 @@ function refreshVisibility(){
   if(state.layers.water?.bringToBack) state.layers.water.bringToBack();
   if(state.layers.admin?.bringToFront) state.layers.admin.bringToFront();
   if(state.layers.railways?.bringToFront) state.layers.railways.bringToFront();
-  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers);
+  bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers); bringLayerGroupToFront(state.layers.centerLabels);
   updateLabelsVisibility(); updateCenterLabels(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 }
 function bringLayerGroupToFront(layer){ if(!layer) return; if(layer.bringToFront) layer.bringToFront(); if(layer.eachLayer) layer.eachLayer(l=>{ if(l.bringToFront) l.bringToFront(); }); }
