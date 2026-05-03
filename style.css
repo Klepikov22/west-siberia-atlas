@@ -44,7 +44,7 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 
 
 /* v15: no permanent labels, larger controls, center click highlighting and right-side charts */
-.group-analytics{margin-top:12px;max-height:36vh;overflow:auto}
+.group-analytics{margin-top:12px;max-height:none;overflow:visible}
 .analytics-title{font-weight:850;margin-bottom:8px;color:var(--text)}
 .analytics-title span{display:block;margin-top:3px;font-size:11px;color:var(--muted);font-weight:650}
 .bar-chart{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
@@ -62,7 +62,7 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 /* hide legacy label layer if a browser still has it cached */
 .leaflet-tooltip.center-permanent-tooltip{display:none!important}
 @media(max-width:1220px){.floating-panel{width:340px}#rightPanel{width:360px}}
-@media(max-width:980px){.floating-panel{width:auto!important}.group-analytics{max-height:22vh}.bar-row{grid-template-columns:1fr 1fr 58px}.toggles label{font-size:14px;min-height:30px}}
+@media(max-width:980px){.floating-panel{width:auto!important}.group-analytics{max-height:none;overflow:visible}.bar-row{grid-template-columns:1fr 1fr 58px}.toggles label{font-size:14px;min-height:30px}}
 
 /* v16: delayed hover cards and lightweight center labels */
 .map-hover-card{
@@ -1039,3 +1039,9 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
   #metricFilters{bottom:150px!important}
   #parentFilterBar{bottom:18px!important}
 }
+
+
+/* v31: возвращаем линейные диаграммы в общий поток правой панели */
+.group-analytics{max-height:none!important;overflow:visible!important}
+.bar-chart{display:block!important}
+.bar-row{min-height:22px}

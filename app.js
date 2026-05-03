@@ -1,4 +1,4 @@
-const APP_VERSION = '30';
+const APP_VERSION = '31';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -701,6 +701,12 @@ async function refreshAll(){
   refreshVisibility(); updateStatsAndSelection();
 }
 
+function isAlwaysVisibleWaterFeature(f){
+  const p=f.properties||{};
+  if(p.always_visible || p.alwaysVisible || p.force_visible || p.forceVisible || p.lake_zaysan) return true;
+  const text=Object.values(p).join(' ').toLowerCase();
+  return text.includes('zaysan') || text.includes('zaisan') || text.includes('зайсан') || text.includes('bukhtarma') || text.includes('bukhtarmin') || text.includes('бухтарм');
+}
 function isReservoirFeature(f){
   const p=f.properties||{}; if(p.water_kind==='ocean') return false;
   if(p.water_kind==='reservoir') return true;
@@ -727,7 +733,7 @@ async function refreshHydro(seq){
   const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
   if(isStaleRefresh(seq)) return;
   const showReservoirs = Number(state.year) >= 1959;
-  const water={type:'FeatureCollection', features:waterRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f))};
+  const water={type:'FeatureCollection', features:waterRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))};
   state.layers.rivers=L.geoJSON(rivers,{interactive:false, style:riverStyle});
   state.layers.water=L.geoJSON(water,{interactive:false, style:waterStyle});
 }
@@ -925,9 +931,11 @@ function updateGroupAnalytics(features){
   const box=$('groupAnalyticsBox'); if(!box) return;
   state.lastAnalyticsFeatures=features;
   state.lastAnalyticsScope=state.selectedIds.size ? 'выборке' : 'текущему слою';
-  const base=features.filter(f=>Number(f.properties.area_km2)>=700 && f.properties.admin_parent);
+  const groupName=f=>String(f.properties?.admin_parent || f.properties?.region || f.properties?.oblast || f.properties?.province || '').trim();
+  let base=features.filter(f=>Number(f.properties.area_km2)>=700 && groupName(f));
+  if(base.length<2) base=features.filter(f=>groupName(f));
   const groups=new Map();
-  base.forEach(f=>{ const p=f.properties; const key=p.admin_parent || '—'; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(f); });
+  base.forEach(f=>{ const key=groupName(f); if(!key) return; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(f); });
   const metrics=[
     ['avg_area','Средняя площадь АТЕ, км²', fs=>avg(fs.map(f=>Number(f.properties.area_km2)))],
     ['avg_pop','Среднее население АТЕ', fs=>avg(fs.map(f=>Number(f.properties.population)))],
