@@ -190,6 +190,7 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 .pie-dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
 :root[data-theme="dark"] .pie-svg{filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
 @media(max-width:1220px){.pie-grid{grid-template-columns:1fr}.pie-svg{width:120px;height:120px}}
+<<<<<<< HEAD
 
 /* v21: enlarged liquid-glass chart modal and clickable pie cards */
 .pie-card{position:relative;transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, border-color .22s ease, background .22s ease;outline:none}
@@ -224,3 +225,5 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 @keyframes liquidBlob{0%{transform:translate(0,0) rotate(18deg) scale(1);border-radius:46% 54% 60% 40%}100%{transform:translate(-36px,30px) rotate(31deg) scale(1.12);border-radius:58% 42% 44% 56%}}
 @media(max-width:1220px){.chart-lightbox-card{left:24px;right:24px;bottom:86px}.expanded-chart-layout{grid-template-columns:1fr}.expanded-pie-wrap{min-height:280px}.pie-svg-expanded{width:300px;height:300px}}
 @media(max-width:760px){.chart-lightbox-card{left:10px;right:10px;top:10px;bottom:10px;border-radius:22px;padding:18px}.expanded-chart-summary{grid-template-columns:1fr}.chart-legend-head,.chart-legend-row{grid-template-columns:12px minmax(0,1fr) 54px 84px}.chart-lightbox-card h2{font-size:20px}.pie-svg-expanded{width:250px;height:250px}}
+=======
+>>>>>>> 0653f9b1851fc9b19cc94eb4c20a763fdd5f546e
