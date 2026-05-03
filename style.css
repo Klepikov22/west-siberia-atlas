@@ -935,3 +935,48 @@ body.right-panel-hidden .right-panel-toggle{right:10px}
   body.left-panel-hidden .left-panel-toggle{left:12px;bottom:calc(38dvh + 18px)}
   body.right-panel-hidden .right-panel-toggle{right:12px;bottom:12px}
 }
+
+/* v29: fixes for liquid-glass timeline/panels, map hover card, object attributes and style presets */
+:root[data-basemap="sage"]{--map-bg:#dfeae3;--map-grad-1:rgba(210,229,219,.72);--map-grad-2:rgba(237,233,216,.34);--map-grad-3:rgba(170,205,217,.24)}
+:root[data-basemap="paper"]{--map-bg:#eee8d8;--map-grad-1:rgba(231,215,183,.60);--map-grad-2:rgba(183,205,172,.30);--map-grad-3:rgba(170,190,203,.22)}
+:root[data-basemap="cold"]{--map-bg:#dcebf0;--map-grad-1:rgba(190,221,232,.70);--map-grad-2:rgba(217,231,229,.34);--map-grad-3:rgba(142,190,210,.32)}
+:root[data-basemap="clean"]{--map-bg:#f3f5f1;--map-grad-1:rgba(255,255,255,.72);--map-grad-2:rgba(214,227,220,.26);--map-grad-3:rgba(204,220,232,.18)}
+:root[data-basemap="vivid"]{--map-bg:#dbeede;--map-grad-1:rgba(176,228,206,.54);--map-grad-2:rgba(255,231,150,.24);--map-grad-3:rgba(101,190,226,.22)}
+:root[data-basemap="darkOcean"]{--map-bg:#101923;--map-grad-1:rgba(30,52,67,.62);--map-grad-2:rgba(44,59,50,.32);--map-grad-3:rgba(28,94,122,.30)}
+#mapWrap,#map,.leaflet-container{background:var(--map-bg)!important}
+#map::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(circle at 22% 12%,var(--map-grad-1),transparent 36%),radial-gradient(circle at 82% 24%,var(--map-grad-2),transparent 38%),radial-gradient(circle at 55% 88%,var(--map-grad-3),transparent 44%);
+}
+.leaflet-map-pane{z-index:1}
+
+/* непрерывная линия таймлайна в светлом Liquid glass */
+.timeline-track{isolation:isolate}
+.timeline-track:before{z-index:3;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(171,157,134,.72) 5%,rgba(171,157,134,.72) 95%,transparent)}
+.timeline-year{z-index:4}.timeline-year .dot{position:relative;z-index:5}
+:root[data-ui="glass"] .timeline-track:before{height:2.5px;top:18px;background:linear-gradient(90deg,transparent,rgba(183,139,64,.50) 5%,rgba(183,139,64,.50) 95%,transparent);box-shadow:0 0 0 1px rgba(255,255,255,.28)}
+:root[data-ui="glass"] .timeline-year .dot{box-shadow:0 0 0 2px rgba(255,255,255,.62),0 4px 12px rgba(119,86,36,.12)}
+:root[data-theme="dark"][data-ui="glass"] .timeline-track:before{background:linear-gradient(90deg,transparent,rgba(218,190,137,.56) 5%,rgba(218,190,137,.56) 95%,transparent);box-shadow:none}
+
+/* в glass-анимации скрытие боковых панелей должно двигать всю панель, не только ручку */
+body.left-panel-hidden #leftPanel{transform:translateX(calc(-100% - 56px))!important;opacity:0!important;filter:blur(2px)!important;pointer-events:none!important;animation:none!important}
+body.right-panel-hidden #rightPanel{transform:translateX(calc(100% + 56px))!important;opacity:0!important;filter:blur(2px)!important;pointer-events:none!important;animation:none!important}
+body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPanel{transition:transform .38s cubic-bezier(.2,.9,.2,1),opacity .24s ease,filter .24s ease,box-shadow .24s ease}
+
+/* минимальная информация на карте при наведении */
+.map-hover-card{
+  min-width:185px;max-width:285px;padding:9px 11px;border-radius:13px;
+  background:rgba(255,255,255,.91);border-color:rgba(170,160,142,.52);
+  box-shadow:0 10px 24px rgba(37,49,40,.18),inset 0 1px 0 rgba(255,255,255,.65);
+  backdrop-filter:blur(13px) saturate(1.1);-webkit-backdrop-filter:blur(13px) saturate(1.1);
+}
+:root[data-ui="glass"] .map-hover-card{background:linear-gradient(145deg,rgba(255,255,255,.64),rgba(255,255,255,.35));border-color:rgba(255,255,255,.46)}
+:root[data-theme="dark"] .map-hover-card{background:rgba(21,26,33,.92);border-color:rgba(255,255,255,.13)}
+.hover-title{font-size:13.5px}.hover-subtitle{font-size:11.5px}.hover-row{font-size:12px;padding-top:4px;margin-top:4px}.hover-extra{margin-top:5px;font-size:11px;color:var(--muted);font-weight:800;text-align:right}
+
+/* правые карточки: значения не должны вылезать за плашку */
+#featureInfo,.feature-info{overflow:hidden}.info-row{align-items:start}.info-row span:first-child{min-width:0}.info-row b{min-width:0;max-width:62%;overflow-wrap:anywhere;word-break:break-word;line-height:1.25}.object-attrs .info-row{display:grid;grid-template-columns:minmax(84px,.86fr) minmax(0,1.14fr);align-items:start;gap:8px}.object-attrs .info-row b{max-width:none;text-align:right}.object-attrs h3{margin-right:4px}.attr-object-row{padding-right:2px}
+.attr-table{table-layout:fixed}.attr-table th,.attr-table td{overflow-wrap:anywhere;word-break:break-word}.attr-table th:nth-child(1){width:26%}.attr-table th:nth-child(2){width:18%}.attr-table th:nth-child(3){width:18%}.attr-table th:nth-child(4){width:38%}
+
+/* светлая тема: реки чуть заметнее */
+:root[data-theme="light"] .river-swatch{border-top-color:#209fc6;border-top-width:2.5px}

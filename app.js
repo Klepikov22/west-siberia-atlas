@@ -1,4 +1,4 @@
-const APP_VERSION = '28';
+const APP_VERSION = '29';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8,7 +8,7 @@ const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper',
+  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper', regionStyle:'soft', basemapStyle:'sage',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, rawGeoJSON:null, rawCentersGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
@@ -39,6 +39,28 @@ function chartSliceColor(name, index){
   const colors=chartPalette();
   return colors[index % colors.length];
 }
+
+const regionPalettes = {
+  soft:['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'],
+  paper:['#c7b37a','#9fb17b','#d6a66f','#a9b8b5','#c7967d','#b7a18a','#9da77f','#d8c590','#bfa080','#c8bca3'],
+  thin:['#b6d7c9','#dce9b8','#c7c5df','#e6b7a9','#accbe1','#eac989','#bddaaa','#e4c3d2','#c8b6cf','#d5e4c9'],
+  ink:['#b8c7cf','#d8d4b2','#b3adc8','#c7a493','#9fb5c2','#c6aa78','#a9b28b','#c3a7ba','#a99db6','#c5c4ad'],
+  vivid:['#2dd4bf','#facc15','#a78bfa','#fb7185','#38bdf8','#f59e0b','#84cc16','#f472b6','#c084fc','#22c55e'],
+  contrast:['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#1f78b4','#b2df8a','#fb9a99']
+};
+function regionPalette(){ return regionPalettes[state.regionStyle] || regionPalettes.soft; }
+function regionStyleConfig(){
+  const dark = state.theme === 'dark';
+  const configs = {
+    soft:{line:dark?'#e3cdaa':'#746a5c', weight:1.05, opacity:.92, fillOpacity:dark ? .50 : .50, selectedWeight:2.8},
+    paper:{line:dark?'#d8c08d':'#8b7045', weight:1.20, opacity:.88, fillOpacity:dark ? .42 : .38, selectedWeight:2.7, dashArray:'5 3'},
+    thin:{line:dark?'#cbd5d0':'#8a958a', weight:.70, opacity:.82, fillOpacity:dark ? .36 : .32, selectedWeight:2.2},
+    ink:{line:dark?'#efe2c2':'#4d463d', weight:1.35, opacity:.95, fillOpacity:dark ? .42 : .40, selectedWeight:3.1},
+    vivid:{line:dark?'#fff0cc':'#6b4308', weight:1.20, opacity:.96, fillOpacity:dark ? .58 : .62, selectedWeight:3.2},
+    contrast:{line:dark?'#f6f1e5':'#242a31', weight:1.45, opacity:1, fillOpacity:dark ? .62 : .66, selectedWeight:3.4}
+  };
+  return configs[state.regionStyle] || configs.soft;
+}
 const ramp = ['#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'];
 
 function fetchUrl(path){ return `${path}${path.includes('?')?'&':'?'}v=${APP_VERSION}`; }
@@ -57,7 +79,7 @@ function escapeHtml(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'
 function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
 function finiteNumber(v){ const n=Number(v); return Number.isFinite(n) ? n : null; }
 function hasFiniteNumber(v){ return finiteNumber(v) !== null; }
-function catColor(v){ if(!v) return '#9a958d'; if(!state.colors[v]) state.colors[v]=palette[Object.keys(state.colors).length%palette.length]; return state.colors[v]; }
+function catColor(v){ if(!v) return '#9a958d'; const pal=regionPalette(); if(!state.colors[v]) state.colors[v]=pal[Object.keys(state.colors).length%pal.length]; return state.colors[v]; }
 function valueColor(v, values){
   if(v==null||Number.isNaN(v)) return '#a7adb8';
   const sorted=values.filter(x=>x!=null&&!Number.isNaN(x)).sort((a,b)=>a-b);
@@ -69,13 +91,13 @@ function valueColor(v, values){
 function styleVars(){
   const dark = state.theme === 'dark';
   return {
-    river: dark ? '#4bb5df' : '#4da8c7',
+    river: dark ? '#4bb5df' : '#209fc6',
     waterFill: dark ? '#17394a' : '#d9eef4',
     waterLine: dark ? '#65c9ef' : '#6eb4c9',
-    adminLine: dark ? '#e3cdaa' : '#746a5c',
+    adminLine: regionStyleConfig().line,
     selectedLine: '#a65b00',
     railway: dark ? '#f3e7d0' : '#18130e',
-    adminFillOpacity: dark ? .50 : .50,
+    adminFillOpacity: regionStyleConfig().fillOpacity,
     circleLine: dark ? '#2f210b' : '#6d4f1a',
     circleFill: '#d9a441'
   };
@@ -91,15 +113,24 @@ function restoreAppearancePrefs(){
   const savedTheme = storageGet('wsAtlasTheme');
   const savedUiStyle = storageGet('wsAtlasUiStyle');
   const savedPiePalette = storageGet('wsAtlasPiePalette');
+  const savedRegionStyle = storageGet('wsAtlasRegionStyle');
+  const savedBasemapStyle = storageGet('wsAtlasBasemapStyle');
   if(savedTheme === 'light' || savedTheme === 'dark') state.theme = savedTheme;
   if(savedUiStyle === 'normal' || savedUiStyle === 'glass') state.uiStyle = savedUiStyle;
   if(savedPiePalette && chartPalettes[savedPiePalette]) state.piePalette = savedPiePalette;
+  if(savedRegionStyle && regionPalettes[savedRegionStyle]) state.regionStyle = savedRegionStyle;
+  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
 }
 function applyAppearance(persist=false){
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.dataset.ui = state.uiStyle;
+  document.documentElement.dataset.basemap = state.basemapStyle;
   const themeSelect = $('themeSelect');
   if(themeSelect && themeSelect.value !== state.theme) themeSelect.value = state.theme;
+  const regionStyleSelect = $('regionStyleSelect');
+  if(regionStyleSelect && regionStyleSelect.value !== state.regionStyle) regionStyleSelect.value = state.regionStyle;
+  const basemapStyleSelect = $('basemapStyleSelect');
+  if(basemapStyleSelect && basemapStyleSelect.value !== state.basemapStyle) basemapStyleSelect.value = state.basemapStyle;
   const btn = $('uiStyleToggle');
   if(btn){
     const glass = state.uiStyle === 'glass';
@@ -113,6 +144,8 @@ function applyAppearance(persist=false){
   if(persist){
     storageSet('wsAtlasTheme', state.theme);
     storageSet('wsAtlasUiStyle', state.uiStyle);
+    storageSet('wsAtlasRegionStyle', state.regionStyle);
+    storageSet('wsAtlasBasemapStyle', state.basemapStyle);
   }
   refreshPieLightboxIfOpen();
 }
@@ -139,13 +172,14 @@ function showHoverLater(payload, originalEvent){
     const rows=[];
     if(payload.subtitle) rows.push(`<div class="hover-subtitle">${escapeHtml(payload.subtitle)}</div>`);
     if(payload.population!=null && !Number.isNaN(Number(payload.population))) rows.push(`<div class="hover-row"><span>население</span><b>${num(payload.population)}</b></div>`);
+    if(payload.area!=null && !Number.isNaN(Number(payload.area))) rows.push(`<div class="hover-row"><span>площадь</span><b>${num(payload.area)} км²</b></div>`);
     if(payload.density!=null && !Number.isNaN(Number(payload.density))) rows.push(`<div class="hover-row"><span>плотность</span><b>${num1(payload.density)}</b></div>`);
     if(payload.extra) rows.push(`<div class="hover-extra">${escapeHtml(payload.extra)}</div>`);
     box.innerHTML=`<div class="hover-title">${escapeHtml(payload.title||'объект')}</div>${rows.join('')}`;
     box.style.display='block';
     moveHover(state.lastHoverEvent);
     requestAnimationFrame(()=>box.classList.add('visible'));
-  }, 500);
+  }, payload.delay ?? 240);
 }
 function moveHover(originalEvent){
   const box=ensureHoverBox(); if(!originalEvent) return;
@@ -561,7 +595,11 @@ function bindUi(){
   const themeSelect=$('themeSelect'); if(themeSelect) themeSelect.value=state.theme;
   const pieSelect=$('pieLevelSelect'); if(pieSelect) pieSelect.value=state.pieGrouping;
   const piePaletteSelect=$('piePaletteSelect'); if(piePaletteSelect) piePaletteSelect.value=state.piePalette;
+  const regionStyleSelect=$('regionStyleSelect'); if(regionStyleSelect) regionStyleSelect.value=state.regionStyle;
+  const basemapStyleSelect=$('basemapStyleSelect'); if(basemapStyleSelect) basemapStyleSelect.value=state.basemapStyle;
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
+  on('regionStyleSelect','change', e=>{ state.regionStyle=regionPalettes[e.target.value]?e.target.value:'soft'; state.colors={}; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
   on('uiStyleToggle','click', ()=>{ state.uiStyle = state.uiStyle === 'glass' ? 'normal' : 'glass'; applyAppearance(true); });
   on('pieLevelSelect','change', e=>{ state.pieGrouping=e.target.value||'upper'; updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
   on('piePaletteSelect','change', e=>{ state.piePalette=chartPalettes[e.target.value]?e.target.value:'softPastel'; storageSet('wsAtlasPiePalette', state.piePalette); updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
@@ -643,7 +681,7 @@ function riverStyle(f){
   const s=styleVars();
   const p=f.properties||{};
   const raw=Number(p.strokeweig || p.strokeweight || p.weight || 1);
-  return {color:s.river, weight:Math.max(.35, Math.min(1.7, raw*.78)), opacity:state.theme==='light'?.50:.70};
+  return {color:s.river, weight:Math.max(.45, Math.min(2.05, raw*.92)), opacity:state.theme==='light'?.70:.74};
 }
 function waterStyle(f){
   const s=styleVars();
@@ -672,8 +710,8 @@ function adminStyle(feature, vals){
   if(state.mode==='urban_share') fill=valueColor(Number(p.urban_share), vals);
   if(state.mode==='rail_length') fill=valueColor(Number(p.rail_length_km), vals);
   if(state.mode==='rail_density') fill=valueColor(Number(p.rail_density_km_1000), vals);
-  const s=styleVars(); const selected=state.selectedIds.has(featureId(feature));
-  return {color:selected?s.selectedLine:s.adminLine, weight:selected?2.8:1.05, opacity:selected?1:.92, fillColor:fill, fillOpacity:selected?Math.min(.70,s.adminFillOpacity+.14):s.adminFillOpacity};
+  const s=styleVars(); const cfg=regionStyleConfig(); const selected=state.selectedIds.has(featureId(feature));
+  return {color:selected?s.selectedLine:(cfg.line||s.adminLine), weight:selected?(cfg.selectedWeight||2.8):(cfg.weight||1.05), opacity:selected?1:(cfg.opacity??.92), dashArray:selected?null:(cfg.dashArray||null), lineJoin:'round', lineCap:'round', fillColor:fill, fillOpacity:selected?Math.min(.74,(cfg.fillOpacity??s.adminFillOpacity)+.14):(cfg.fillOpacity??s.adminFillOpacity)};
 }
 async function refreshAdmin(seq){
   clearLayer('admin'); clearLayer('circles'); state.adminLayerById.clear();
@@ -690,7 +728,7 @@ async function refreshAdmin(seq){
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
     l.on('click',()=>{ if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
-    l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:1.9, opacity:1}); const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:pp.unit_type || pp.admin_parent, population:pp.population, density:pp.density}, e.originalEvent); });
+    l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:Math.max(1.8,(regionStyleConfig().weight||1.05)+.65), opacity:1}); if(state.tool !== 'pan') return; const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:[pp.unit_type, pp.admin_parent].filter(Boolean).join(' · '), population:pp.population, area:pp.area_km2, density:pp.density, extra:`${pp.year || state.year}`}, e.originalEvent); });
     l.on('mousemove',(e)=>moveHover(e.originalEvent));
     l.on('mouseout',()=>{ refreshSelectionStylesFor(id); hideHover(); });
   }});
