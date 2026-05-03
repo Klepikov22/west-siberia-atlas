@@ -224,3 +224,193 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 @keyframes liquidBlob{0%{transform:translate(0,0) rotate(18deg) scale(1);border-radius:46% 54% 60% 40%}100%{transform:translate(-36px,30px) rotate(31deg) scale(1.12);border-radius:58% 42% 44% 56%}}
 @media(max-width:1220px){.chart-lightbox-card{left:24px;right:24px;bottom:86px}.expanded-chart-layout{grid-template-columns:1fr}.expanded-pie-wrap{min-height:280px}.pie-svg-expanded{width:300px;height:300px}}
 @media(max-width:760px){.chart-lightbox-card{left:10px;right:10px;top:10px;bottom:10px;border-radius:22px;padding:18px}.expanded-chart-summary{grid-template-columns:1fr}.chart-legend-head,.chart-legend-row{grid-template-columns:12px minmax(0,1fr) 54px 84px}.chart-lightbox-card h2{font-size:20px}.pie-svg-expanded{width:250px;height:250px}}
+
+
+/* v22: переключаемая оболочка интерфейса — обычная / liquid glass */
+:root[data-ui="normal"]{
+  --panel:#fffefa;
+  --panel2:#f4f1ea;
+  --timeline-bg:#fffefa;
+  --line:#d8d0c4;
+  --shadow:0 14px 36px rgba(48,61,54,.16);
+}
+:root[data-theme="dark"][data-ui="normal"]{
+  --panel:#181b22;
+  --panel2:#222733;
+  --timeline-bg:#181b22;
+  --line:#343946;
+  --shadow:0 16px 42px rgba(0,0,0,.38);
+}
+:root[data-ui="normal"] .panel,
+:root[data-ui="normal"] #timelineBar{
+  background:var(--panel);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  box-shadow:var(--shadow);
+}
+:root[data-ui="normal"] .stats,
+:root[data-ui="normal"] .legend,
+:root[data-ui="normal"] .feature-info,
+:root[data-ui="normal"] .year-card,
+:root[data-ui="normal"] .toggles,
+:root[data-ui="normal"] .tool-help,
+:root[data-ui="normal"] .stat,
+:root[data-ui="normal"] .pie-card,
+:root[data-ui="normal"] select,
+:root[data-ui="normal"] button{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+
+:root[data-ui="glass"]{
+  --panel:rgba(255,255,255,.54);
+  --panel2:rgba(255,255,255,.30);
+  --timeline-bg:rgba(255,255,255,.48);
+  --line:rgba(255,255,255,.46);
+  --shadow:0 28px 70px rgba(49,68,58,.22), inset 0 1px 0 rgba(255,255,255,.44);
+}
+:root[data-theme="dark"][data-ui="glass"]{
+  --panel:rgba(23,27,35,.56);
+  --panel2:rgba(28,33,43,.38);
+  --timeline-bg:rgba(23,27,35,.52);
+  --line:rgba(255,255,255,.15);
+  --shadow:0 30px 78px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.13);
+}
+:root[data-ui="glass"] .floating-panel,
+:root[data-ui="glass"] #timelineBar{
+  position:absolute;
+  isolation:isolate;
+  border-color:var(--line);
+  background:
+    radial-gradient(circle at 15% 4%,rgba(255,255,255,.72),transparent 30%),
+    radial-gradient(circle at 96% 12%,rgba(217,179,108,.24),transparent 34%),
+    linear-gradient(145deg,rgba(255,255,255,.52),rgba(255,255,255,.20) 45%,rgba(255,255,255,.34));
+  backdrop-filter:blur(26px) saturate(1.42);
+  -webkit-backdrop-filter:blur(26px) saturate(1.42);
+  box-shadow:var(--shadow);
+  animation:glassShellIn .36s cubic-bezier(.22,.9,.2,1) both;
+}
+:root[data-theme="dark"][data-ui="glass"] .floating-panel,
+:root[data-theme="dark"][data-ui="glass"] #timelineBar{
+  background:
+    radial-gradient(circle at 16% 4%,rgba(255,255,255,.15),transparent 30%),
+    radial-gradient(circle at 95% 10%,rgba(217,179,108,.20),transparent 34%),
+    linear-gradient(145deg,rgba(31,36,47,.66),rgba(18,21,29,.42) 50%,rgba(53,39,22,.32));
+}
+:root[data-ui="glass"] .floating-panel::before,
+:root[data-ui="glass"] #timelineBar::before{
+  content:"";
+  position:absolute;
+  z-index:0;
+  pointer-events:none;
+  inset:0;
+  border-radius:inherit;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.70),transparent 28%,rgba(255,255,255,.14) 55%,transparent 76%),
+    radial-gradient(ellipse at 12% 92%,rgba(255,255,255,.42),transparent 35%);
+  opacity:.74;
+  mix-blend-mode:screen;
+}
+:root[data-ui="glass"] .floating-panel::after,
+:root[data-ui="glass"] #timelineBar::after{
+  content:"";
+  position:absolute;
+  z-index:0;
+  pointer-events:none;
+  width:210px;
+  height:210px;
+  right:-74px;
+  top:-86px;
+  border-radius:46% 54% 62% 38%;
+  background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.70),rgba(255,255,255,.14) 46%,transparent 68%);
+  opacity:.68;
+  filter:blur(.2px);
+  animation:glassBlobFloat 10s ease-in-out infinite alternate;
+}
+:root[data-ui="glass"] .floating-panel>* ,
+:root[data-ui="glass"] #timelineBar>*{
+  position:relative;
+  z-index:1;
+}
+:root[data-ui="glass"] select,
+:root[data-ui="glass"] button,
+:root[data-ui="glass"] .year-card,
+:root[data-ui="glass"] .toggles,
+:root[data-ui="glass"] .stats,
+:root[data-ui="glass"] .legend,
+:root[data-ui="glass"] .feature-info,
+:root[data-ui="glass"] .stat,
+:root[data-ui="glass"] .pie-card,
+:root[data-ui="glass"] .tool-help{
+  border-color:rgba(255,255,255,.36);
+  background:linear-gradient(145deg,rgba(255,255,255,.42),rgba(255,255,255,.18));
+  backdrop-filter:blur(16px) saturate(1.22);
+  -webkit-backdrop-filter:blur(16px) saturate(1.22);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 10px 24px rgba(45,59,51,.08);
+}
+:root[data-theme="dark"][data-ui="glass"] select,
+:root[data-theme="dark"][data-ui="glass"] button,
+:root[data-theme="dark"][data-ui="glass"] .year-card,
+:root[data-theme="dark"][data-ui="glass"] .toggles,
+:root[data-theme="dark"][data-ui="glass"] .stats,
+:root[data-theme="dark"][data-ui="glass"] .legend,
+:root[data-theme="dark"][data-ui="glass"] .feature-info,
+:root[data-theme="dark"][data-ui="glass"] .stat,
+:root[data-theme="dark"][data-ui="glass"] .pie-card,
+:root[data-theme="dark"][data-ui="glass"] .tool-help{
+  border-color:rgba(255,255,255,.14);
+  background:linear-gradient(145deg,rgba(38,44,57,.48),rgba(18,22,30,.26));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),0 10px 28px rgba(0,0,0,.18);
+}
+:root[data-ui="glass"] .timeline-year .dot{
+  background:rgba(255,255,255,.62);
+  box-shadow:0 0 0 4px rgba(255,255,255,.28),0 6px 16px rgba(98,76,36,.16);
+  transition:transform .24s ease, background .24s ease, box-shadow .24s ease;
+}
+:root[data-theme="dark"][data-ui="glass"] .timeline-year .dot{
+  background:rgba(21,25,33,.82);
+  box-shadow:0 0 0 4px rgba(255,255,255,.08),0 6px 16px rgba(0,0,0,.28);
+}
+:root[data-ui="glass"] .timeline-year.active .dot{
+  box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 22%,transparent),0 0 24px color-mix(in srgb,var(--accent) 38%,transparent);
+}
+:root[data-ui="glass"] .timeline-track:before{
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent) 42%,var(--line)) 10%,var(--line) 50%,color-mix(in srgb,var(--accent) 42%,var(--line)) 90%,transparent);
+}
+.liquid-toggle{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:12px;
+  min-height:58px;
+  text-align:left;
+  padding:10px 12px;
+  overflow:hidden;
+}
+.liquid-toggle-orb{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:linear-gradient(145deg,#ffffff,#e6ddd0);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 7px 18px rgba(55,46,34,.16);
+  transition:transform .28s cubic-bezier(.2,.9,.2,1), background .28s ease, box-shadow .28s ease;
+}
+:root[data-theme="dark"] .liquid-toggle-orb{
+  background:linear-gradient(145deg,#2f3542,#12161e);
+}
+.liquid-toggle-copy{display:grid;gap:2px;min-width:0}.liquid-toggle-copy b{font-size:13px}.liquid-toggle-copy small{font-size:11px;color:var(--muted);line-height:1.25}
+.liquid-toggle.is-glass .liquid-toggle-orb{
+  transform:scale(1.08) rotate(18deg);
+  background:radial-gradient(circle at 32% 26%,#fff,rgba(255,255,255,.55) 36%,rgba(217,179,108,.44) 72%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 0 0 6px color-mix(in srgb,var(--accent) 16%,transparent),0 12px 26px rgba(150,103,25,.20);
+}
+@keyframes glassShellIn{0%{opacity:.72;transform:translateY(10px) scale(.985);filter:blur(2px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes glassBlobFloat{0%{transform:translate(0,0) rotate(12deg) scale(1);border-radius:46% 54% 62% 38%}100%{transform:translate(-32px,38px) rotate(30deg) scale(1.16);border-radius:61% 39% 44% 56%}}
+@media (prefers-reduced-motion: reduce){
+  :root[data-ui="glass"] .floating-panel,
+  :root[data-ui="glass"] #timelineBar,
+  :root[data-ui="glass"] .floating-panel::after,
+  :root[data-ui="glass"] #timelineBar::after{animation:none}
+}

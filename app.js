@@ -1,4 +1,4 @@
-const APP_VERSION = '21';
+const APP_VERSION = '22';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8,7 +8,7 @@ const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
+  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null,
@@ -56,6 +56,39 @@ function styleVars(){
     circleLine: dark ? '#2f210b' : '#6d4f1a',
     circleFill: '#d9a441'
   };
+}
+
+function storageGet(key){
+  try { return window.localStorage?.getItem(key); } catch(_) { return null; }
+}
+function storageSet(key, value){
+  try { window.localStorage?.setItem(key, value); } catch(_) {}
+}
+function restoreAppearancePrefs(){
+  const savedTheme = storageGet('wsAtlasTheme');
+  const savedUiStyle = storageGet('wsAtlasUiStyle');
+  if(savedTheme === 'light' || savedTheme === 'dark') state.theme = savedTheme;
+  if(savedUiStyle === 'normal' || savedUiStyle === 'glass') state.uiStyle = savedUiStyle;
+}
+function applyAppearance(persist=false){
+  document.documentElement.dataset.theme = state.theme;
+  document.documentElement.dataset.ui = state.uiStyle;
+  const themeSelect = $('themeSelect');
+  if(themeSelect && themeSelect.value !== state.theme) themeSelect.value = state.theme;
+  const btn = $('uiStyleToggle');
+  if(btn){
+    const glass = state.uiStyle === 'glass';
+    btn.classList.toggle('is-glass', glass);
+    btn.setAttribute('aria-pressed', String(glass));
+    const title = $('uiStyleToggleTitle');
+    const text = $('uiStyleToggleText');
+    if(title) title.textContent = glass ? 'Liquid glass включён' : 'Обычный интерфейс';
+    if(text) text.textContent = glass ? 'Стеклянные боковые панели и таймслайдер' : 'Плотные панели без стеклянного эффекта';
+  }
+  if(persist){
+    storageSet('wsAtlasTheme', state.theme);
+    storageSet('wsAtlasUiStyle', state.uiStyle);
+  }
 }
 
 
@@ -231,7 +264,8 @@ function urbanBreakdown(features){
 }
 
 async function init(){
-  document.documentElement.dataset.theme = state.theme;
+  restoreAppearancePrefs();
+  applyAppearance(false);
   state.manifest = await loadJson('data/manifest.json');
   state.year = state.manifest.years.includes(1914) ? 1914 : state.manifest.years[0];
   setYearLabels(); buildTimeline();
@@ -272,7 +306,9 @@ async function init(){
 function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
   on('modeSelect','change', async e=>{state.mode=e.target.value; const seq=state.refreshSeq; await refreshAdmin(seq);});
-  on('themeSelect','change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles(); updateLabelsVisibility();});
+  const themeSelect=$('themeSelect'); if(themeSelect) themeSelect.value=state.theme;
+  on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
+  on('uiStyleToggle','click', ()=>{ state.uiStyle = state.uiStyle === 'glass' ? 'normal' : 'glass'; applyAppearance(true); });
   on('toolSelect','change', e=>setTool(e.target.value));
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
   on('finishPolygon','click', finishPolygonSelection);

@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light" data-ui="normal">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=21" />
+  <link rel="stylesheet" href="style.css?v=22" />
 </head>
 <body>
   <div id="app">
@@ -18,7 +18,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v21</div>
+      <div class="eyebrow">Дипломный веб-атлас · v22</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -33,11 +33,20 @@
         <option value="unit_type">Тип единицы</option>
       </select>
 
-      <label class="control-label" for="themeSelect">Стиль интерфейса</label>
+      <label class="control-label" for="themeSelect">Базовая тема</label>
       <select id="themeSelect">
-        <option value="light" selected>Светлый</option>
-        <option value="dark">Тёмный</option>
+        <option value="light" selected>Светлая</option>
+        <option value="dark">Тёмная</option>
       </select>
+
+      <label class="control-label" for="uiStyleToggle">Оболочка интерфейса</label>
+      <button id="uiStyleToggle" class="liquid-toggle" type="button" aria-pressed="false">
+        <span class="liquid-toggle-orb" aria-hidden="true"></span>
+        <span class="liquid-toggle-copy">
+          <b id="uiStyleToggleTitle">Обычный интерфейс</b>
+          <small id="uiStyleToggleText">Плотные панели без стеклянного эффекта</small>
+        </span>
+      </button>
 
       <label class="control-label" for="toolSelect">Инструмент</label>
       <select id="toolSelect">
@@ -93,6 +102,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>
