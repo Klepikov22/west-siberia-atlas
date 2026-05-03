@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=33" />
+  <link rel="stylesheet" href="style.css?v=34" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v33</div>
+      <div class="eyebrow">Дипломный веб-атлас · v34</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -141,18 +141,21 @@
 
       <section class="population-symbol-controls" aria-label="Настройки символов населения">
         <div class="symbol-controls-title">Символы населения</div>
-        <label class="control-label" for="populationSymbolType">Тип символа</label>
-        <select id="populationSymbolType">
-          <option value="circle" selected>Круги площади/радиуса</option>
-          <option value="bar">Столбцы высоты</option>
-        </select>
-        <label class="control-label" for="populationScaleMethod">Нормирование</label>
-        <select id="populationScaleMethod">
+        <div class="symbol-static-type">Тип символа: <b>круги населения</b></div>
+        <label class="control-label" for="populationScaleMethod">Нормирование <span class="info-hint" tabindex="0" aria-label="Справка по нормированию">?</span></label>
+        <select id="populationScaleMethod" aria-describedby="populationScaleHelp">
           <option value="sqrt" selected>Квадратный корень</option>
           <option value="linear">Линейное</option>
           <option value="log">Логарифмическое</option>
           <option value="quantile">Квантильное</option>
         </select>
+        <div id="populationScaleHelp" class="scale-help-popover" role="tooltip">
+          <b>Как читать нормирование кругов</b>
+          <p><strong>Линейное</strong> — размер прямо пропорционален значению; хорошо видно разницу между близкими значениями, но крупнейшие города могут «давить» остальные.</p>
+          <p><strong>Квадратный корень</strong> — мягко сжимает разброс; обычно лучший вариант для площадных кругов населения.</p>
+          <p><strong>Логарифмическое</strong> — сильно сжимает большие значения; полезно, когда есть 1–2 гиганта и много малых единиц.</p>
+          <p><strong>Квантильное</strong> — распределяет объекты по рангам; хорошо показывает место в иерархии, но скрывает реальные интервалы между значениями.</p>
+        </div>
         <div class="symbol-slider-row">
           <label for="populationMinSize">Минимальный размер <b id="populationMinSizeValue">5</b></label>
           <input id="populationMinSize" type="range" min="2" max="26" step="1" value="5">
@@ -212,6 +215,7 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=33"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>

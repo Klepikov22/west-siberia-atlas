@@ -1188,3 +1188,31 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
   .export-main{grid-template-columns:1fr}
   .export-map-frame{min-height:420px}
 }
+
+/* v34: export map fixes, A4 layouts, circle-only symbols, normalization help */
+.symbol-static-type{border:1px solid var(--line);border-radius:14px;background:var(--panel2);padding:10px 12px;margin:8px 0 10px;font-size:13px;color:var(--muted)}
+.symbol-static-type b{color:var(--text)}
+.info-hint{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;margin-left:6px;cursor:help;color:var(--accent)}
+.population-symbol-controls{position:relative}
+.scale-help-popover{position:absolute;left:14px;right:14px;top:154px;z-index:30;display:none;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-size:12px;line-height:1.45;color:var(--text)}
+.scale-help-popover b{display:block;margin-bottom:6px;font-size:13px}
+.scale-help-popover p{margin:6px 0;color:var(--muted)}
+.control-label:has(.info-hint):hover + select + .scale-help-popover,
+.control-label:has(.info-hint):focus-within + select + .scale-help-popover,
+#populationScaleMethod:hover + .scale-help-popover,
+.scale-help-popover:hover{display:block}
+
+.export-live-map{width:100%;height:100%;min-height:520px;background:#e9f1ec;position:relative;overflow:hidden}
+.export-map-bg{position:absolute;inset:0;background:linear-gradient(135deg,#edf5ee,#e7efe9 52%,#f3efe1);pointer-events:none;z-index:0}
+.export-live-map .leaflet-pane{z-index:1}
+.export-live-map .leaflet-control-container{display:none}
+.export-academic-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.11em;color:#7a8490;font-weight:800;margin-bottom:6px}
+.export-paper-a4Landscape{width:1280px;max-width:100%;aspect-ratio:1.414/1;min-height:820px}
+.export-paper-a4Portrait{width:920px;max-width:100%;aspect-ratio:1/1.414;min-height:1180px}
+.export-paper-screen{width:1360px;max-width:100%;aspect-ratio:16/9;min-height:720px}
+.export-paper-a4Portrait .export-main{grid-template-columns:1fr}.export-paper-a4Portrait .export-map-frame{min-height:620px}.export-paper-a4Portrait .export-side{grid-template-columns:1fr 1fr;display:grid}
+.export-template-thesis .export-header{border-bottom:2px solid #d1c6b7}.export-template-thesis .export-title-block h1{font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:-.02em}.export-template-thesis .export-context{background:#fffdf8}.export-template-thesis .export-footer{font-style:italic}
+.export-template-article{padding:18px}.export-template-article .export-header{padding-bottom:10px}.export-template-article .export-title-block h1{font-size:24px}.export-template-article .export-context{font-size:13px;padding:10px 12px}.export-template-article .export-map-frame{min-height:500px}.export-template-article .export-side-block{padding:12px 13px}
+.export-template-presentation{padding:28px;background:linear-gradient(135deg,#f7f5ef,#edf2e7)}.export-template-presentation .export-title-block h1{font-size:38px;line-height:1.02}.export-template-presentation .export-title-block p{font-size:17px}.export-template-presentation .export-main{grid-template-columns:minmax(0,1fr) 270px}.export-template-presentation .export-map-frame{min-height:560px}.export-template-presentation .export-context{font-size:15px}
+.export-layout{box-sizing:border-box;margin:0 auto}.export-map-frame{position:relative}.export-preview-card{display:flex;justify-content:center}.export-preview-area{background:linear-gradient(180deg,var(--bg),rgba(0,0,0,.025))}
+@media(max-width:1200px){.export-paper-a4Landscape,.export-paper-a4Portrait,.export-paper-screen{width:100%;aspect-ratio:auto}.export-paper-a4Portrait .export-side{grid-template-columns:1fr}.export-live-map{min-height:420px}}

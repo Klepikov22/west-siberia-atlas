@@ -1,4 +1,4 @@
-const APP_VERSION = '33';
+const APP_VERSION = '34';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13,7 +13,7 @@ const state = {
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
   visibleParents:new Set(), parentCounts:new Map(), parentFilterYear:null,
-  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:''},
+  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:'', paper:'a4Landscape', template:'thesis', liveMap:null, liveLayers:[]},
   filters:{
     population:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
@@ -139,7 +139,7 @@ function restoreAppearancePrefs(){
   if(savedPiePalette && chartPalettes[savedPiePalette]) state.piePalette = savedPiePalette;
   if(savedRegionStyle && regionPalettes[savedRegionStyle]) state.regionStyle = savedRegionStyle;
   if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
-  if(['circle','bar'].includes(savedSymbolType)) state.populationSymbol.type=savedSymbolType;
+  state.populationSymbol.type='circle';
   if(['sqrt','linear','log','quantile'].includes(savedSymbolScale)) state.populationSymbol.scale=savedSymbolScale;
   if(Number.isFinite(savedSymbolMin)) state.populationSymbol.minSize=Math.max(2, Math.min(26, savedSymbolMin));
   if(Number.isFinite(savedSymbolMax)) state.populationSymbol.maxSize=Math.max(10, Math.min(72, savedSymbolMax));
@@ -155,8 +155,7 @@ function applyAppearance(persist=false){
   if(regionStyleSelect && regionStyleSelect.value !== state.regionStyle) regionStyleSelect.value = state.regionStyle;
   const basemapStyleSelect = $('basemapStyleSelect');
   if(basemapStyleSelect && basemapStyleSelect.value !== state.basemapStyle) basemapStyleSelect.value = state.basemapStyle;
-  const symbolTypeSelect = $('populationSymbolType');
-  if(symbolTypeSelect && symbolTypeSelect.value !== state.populationSymbol.type) symbolTypeSelect.value = state.populationSymbol.type;
+  state.populationSymbol.type='circle';
   const symbolScaleSelect = $('populationScaleMethod');
   if(symbolScaleSelect && symbolScaleSelect.value !== state.populationSymbol.scale) symbolScaleSelect.value = state.populationSymbol.scale;
   updatePopulationSymbolControls();
@@ -175,7 +174,6 @@ function applyAppearance(persist=false){
     storageSet('wsAtlasUiStyle', state.uiStyle);
     storageSet('wsAtlasRegionStyle', state.regionStyle);
     storageSet('wsAtlasBasemapStyle', state.basemapStyle);
-    storageSet('wsAtlasPopulationSymbolType', state.populationSymbol.type);
     storageSet('wsAtlasPopulationScale', state.populationSymbol.scale);
     storageSet('wsAtlasPopulationMinSize', state.populationSymbol.minSize);
     storageSet('wsAtlasPopulationMaxSize', state.populationSymbol.maxSize);
@@ -191,13 +189,12 @@ function updatePopulationSymbolControls(){
   if(maxLabel) maxLabel.textContent=String(Math.round(state.populationSymbol.maxSize));
   const hint=$('populationSymbolHint');
   if(hint){
-    const type=state.populationSymbol.type==='bar'?'столбцы':'круги';
+    const type='круги';
     const scale={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale] || state.populationSymbol.scale;
     hint.textContent=`${type}: ${scale} нормирование, размер ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.`;
   }
 }
 function persistPopulationSymbolSettings(){
-  storageSet('wsAtlasPopulationSymbolType', state.populationSymbol.type);
   storageSet('wsAtlasPopulationScale', state.populationSymbol.scale);
   storageSet('wsAtlasPopulationMinSize', state.populationSymbol.minSize);
   storageSet('wsAtlasPopulationMaxSize', state.populationSymbol.maxSize);
@@ -686,7 +683,6 @@ function bindUi(){
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
   on('regionStyleSelect','change', e=>{ state.regionStyle=regionPalettes[e.target.value]?e.target.value:'soft'; state.colors={}; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
   on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
-  on('populationSymbolType','change', e=>{ state.populationSymbol.type=['circle','bar'].includes(e.target.value)?e.target.value:'circle'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationScaleMethod','change', e=>{ state.populationSymbol.scale=['sqrt','linear','log','quantile'].includes(e.target.value)?e.target.value:'sqrt'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMinSize','input', e=>{ const v=Math.max(2, Math.min(26, Number(e.target.value)||5)); state.populationSymbol.minSize=Math.min(v, state.populationSymbol.maxSize-2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMaxSize','input', e=>{ const v=Math.max(10, Math.min(72, Number(e.target.value)||39)); state.populationSymbol.maxSize=Math.max(v, state.populationSymbol.minSize+2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
@@ -873,11 +869,9 @@ function buildCircles(admin, gj){
   admin.eachLayer(layer=>{
     const f=layer.feature; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
     const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop, vals);
-    const m=state.populationSymbol.type==='bar'
-      ? buildPopulationBarMarker(c, f, size, s)
-      : L.circleMarker(c,{radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
+    const m=L.circleMarker(c,{radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
     m.feature=f;
-    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:state.populationSymbol.type==='bar'?'столбец населения':'круг населения', population:pop, density:p.density}, e.originalEvent));
+    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:'круг населения', population:pop, density:p.density}, e.originalEvent));
     m.on('mousemove',(e)=>moveHover(e.originalEvent));
     m.on('mouseout', hideHover);
     m.on('click',(e)=>{L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
@@ -994,8 +988,7 @@ function refreshVectorStyles(){
   if(state.layers.railways) state.layers.railways.setStyle({color:s.railway,weight:1.65,opacity:.88});
   if(state.layers.admin) refreshSelectionStyles();
   if(state.layers.circles){
-    if(state.populationSymbol.type==='bar') rebuildPopulationSymbols();
-    else state.layers.circles.eachLayer(m=>m.setStyle && m.setStyle({color:s.circleLine, fillColor:s.circleFill, fillOpacity:.74, opacity:.98}));
+    state.layers.circles.eachLayer(m=>m.setStyle && m.setStyle({color:s.circleLine, fillColor:s.circleFill, fillOpacity:.74, opacity:.98}));
   }
   if(state.layers.centers) state.layers.centers.eachLayer(m=>m.setStyle && m.setStyle({color:'#3a2607', fillColor:'#f6c85f', fillOpacity:.82, opacity:.98}));
   refreshVisibility();
@@ -1354,7 +1347,7 @@ function updateLegend(gj, vals){
   if(state.mode==='admin_parent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
   else { activeValueRamp().forEach((c,i,arr)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`}); }
   html+=`<div class="legend-section">Гидрография</div><div class="legend-row"><span class="swatch water-swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>`;
-  if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0)||[]; const sectionTitle=state.populationSymbol.type==='bar'?'Столбцы населения':'Круги населения'; html+=`<div class="legend-section">${sectionTitle}</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationSymbolSize(v, vals)); if(state.populationSymbol.type==='bar'){ const h=Math.max(10,size); const w=Math.max(8, Math.min(18, Math.round(h*.32))); html+=`<div class="legend-row"><span class="bar-swatch" style="width:${w}px;height:${h}px"></span>${label}: ${num(v)}</div>`; } else { html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`; } }); const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale; html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`; }
+  if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0)||[]; html+=`<div class="legend-section">Круги населения</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationSymbolSize(v, vals)); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`; }); const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale; html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`; }
   if($('toggleCenters')?.checked && state.maxCenterPop){ const cmax=state.maxCenterPop; const cmid=cmax/4; html+=`<div class="legend-section">Центры</div>`; [[cmax,'макс.'],[cmid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(7, centerRadius(v,cmax)*1.45); html+=`<div class="legend-row"><span class="center-circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); }
   box.innerHTML=html;
 }
@@ -1534,3 +1527,147 @@ function segmentsIntersect(a,b,c,d){
 }
 
 init().catch(err=>{console.error(err); alert('Ошибка загрузки данных: '+err.message);});
+
+/* v34 overrides: export map as live vector map, A4 modes, academic templates, circle-only symbols */
+function exportTemplateName(){
+  return {thesis:'карта для диплома', article:'карта для статьи', presentation:'презентационный слайд'}[state.export.template] || 'карта для диплома';
+}
+function exportPaperName(){
+  return {a4Landscape:'A4 horizontal', a4Portrait:'A4 vertical', screen:'экранный формат'}[state.export.paper] || 'A4 horizontal';
+}
+function exportSourceCaption(){
+  return 'Составлено автором по материалам: историко‑административные слои веб‑атласа, данные переписей населения Российской империи, СССР и РФ за 1897–2021 гг.; авторская обработка и визуализация в ГИС.';
+}
+function ensureExportModal(){
+  let modal=$('exportMode'); if(modal) return modal;
+  modal=document.createElement('div');
+  modal.id='exportMode'; modal.className='export-modal'; modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div><section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle"><aside class="export-controls"><div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div><label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text"><label class="control-label" for="exportSubtitleInput">Подзаголовок</label><input id="exportSubtitleInput" class="export-text-input" type="text"><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select><label class="control-label" for="exportPaperSelect">Формат листа</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select><label class="control-label" for="exportTemplateSelect">Режим оформления</label><select id="exportTemplateSelect"><option value="thesis">Карта для диплома</option><option value="article">Карта для статьи</option><option value="presentation">Презентационный слайд</option></select><div class="export-option-grid"><label><input type="checkbox" id="exportFitScope" checked> Автоцентрирование по охвату</label><label><input type="checkbox" id="exportShowLegend" checked> Показать легенду</label><label><input type="checkbox" id="exportShowStats" checked> Показать общую информацию</label><label><input type="checkbox" id="exportShowContext" checked> Показать контекст</label></div><details id="exportContextDetails" class="export-context-box" open><summary>Контекст периода</summary><label class="control-label" for="exportContextMode">Режим текста</label><select id="exportContextMode"><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="6"></textarea></details><div class="button-row export-buttons"><button id="exportFitNow" type="button">Подогнать карту</button><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button><div class="mini-muted">В PNG попадает отдельный чистый макет: карта, шапка, контекст, легенда, сводка и автоматическая подпись источников.</div></aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div></section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.export-close').addEventListener('click', closeExportMode);
+  modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
+  const bind=(id, event, fn)=>{ const el=$(id); if(el) el.addEventListener(event, fn); };
+  bind('exportTitleInput','input', e=>{ state.export.title=e.target.value; renderExportPreviewCard(); });
+  bind('exportSubtitleInput','input', e=>{ state.export.subtitle=e.target.value; renderExportPreviewCard(); });
+  bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(); });
+  bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; renderExportPreviewCard(); });
+  bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; renderExportPreviewCard(); });
+  bind('exportFitScope','change', e=>{ state.export.fitScope=!!e.target.checked; });
+  bind('exportShowLegend','change', e=>{ state.export.showLegend=!!e.target.checked; renderExportPreviewCard(); });
+  bind('exportShowStats','change', e=>{ state.export.showStats=!!e.target.checked; renderExportPreviewCard(); });
+  bind('exportShowContext','change', e=>{ state.export.showContext=!!e.target.checked; $('exportContextDetails').style.display=state.export.showContext?'block':'none'; renderExportPreviewCard(); });
+  bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
+  bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
+  bind('exportFitNow','click', async ()=>{ await refreshExportPreview(true); });
+  bind('refreshExportPreview','click', ()=>refreshExportPreview(false));
+  bind('downloadExportPng','click', downloadExportPng);
+  return modal;
+}
+function syncExportDefaults(resetTitle=true){
+  const features=exportScopeFeatures();
+  if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
+  if(resetTitle || !state.export.subtitle) state.export.subtitle=defaultExportSubtitle(features);
+  syncExportContextText();
+  const fields={title:'exportTitleInput', subtitle:'exportSubtitleInput', scope:'exportScopeSelect', fit:'exportFitScope', legend:'exportShowLegend', stats:'exportShowStats', context:'exportShowContext', mode:'exportContextMode', paper:'exportPaperSelect', template:'exportTemplateSelect'};
+  if($(fields.title)) $(fields.title).value=state.export.title;
+  if($(fields.subtitle)) $(fields.subtitle).value=state.export.subtitle;
+  if($(fields.scope)) $(fields.scope).value=state.export.scope;
+  if($(fields.paper)) $(fields.paper).value=state.export.paper;
+  if($(fields.template)) $(fields.template).value=state.export.template;
+  if($(fields.fit)) $(fields.fit).checked=state.export.fitScope;
+  if($(fields.legend)) $(fields.legend).checked=state.export.showLegend;
+  if($(fields.stats)) $(fields.stats).checked=state.export.showStats;
+  if($(fields.context)) $(fields.context).checked=state.export.showContext;
+  if($(fields.mode)) $(fields.mode).value=state.export.contextMode;
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
+  if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+}
+async function openExportMode(){
+  const modal=ensureExportModal();
+  state.export.open=true; syncExportDefaults(true);
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  await refreshExportPreview(false);
+}
+function closeExportMode(){
+  const modal=$('exportMode'); if(!modal) return;
+  state.export.open=false; modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+  if(state.export.liveMap){ try{state.export.liveMap.remove();}catch(_){} state.export.liveMap=null; }
+}
+function renderExportPreviewCard(){
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const template=state.export.template || 'thesis';
+  const paper=state.export.paper || 'a4Landscape';
+  wrap.innerHTML=`<article class="export-layout export-paper-${paper} export-template-${template}"><header class="export-header"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p></div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст периода</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame"><div id="exportLiveMap" class="export-live-map"></div></div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
+  setTimeout(()=>updateExportLiveMap(), 40);
+}
+async function refreshExportPreview(fitMainMap=false){
+  if(!state.export.open) return;
+  const status=$('exportPreviewStatus');
+  if(status) status.textContent='Обновляем экспортный макет…';
+  if(fitMainMap && state.export.fitScope) await applyExportScopeToMap();
+  renderExportPreviewCard();
+  await updateExportLiveMap();
+  if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+}
+async function updateExportLiveMap(){
+  const el=$('exportLiveMap'); if(!el || !window.L) return;
+  if(state.export.liveMap){ try{state.export.liveMap.remove();}catch(_){} state.export.liveMap=null; }
+  const map=L.map(el,{zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false, keyboard:false, preferCanvas:false});
+  state.export.liveMap=map;
+  const features=exportScopeFeatures();
+  const bounds=featuresBounds(features) || state.dataBounds;
+  const bg=document.createElement('div');
+  bg.className='export-map-bg';
+  el.appendChild(bg);
+  await addExportVectorLayers(map, features);
+  setTimeout(()=>{ map.invalidateSize(); if(bounds) map.fitBounds(bounds,{padding:[24,24], maxZoom:6.4, animate:false}); }, 40);
+}
+async function addExportVectorLayers(map, features){
+  const field=valField(); const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>!Number.isNaN(v)):[];
+  try{
+    if(state.manifest?.layers?.hydro && $('toggleHydro')?.checked !== false){
+      const rivers=await loadJson(state.manifest.layers.hydro.rivers);
+      const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+      const showReservoirs=Number(state.year)>=1959;
+      const water={type:'FeatureCollection', features:(waterRaw.features||[]).filter(f=>showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))};
+      L.geoJSON(rivers,{interactive:false, style:riverStyle}).addTo(map);
+      L.geoJSON(water,{interactive:false, style:waterStyle}).addTo(map);
+    }
+  }catch(e){ console.warn('export hydro skipped', e); }
+  if($('toggleAdmin')?.checked !== false){
+    const admin=L.geoJSON({type:'FeatureCollection',features}, {interactive:false, style:f=>adminStyle(f, vals)}).addTo(map);
+    if($('toggleCircles')?.checked !== false){
+      const popVals=features.map(f=>Number(f.properties?.population)||0).filter(v=>v>0);
+      admin.eachLayer(layer=>{
+        const f=layer.feature; const p=f.properties||{}; const pop=Number(p.population)||0; if(!pop) return;
+        const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop,popVals);
+        L.circleMarker(c,{radius:size,color:styleVars().circleLine,weight:1.45,fillColor:styleVars().circleFill,fillOpacity:.74,opacity:.98,interactive:false}).addTo(map);
+      });
+    }
+  }
+  try{
+    if(state.manifest?.layers?.railways && $('toggleRailways')?.checked !== false){
+      const rail=await loadJson(state.manifest.layers.railways.main);
+      const filtered={type:'FeatureCollection', features:(rail.features||[]).filter(f=>{const p=f.properties||{}; const o=Number(p.year_open); const c=p.year_close==null?null:Number(p.year_close); return o<=state.year && (c==null || c>state.year);})};
+      L.geoJSON(filtered,{interactive:false, style:{color:styleVars().railway,weight:1.35,opacity:.72}}).addTo(map);
+    }
+  }catch(e){ console.warn('export railways skipped', e); }
+}
+async function downloadExportPng(){
+  const node=$('exportPreviewCard');
+  if(!node || typeof window.html2canvas!=='function'){
+    const status=$('exportPreviewStatus'); if(status) status.textContent='Не загружена библиотека сохранения PNG. Проверьте подключение html2canvas.';
+    return;
+  }
+  await updateExportLiveMap();
+  await new Promise(r=>setTimeout(r,180));
+  const status=$('exportPreviewStatus'); if(status) status.textContent='Сохраняем PNG…';
+  const bg=getComputedStyle(node.querySelector('.export-layout')||node).backgroundColor || '#f7f5ef';
+  const canvas=await window.html2canvas(node,{backgroundColor:bg, useCORS:true, logging:false, scale:2});
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=`west_siberia_${state.year}_${state.mode}_${state.export.template}_${state.export.paper}.png`;
+  document.body.appendChild(a); a.click(); a.remove();
+  if(status) status.textContent='PNG готов. Файл сохранён в загрузки браузера.';
+}
