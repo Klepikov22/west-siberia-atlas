@@ -1,4 +1,4 @@
-const APP_VERSION = '29';
+const APP_VERSION = '30';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -18,7 +18,7 @@ const state = {
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     density:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null}
   },
-  metricFilterDrag:{active:false, dx:0, dy:0}, parentFilterDrag:{active:false, dx:0, dy:0}, sidePanels:{left:false,right:false},
+  metricFilterDrag:{active:false, dx:0, dy:0}, parentFilterDrag:{active:false, dx:0, dy:0}, sidePanels:{left:false,right:false}, bottomWidgetsPositioned:false,
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
@@ -179,7 +179,7 @@ function showHoverLater(payload, originalEvent){
     box.style.display='block';
     moveHover(state.lastHoverEvent);
     requestAnimationFrame(()=>box.classList.add('visible'));
-  }, payload.delay ?? 240);
+  }, payload.delay ?? 500);
 }
 function moveHover(originalEvent){
   const box=ensureHoverBox(); if(!originalEvent) return;
@@ -370,6 +370,7 @@ function initDraggableWidget(panelId, handleId, dragStateKey){
     const rect=panel.getBoundingClientRect();
     state[dragStateKey]={active:true, dx:point.clientX-rect.left, dy:point.clientY-rect.top};
     panel.classList.add('is-dragging');
+    panel.dataset.userDragged='1';
     panel.style.left=`${rect.left}px`; panel.style.top=`${rect.top}px`;
     panel.style.right='auto'; panel.style.bottom='auto'; panel.style.width=`${rect.width}px`;
     ev.preventDefault();
@@ -380,7 +381,7 @@ function initDraggableWidget(panelId, handleId, dragStateKey){
     const rect=panel.getBoundingClientRect();
     const left=clamp(point.clientX-state[dragStateKey].dx, 8, window.innerWidth-rect.width-8);
     const top=clamp(point.clientY-state[dragStateKey].dy, 8, window.innerHeight-rect.height-8);
-    panel.style.left=`${left}px`; panel.style.top=`${top}px`;
+    panel.style.left=`${left}px`; panel.style.top=`${top}px`; panel.style.transform='none';
     ev.preventDefault();
   };
   const endDrag=()=>{
@@ -401,6 +402,34 @@ function initDraggableWidget(panelId, handleId, dragStateKey){
       panel.style.top=`${clamp(rect.top,8,Math.max(8,window.innerHeight-rect.height-8))}px`;
     }
   });
+}
+function positionBottomWidgets(force=false){
+  const timeline=$('timelineBar');
+  const metric=$('metricFilters');
+  const parent=$('parentFilterBar');
+  if(!timeline || !metric || !parent) return;
+  const gap=10;
+  const t=timeline.getBoundingClientRect();
+  const mRect=metric.getBoundingClientRect();
+  const pRect=parent.getBoundingClientRect();
+  const bottom=Math.max(8, window.innerHeight - t.bottom);
+  const maxLeft=(elRect)=>Math.max(8, window.innerWidth - elRect.width - 8);
+  if(force || metric.dataset.userDragged!=='1'){
+    const left=clamp(t.left - mRect.width - gap, 8, maxLeft(mRect));
+    metric.style.left=`${left}px`;
+    metric.style.right='auto';
+    metric.style.top='auto';
+    metric.style.bottom=`${bottom}px`;
+    metric.style.transform='none';
+  }
+  if(force || parent.dataset.userDragged!=='1'){
+    const left=clamp(t.right + gap, 8, maxLeft(pRect));
+    parent.style.left=`${left}px`;
+    parent.style.right='auto';
+    parent.style.top='auto';
+    parent.style.bottom=`${bottom}px`;
+    parent.style.transform='none';
+  }
 }
 function initCollapsiblePanel(panelId, buttonId){
   const panel=$(panelId); const button=$(buttonId);
@@ -584,8 +613,8 @@ async function init(){
   bindUi(); bindSelectionHandlers(); setTool('pan');
   state.map.on('zoomend moveend zoom move', ()=>{ updateLabelsVisibility(); updateCenterLabels(); });
   await refreshAll();
-  setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},250);
-  window.addEventListener('resize', () => setTimeout(()=>{state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},120));
+  setTimeout(()=>{positionBottomWidgets(); state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},250);
+  window.addEventListener('resize', () => setTimeout(()=>{positionBottomWidgets(); state.map.invalidateSize(); updateLabelsVisibility(); updateCenterLabels();},120));
 }
 
 function bindUi(){
@@ -623,6 +652,7 @@ function bindUi(){
   initDraggableWidget('parentFilterBar','parentFilterHandle','parentFilterDrag');
   initCollapsiblePanel('metricFilters','collapseMetricFilters');
   initCollapsiblePanel('parentFilterBar','collapseParentFilter');
+  requestAnimationFrame(()=>positionBottomWidgets());
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
@@ -689,7 +719,7 @@ function waterStyle(f){
   const kind=p.water_kind || '';
   const ocean=kind==='ocean';
   const reservoir=kind==='reservoir' || isReservoirFeature(f);
-  return {color:s.waterLine, weight:ocean?.85:.65, opacity:ocean?.68:.82, fillColor:s.waterFill, fillOpacity:ocean?(state.theme==='light'?.46:.42):(reservoir?(state.theme==='light'?.58:.48):(state.theme==='light'?.74:.58))};
+  return {color:s.waterLine, weight:ocean?.85:.70, opacity:ocean?.70:.88, fillColor:s.waterFill, fillOpacity:ocean?(state.theme==='light'?.62:.52):(reservoir?(state.theme==='light'?.90:.78):(state.theme==='light'?.96:.86))};
 }
 async function refreshHydro(seq){
   clearLayer('rivers'); clearLayer('water');
@@ -728,7 +758,7 @@ async function refreshAdmin(seq){
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
     l.on('click',()=>{ if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
-    l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:Math.max(1.8,(regionStyleConfig().weight||1.05)+.65), opacity:1}); if(state.tool !== 'pan') return; const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:[pp.unit_type, pp.admin_parent].filter(Boolean).join(' · '), population:pp.population, area:pp.area_km2, density:pp.density, extra:`${pp.year || state.year}`}, e.originalEvent); });
+    l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:Math.max(1.8,(regionStyleConfig().weight||1.05)+.65), opacity:1}); if(state.tool !== 'pan') return; const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:[pp.unit_type, pp.admin_parent].filter(Boolean).join(' · '), population:pp.population, area:pp.area_km2, density:pp.density, extra:`год ${pp.year || state.year}`, delay:500}, e.originalEvent); });
     l.on('mousemove',(e)=>moveHover(e.originalEvent));
     l.on('mouseout',()=>{ refreshSelectionStylesFor(id); hideHover(); });
   }});
@@ -803,7 +833,7 @@ async function refreshCenters(seq){
     if(parent && visibleParents.has(parent)) return true;
     return false;
   });
-  const pops=filteredFeatures.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
+  const pops=filteredFeatures.filter(f=>f.geometry && f.geometry.type==='Point').map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup();
   const labelSeen=new Set();
@@ -847,7 +877,7 @@ function refreshVisibility(){
   entries.forEach(([name,show])=>{ const l=state.layers[name]; if(l && show) l.addTo(state.map); });
   // Финальная страховка порядка.
   if(state.layers.rivers?.bringToBack) state.layers.rivers.bringToBack();
-  if(state.layers.water?.bringToBack) state.layers.water.bringToBack();
+  if(state.layers.water?.bringToFront) state.layers.water.bringToFront();
   if(state.layers.admin?.bringToFront) state.layers.admin.bringToFront();
   if(state.layers.railways?.bringToFront) state.layers.railways.bringToFront();
   bringLayerGroupToFront(state.layers.circles); bringLayerGroupToFront(state.layers.centers); bringLayerGroupToFront(state.layers.centerLabels);

@@ -980,3 +980,62 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 
 /* светлая тема: реки чуть заметнее */
 :root[data-theme="light"] .river-swatch{border-top-color:#209fc6;border-top-width:2.5px}
+
+/* v30: нижние панели у таймслайдера, быстрый drag без инерционной плавности, вода поверх рек */
+#metricFilters,#parentFilterBar{
+  bottom:18px;
+  transform:none!important;
+}
+#metricFilters{
+  width:360px;
+  min-width:340px;
+}
+#parentFilterBar{
+  width:320px;
+  min-width:300px;
+}
+.draggable-widget.is-dragging,
+#metricFilters.is-dragging,
+#parentFilterBar.is-dragging{
+  transition:none!important;
+  animation:none!important;
+  cursor:grabbing;
+  user-select:none;
+}
+#parentFilterBar .drag-handle,
+#metricFilters .drag-handle{
+  touch-action:none;
+}
+#parentFilterBar.is-dragging .drag-handle,
+#metricFilters.is-dragging .drag-handle{
+  cursor:grabbing;
+}
+/* Не даём v28 плавному сворачиванию создавать ощущение «резины» у перетаскивания */
+#parentFilterBar:not(.is-dragging),#metricFilters:not(.is-dragging){
+  transition:opacity .16s ease,box-shadow .16s ease,max-height .16s ease!important;
+}
+#parentFilterBar .parent-checkboxes,
+#metricFilters .metric-filter-grid{
+  transition:max-height .16s ease,opacity .14s ease!important;
+}
+/* Компактное hover-меню: появляется через 0,5 с из JS и дальше идёт за курсором */
+.map-hover-card{
+  pointer-events:none;
+  z-index:1600;
+}
+/* Вода должна перекрывать реки внутри озёр/водохранилищ, но оставаться под АТЕ */
+:root[data-theme="light"] .water-swatch{background:#d7f0f7;border-color:#54acc9}
+@media(max-width:1480px){
+  #metricFilters{width:320px;min-width:300px}
+  #parentFilterBar{width:280px;min-width:260px}
+}
+@media(max-width:1180px){
+  #metricFilters,#parentFilterBar{
+    left:10px!important;
+    right:auto!important;
+    width:min(92vw,520px)!important;
+    min-width:0!important;
+  }
+  #metricFilters{bottom:150px!important}
+  #parentFilterBar{bottom:18px!important}
+}
