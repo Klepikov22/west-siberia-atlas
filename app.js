@@ -1,4 +1,9 @@
-const APP_VERSION = '19';
+const APP_VERSION = '21';
+const BASE_MIN_ZOOM = 3.5;
+const WHEEL_ZOOM_STEP = 0.25;
+const MIN_ZOOM_WHEEL_STEPS_IN = 6;
+const MAP_MIN_ZOOM = BASE_MIN_ZOOM + WHEEL_ZOOM_STEP * MIN_ZOOM_WHEEL_STEPS_IN; // 5.0: на 6 snap-шагов колёсика ближе прежнего минимума
+const MAP_RESET_MAX_ZOOM = Math.max(5, MAP_MIN_ZOOM);
 const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
@@ -6,7 +11,8 @@ const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
-  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[]
+  lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null,
+  dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
 const palette = ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'];
@@ -26,6 +32,8 @@ function num1(v){ return v==null||Number.isNaN(Number(v)) ? '—' : Number(v).to
 function pct(v){ return v==null||Number.isNaN(Number(v)) ? '—' : (Number(v)*100).toFixed(1).replace('.',',')+'%'; }
 function escapeHtml(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
+function finiteNumber(v){ const n=Number(v); return Number.isFinite(n) ? n : null; }
+function hasFiniteNumber(v){ return finiteNumber(v) !== null; }
 function catColor(v){ if(!v) return '#9a958d'; if(!state.colors[v]) state.colors[v]=palette[Object.keys(state.colors).length%palette.length]; return state.colors[v]; }
 function valueColor(v, values){
   if(v==null||Number.isNaN(v)) return '#a7adb8';
@@ -170,8 +178,8 @@ function looksLikeAdminUnitName(name){ return /(уезд|округ|район|�
 function isCityCenter(p){
   const name=String(p?.name||''); const unit=String(p?.unit_name||'');
   const text=(name+' '+unit).toLowerCase();
-  if(/(^|\s)г[.\s]/i.test(name) || /(^|\s)г[.\s]/i.test(unit)) return true;
-  if(text.includes('город') || text.includes('горсовет') || text.includes('городской')) return true;
+  if(/(^|[\s(])г[.\s]/i.test(name) || /(^|[\s(])г[.\s]/i.test(unit)) return true;
+  if(text.includes('город') || text.includes('горсовет') || text.includes('городской') || text.includes('рубцовск')) return true;
   const src=String(p?.center_pop_urban_source||'').toLowerCase();
   const pop=Number(p?.center_pop_urban);
   if(Number(p?.year)<1926 && src.includes('pop_urban') && pop>0 && !looksLikeAdminUnitName(name)) return true;
@@ -189,6 +197,38 @@ function pointPopulation(p){
   for(const k of keys){ const v=Number(p?.[k]); if(!Number.isNaN(v) && v>0) return v; }
   return 0;
 }
+function normalizeAdminStats(gj){
+  if(!gj?.features) return gj;
+  const hasBreakdown = gj.features.some(f=>hasFiniteNumber(f.properties?.urban_pop) || hasFiniteNumber(f.properties?.rural_pop) || hasFiniteNumber(f.properties?.urban_share));
+  gj.features.forEach(f=>{
+    const p=f.properties||{}; const year=Number(p.year||state.year); const pop=finiteNumber(p.population);
+    let urban=finiteNumber(p.urban_pop); let rural=finiteNumber(p.rural_pop); let share=finiteNumber(p.urban_share);
+    if(share !== null && share > 1) share = share / 100;
+    const shouldNormalize = hasBreakdown || year === 1926;
+    if(shouldNormalize && pop !== null){
+      if(urban === null && rural !== null) urban = Math.max(0, pop-rural);
+      if(rural === null && urban !== null) rural = Math.max(0, pop-urban);
+      if(year === 1926){
+        if(urban === null) urban = 0;
+        if(rural === null) rural = Math.max(0, pop-urban);
+      }
+      if(share === null && urban !== null && pop) share = urban/pop;
+    }
+    p.urban_pop = urban;
+    p.rural_pop = rural;
+    p.urban_share = share;
+  });
+  return gj;
+}
+function urbanBreakdown(features){
+  const hasBreakdown=features.some(f=>hasFiniteNumber(f.properties?.urban_pop) || hasFiniteNumber(f.properties?.rural_pop));
+  if(!hasBreakdown) return {available:false, urbanTotal:null, ruralTotal:null, urbanShare:null};
+  const total=sum(features.map(f=>Number(f.properties.population)||0));
+  const urbanTotal=sum(features.map(f=>Number(f.properties.urban_pop)||0));
+  let ruralTotal=sum(features.map(f=>Number(f.properties.rural_pop)||0));
+  if(total && urbanTotal && Math.abs((urbanTotal+ruralTotal)-total)>1 && ruralTotal < total-urbanTotal) ruralTotal=Math.max(0,total-urbanTotal);
+  return {available:true, urbanTotal, ruralTotal, urbanShare:total?urbanTotal/total:null};
+}
 
 async function init(){
   document.documentElement.dataset.theme = state.theme;
@@ -201,7 +241,7 @@ async function init(){
   state.softBounds = state.dataBounds.pad(0.20);
   state.map = L.map('map', {
     zoomControl:true,
-    minZoom:3.5,
+    minZoom:MAP_MIN_ZOOM,
     zoomSnap:0.25,
     zoomDelta:0.5,
     wheelPxPerZoomLevel:220,
@@ -218,7 +258,7 @@ async function init(){
     bounceAtZoomLimits:false
   });
   state.map.fitBounds(state.dataBounds, {padding:[18,18], animate:false, maxZoom:5});
-  if(state.map.getZoom() < 3.5) state.map.setZoom(3.5, {animate:false});
+  if(state.map.getZoom() < MAP_MIN_ZOOM) state.map.setZoom(MAP_MIN_ZOOM, {animate:false});
   L.control.scale({imperial:false}).addTo(state.map);
   ensureHoverBox(); ensureCenterLabelLayer();
   document.addEventListener('mousemove', ev=>{ if(state.hoverPayload && state.hoverBox && state.hoverBox.style.display !== 'none') moveHover(ev); }, {passive:true});
@@ -231,18 +271,24 @@ async function init(){
 
 function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
-  on('modeSelect','change', async e=>{state.mode=e.target.value; await refreshAdmin();});
+  on('modeSelect','change', async e=>{state.mode=e.target.value; const seq=state.refreshSeq; await refreshAdmin(seq);});
   on('themeSelect','change', e=>{state.theme=e.target.value; document.documentElement.dataset.theme=state.theme; refreshVectorStyles(); updateLabelsVisibility();});
   on('toolSelect','change', e=>setTool(e.target.value));
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
-  on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.45, padding:[18,18], maxZoom:5}));
+  on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.45, padding:[18,18], maxZoom:MAP_RESET_MAX_ZOOM}));
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
   on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
   on('toggleAttributePanel','click', ()=>{ state.attributesPanelOpen = !state.attributesPanelOpen; updateAttributePanel(); });
   on('selectedFeatureSelect','change', e=>{ const id=e.target.value; if(!id || !state.currentGeoJSON) return; const f=state.currentGeoJSON.features.find(x=>featureId(x)===id); if(f){ showFeature(f); const layer=state.adminLayerById.get(id); if(layer){ state.map.fitBounds(layer.getBounds(), {padding:[80,80], maxZoom:6.5, animate:true, duration:.35}); } } });
+  const ga=$('groupAnalyticsBox');
+  if(ga){
+    ga.addEventListener('click', e=>{ const card=e.target.closest('.pie-card[data-chart-field]'); if(card) openPieLightbox(card.dataset.chartField, card.dataset.chartTitle || 'Диаграмма'); });
+    ga.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && e.target.closest('.pie-card[data-chart-field]')){ e.preventDefault(); const card=e.target.closest('.pie-card[data-chart-field]'); openPieLightbox(card.dataset.chartField, card.dataset.chartTitle || 'Диаграмма'); } });
+  }
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePieLightbox(); });
 }
 function setYearLabels(){ const a=$('activeYearLabel'), t=$('timelineYearLabel'); if(a) a.textContent=state.year; if(t) t.textContent=state.year; }
 function buildTimeline(){
@@ -256,17 +302,36 @@ function buildTimeline(){
 }
 function updateTimelineActive(){ document.querySelectorAll('.timeline-year').forEach(b=>b.classList.toggle('active', Number(b.dataset.year)===state.year)); }
 function clearLayer(name){ if(state.layers[name]){ state.map.removeLayer(state.layers[name]); state.layers[name]=null; }}
-async function refreshAll(){ await refreshHydro(); await refreshAdmin(); await refreshCenters(); await refreshRailways(); refreshVisibility(); updateStatsAndSelection(); }
+function isStaleRefresh(seq){ return seq != null && seq !== state.refreshSeq; }
+function clearYearLayers(){
+  ['rivers','water','admin','circles','centers','labels','centerLabels','railways'].forEach(clearLayer);
+  state.adminLayerById.clear();
+  state.selectedCenterLayer=null;
+  state.labelItems=[];
+  state.centerLabelItems=[];
+  if(state.centerLabelLayer) state.centerLabelLayer=L.layerGroup();
+  state.layers.centerLabels=state.centerLabelLayer || null;
+}
+async function refreshAll(){
+  const seq=++state.refreshSeq;
+  clearYearLayers();
+  await refreshHydro(seq); if(isStaleRefresh(seq)) return;
+  await refreshAdmin(seq); if(isStaleRefresh(seq)) return;
+  await refreshCenters(seq); if(isStaleRefresh(seq)) return;
+  await refreshRailways(seq); if(isStaleRefresh(seq)) return;
+  refreshVisibility(); updateStatsAndSelection();
+}
 
 function isReservoirFeature(f){
   const p=f.properties||{}; if(p.water_kind==='ocean') return false;
   const text=Object.values(p).join(' ').toLowerCase();
   return p.reservoir===1 || p.reservoir===true || String(p.reservoir).toLowerCase()==='true' || text.includes('reservoir') || text.includes('водохранилище') || text.includes('vodokhran');
 }
-async function refreshHydro(){
+async function refreshHydro(seq){
   clearLayer('rivers'); clearLayer('water'); const s=styleVars();
   const rivers=await loadJson(state.manifest.layers.hydro.rivers);
   const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+  if(isStaleRefresh(seq)) return;
   const showReservoirs = Number(state.year) >= 1959;
   const water={type:'FeatureCollection', features:waterRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f))};
   state.layers.rivers=L.geoJSON(rivers,{interactive:false, style:f=>({color:s.river, weight: Math.max(.45, Number(f.properties.strokeweig||1.0)), opacity: state.theme==='light'?.55:.75})});
@@ -287,9 +352,11 @@ function adminStyle(feature, vals){
   const s=styleVars(); const selected=state.selectedIds.has(featureId(feature));
   return {color:selected?s.selectedLine:s.adminLine, weight:selected?2.8:1.05, opacity:selected?1:.92, fillColor:fill, fillOpacity:selected?Math.min(.70,s.adminFillOpacity+.14):s.adminFillOpacity};
 }
-async function refreshAdmin(){
+async function refreshAdmin(seq){
   clearLayer('admin'); clearLayer('circles'); state.adminLayerById.clear();
-  const path=state.manifest.layers.admin[String(state.year)]; const gj=await loadJson(path); state.currentGeoJSON=gj;
+  const path=state.manifest.layers.admin[String(state.year)]; const gj=normalizeAdminStats(await loadJson(path));
+  if(isStaleRefresh(seq)) return;
+  state.currentGeoJSON=gj;
   const field=valField(); const vals=field?gj.features.map(f=>Number(f.properties[field])).filter(v=>!Number.isNaN(v)):[]; state._lastVals=vals;
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
@@ -348,10 +415,11 @@ function updateLabelsVisibility(){
   });
 }
 
-async function refreshCenters(){
+async function refreshCenters(seq){
   clearLayer('centers'); clearLayer('labels'); clearCenterLabels(); state.maxCenterPop=0;
   const path=state.manifest.layers.centers[String(state.year)]; if(!path){ refreshVisibility(); return; }
   const gj=await loadJson(path);
+  if(isStaleRefresh(seq)) return;
   const pops=gj.features.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup();
@@ -380,8 +448,10 @@ async function refreshCenters(){
 }
 function buildFallbackAdminCenterLabels(){ state.labelItems=[]; clearLayer('labels'); }
 function centerRadius(pop,maxPop){ return 3.2 + Math.sqrt((Number(pop)||0)/(maxPop||1))*15; }
-async function refreshRailways(){
-  clearLayer('railways'); const gj=await loadJson(state.manifest.layers.railways.main); const yr=state.year;
+async function refreshRailways(seq){
+  clearLayer('railways'); const gj=await loadJson(state.manifest.layers.railways.main);
+  if(isStaleRefresh(seq)) return;
+  const yr=state.year;
   const filtered={type:'FeatureCollection', features:gj.features.filter(f=>{const p=f.properties; const o=Number(p.year_open); const c=p.year_close==null?null:Number(p.year_close); return o<=yr && (c==null || c>yr);})};
   const s=styleVars(); state.layers.railways=L.geoJSON(filtered,{style:{color:s.railway,weight:3.0,opacity:.95},onEachFeature:(f,l)=>{const p=f.properties;l.bindPopup(`ЖД-сегмент<br>постр.: ${p.year_open||'—'}<br>упразд.: ${p.year_close||'—'}`)}});
 }
@@ -421,11 +491,10 @@ function updateStats(features){
   const all=!state.selectedIds.size;
   const pops=features.map(f=>Number(f.properties.population)||0);
   const areas=features.map(f=>Number(f.properties.area_km2)||0);
-  const urban=features.map(f=>Number(f.properties.urban_pop)||0);
-  const rural=features.map(f=>Number(f.properties.rural_pop)||0);
   const rails=features.map(f=>Number(f.properties.rail_length_km)||0);
   const total=sum(pops); const area=sum(areas); const density=area?total/area:null;
-  const urbanTotal=sum(urban); const ruralTotal=sum(rural); const urbanShare=total?urbanTotal/total:null;
+  const parts=urbanBreakdown(features);
+  const urbanTotal=parts.urbanTotal; const ruralTotal=parts.ruralTotal; const urbanShare=parts.urbanShare;
   const railwayCount=state.layers.railways?state.layers.railways.getLayers().length:0;
   const baseAte=features.filter(f=>Number(f.properties.area_km2)>=700);
   const avgArea=avg(baseAte.map(f=>Number(f.properties.area_km2)));
@@ -436,11 +505,13 @@ function updateStats(features){
   const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const left=$('statsBox'); if(left) left.innerHTML=html;
   const right=$('rightStatsBox'); if(right) right.innerHTML=html;
-  updateGroupAnalytics(state.currentGeoJSON?.features || []);
+  updateGroupAnalytics(features);
 }
 function avg(arr){ const vals=arr.map(Number).filter(v=>!Number.isNaN(v) && Number.isFinite(v)); return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null; }
 function updateGroupAnalytics(features){
   const box=$('groupAnalyticsBox'); if(!box) return;
+  state.lastAnalyticsFeatures=features;
+  state.lastAnalyticsScope=state.selectedIds.size ? 'выборке' : 'текущему слою';
   const base=features.filter(f=>Number(f.properties.area_km2)>=700 && f.properties.admin_parent);
   const groups=new Map();
   base.forEach(f=>{ const p=f.properties; const key=p.admin_parent || '—'; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(f); });
@@ -450,13 +521,95 @@ function updateGroupAnalytics(features){
     ['avg_density','Средняя плотность, чел./км²', fs=>avg(fs.map(f=>Number(f.properties.density)))],
     ['avg_rail_density','Средняя плотность ЖД, км/1000 км²', fs=>avg(fs.map(f=>Number(f.properties.rail_density_km_1000)))],
   ];
-  let html=`<div class="analytics-title">По верхнему уровню <span>без городов и малых полигонов &lt;700 км²</span></div>`;
+  const scope=state.selectedIds.size ? 'выборке' : 'текущему слою';
+  let html=pieChartsHtml(features, scope);
+  html+=`<div class="analytics-title">По верхнему уровню <span>без городов и малых полигонов &lt;700 км² · расчёт по ${scope}</span></div>`;
   metrics.forEach(([id,title,fn])=>{
     const rows=[...groups.entries()].map(([name,fs])=>({name, n:fs.length, value:fn(fs)})).filter(r=>r.value!==null && !Number.isNaN(r.value)).sort((a,b)=>b.value-a.value).slice(0,8);
     const max=Math.max(...rows.map(r=>r.value),1);
     html+=`<div class="bar-chart"><h3>${title}</h3>${rows.map(r=>`<div class="bar-row"><div class="bar-label" title="${escapeHtml(r.name)}">${escapeHtml(r.name)} <span>${r.n}</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,r.value/max*100)}%"></div></div><b>${id.includes('density')?num1(r.value):num(r.value)}</b></div>`).join('') || '<div class="mini-muted">Нет данных.</div>'}</div>`;
   });
   box.innerHTML=html;
+  refreshPieLightboxIfOpen();
+}
+function pieChartsHtml(features, scope){
+  return `<div class="pie-charts"><div class="analytics-title">Доли верхнего уровня <span>население и площадь от суммы по ${scope}</span></div><div class="pie-grid">${sharePieHtml(features, 'population', 'Население')}${sharePieHtml(features, 'area_km2', 'Площадь')}</div></div>`;
+}
+function sharePieHtml(features, field, title){
+  const rows=shareRows(features, field);
+  if(!rows.length) return `<div class="pie-card empty"><h3>${escapeHtml(title)}</h3><div class="mini-muted">Нет данных для диаграммы.</div></div>`;
+  const total=sum(rows.map(r=>r.value));
+  let angle=0;
+  const slices=rows.map((r,i)=>{
+    const share=total ? r.value/total : 0;
+    const start=angle; const end=angle + share*360; angle=end;
+    const color=palette[i%palette.length];
+    const path=share>=0.9999
+      ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>`
+      : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`;
+    return {path, color, share, name:r.name, value:r.value};
+  });
+  const legend=slices.map(s=>`<div class="pie-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b></div>`).join('');
+  return `<div class="pie-card" role="button" tabindex="0" data-chart-field="${escapeHtml(field)}" data-chart-title="${escapeHtml(title)}" title="Открыть диаграмму крупно"><h3>${escapeHtml(title)}<span class="pie-open-hint">↗</span></h3><div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total"><span>итого</span><b>${num(total)}</b></div></div><div class="pie-legend">${legend}</div></div>`;
+}
+function shareRows(features, field){
+  const groups=new Map();
+  features.forEach(f=>{
+    const p=f.properties||{}; const value=Number(p[field])||0; if(value<=0) return;
+    const key=p.admin_parent || p.name || '—';
+    groups.set(key, (groups.get(key)||0)+value);
+  });
+  const sorted=[...groups.entries()].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+  const top=sorted.slice(0,10);
+  const other=sum(sorted.slice(10).map(r=>r.value));
+  if(other>0) top.push({name:'Прочие', value:other});
+  return top;
+}
+function pieSlicePath(cx, cy, r, startAngle, endAngle){
+  const start=polarPoint(cx, cy, r, endAngle);
+  const end=polarPoint(cx, cy, r, startAngle);
+  const largeArc=endAngle-startAngle<=180 ? 0 : 1;
+  return `M ${cx} ${cy} L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
+}
+function polarPoint(cx, cy, r, angle){
+  const rad=(angle-90)*Math.PI/180;
+  return {x:cx + r*Math.cos(rad), y:cy + r*Math.sin(rad)};
+}
+function ensurePieLightbox(){
+  let modal=$('chartLightbox'); if(modal) return modal;
+  modal=document.createElement('div'); modal.id='chartLightbox'; modal.className='chart-lightbox'; modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="chart-lightbox-scrim" data-close-chart="1"></div><section class="chart-lightbox-card" role="dialog" aria-modal="true" aria-labelledby="chartLightboxTitle"><button type="button" class="chart-lightbox-close" aria-label="Закрыть увеличенную диаграмму">×</button><div class="chart-lightbox-kicker">Интерактивная аналитика · ${APP_VERSION}</div><h2 id="chartLightboxTitle"></h2><div id="chartLightboxBody" class="chart-lightbox-body"></div></section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.chart-lightbox-close').addEventListener('click', closePieLightbox);
+  modal.querySelector('[data-close-chart]').addEventListener('click', closePieLightbox);
+  return modal;
+}
+function openPieLightbox(field, title){
+  state.activePieField=field; state.activePieTitle=title;
+  const modal=ensurePieLightbox();
+  renderPieLightbox(field, title);
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+}
+function closePieLightbox(){
+  const modal=$('chartLightbox'); if(!modal) return;
+  modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+}
+function refreshPieLightboxIfOpen(){
+  const modal=$('chartLightbox');
+  if(modal?.classList.contains('open') && state.activePieField) renderPieLightbox(state.activePieField, state.activePieTitle || 'Диаграмма');
+}
+function renderPieLightbox(field, title){
+  const modal=ensurePieLightbox(); const head=modal.querySelector('#chartLightboxTitle'); const body=modal.querySelector('#chartLightboxBody');
+  const features=state.lastAnalyticsFeatures || selectedFeatures(); const scope=state.lastAnalyticsScope || (state.selectedIds.size ? 'выборке' : 'текущему слою');
+  if(head) head.textContent=`${title}: доли верхнего уровня`;
+  if(body) body.innerHTML=expandedSharePieHtml(features, field, title, scope);
+}
+function expandedSharePieHtml(features, field, title, scope){
+  const rows=shareRows(features, field); if(!rows.length) return '<div class="mini-muted">Нет данных для диаграммы.</div>';
+  const total=sum(rows.map(r=>r.value)); let angle=0;
+  const slices=rows.map((r,i)=>{ const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=palette[i%palette.length]; const path=share>=0.9999 ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>` : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`; return {...r, share, color, path}; });
+  const rowsHtml=slices.map(s=>`<div class="chart-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b><em>${num(s.value)}</em></div>`).join('');
+  return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Клик по диаграмме в правой панели открывает это окно. При мультивыборке расчёт автоматически перестраивается по выбранным объектам.</div>`;
 }
 function updateSelectionBox(){
   const box=$('selectionBox'); const sel=$('selectedFeatureSelect'); const selLabel=$('selectedFeatureSelectLabel'); const info=$('featureInfo');

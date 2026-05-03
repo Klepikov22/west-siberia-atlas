@@ -170,3 +170,57 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 :root[data-theme="dark"] .leaflet-tooltip.center-map-label.city-label{background:rgba(21,26,32,.86);color:#f7f4e8;border-color:rgba(255,255,255,.20)}
 :root[data-theme="dark"] .leaflet-tooltip.center-map-label.large-city-label{background:rgba(55,39,18,.94);color:#fff5d6;border-color:rgba(217,179,108,.48)}
 .center-label-anchor{display:none!important;}
+
+
+/* v20: pie charts for population/area shares and tighter overview zoom */
+.pie-charts{margin-bottom:12px}
+.pie-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pie-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:10px;min-width:0}
+.pie-card h3{font-size:12px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pie-wrap{position:relative;display:grid;place-items:center;margin:2px 0 8px}
+.pie-svg{width:132px;height:132px;filter:drop-shadow(0 4px 10px rgba(40,30,10,.10))}
+.pie-hole{fill:var(--panel);stroke:var(--line);stroke-width:1}
+.pie-total{position:absolute;display:grid;place-items:center;text-align:center;max-width:72px;line-height:1.05}
+.pie-total span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pie-total b{font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:72px}
+.pie-legend{display:grid;gap:5px;max-height:156px;overflow:auto;padding-right:2px}
+.pie-legend-row{display:grid;grid-template-columns:12px minmax(0,1fr) 42px;gap:6px;align-items:center;font-size:11px}
+.pie-legend-row span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.pie-legend-row b{text-align:right;font-size:11px}
+.pie-dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+:root[data-theme="dark"] .pie-svg{filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
+@media(max-width:1220px){.pie-grid{grid-template-columns:1fr}.pie-svg{width:120px;height:120px}}
+
+/* v21: enlarged liquid-glass chart modal and clickable pie cards */
+.pie-card{position:relative;transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s ease, border-color .22s ease, background .22s ease;outline:none}
+.pie-card[role="button"]{cursor:pointer}
+.pie-card[role="button"]:hover,.pie-card[role="button"]:focus-visible{transform:translateY(-2px) scale(1.012);border-color:color-mix(in srgb,var(--accent) 48%,var(--line));box-shadow:0 14px 30px rgba(90,65,25,.14)}
+.pie-card[role="button"]:active{transform:translateY(0) scale(.992)}
+.pie-card h3{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pie-open-hint{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;line-height:1;transition:transform .22s ease}
+.pie-card:hover .pie-open-hint{transform:translate(1px,-1px)}
+.chart-lightbox{position:fixed;inset:0;z-index:2200;pointer-events:none;opacity:0;transition:opacity .24s ease}
+.chart-lightbox.open{pointer-events:auto;opacity:1}
+.chart-lightbox-scrim{position:absolute;inset:0;background:radial-gradient(circle at 55% 30%,rgba(255,242,216,.22),transparent 34%),linear-gradient(90deg,rgba(20,24,32,.10),rgba(20,24,32,.18));backdrop-filter:blur(2px);opacity:0;transition:opacity .26s ease}
+.chart-lightbox.open .chart-lightbox-scrim{opacity:1}
+.chart-lightbox-card{position:absolute;left:max(388px,3vw);right:max(430px,3vw);top:28px;bottom:94px;min-height:420px;overflow:hidden;border-radius:30px;border:1px solid rgba(255,255,255,.42);background:linear-gradient(145deg,rgba(255,255,255,.76),rgba(255,255,255,.46) 42%,rgba(255,245,225,.36));box-shadow:0 34px 90px rgba(30,35,28,.28),inset 0 1px 0 rgba(255,255,255,.72),inset 0 -28px 70px rgba(183,121,31,.08);backdrop-filter:blur(28px) saturate(1.35);padding:24px 26px;transform:translateY(34px) scale(.88);opacity:0;filter:blur(9px);transition:transform .46s cubic-bezier(.16,1,.3,1),opacity .32s ease,filter .38s ease}
+.chart-lightbox.open .chart-lightbox-card{transform:translateY(0) scale(1);opacity:1;filter:blur(0);animation:liquidGlassSettle .7s cubic-bezier(.16,1,.3,1)}
+.chart-lightbox-card::before{content:"";position:absolute;inset:-28% -18% auto auto;width:360px;height:360px;border-radius:46% 54% 60% 40%;background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.78),rgba(255,255,255,.18) 42%,transparent 66%);transform:rotate(18deg);pointer-events:none;mix-blend-mode:screen;opacity:.75;animation:liquidBlob 9s ease-in-out infinite alternate}
+.chart-lightbox-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.54),transparent 32%,rgba(255,255,255,.12) 58%,transparent);mask:linear-gradient(#000,transparent 70%)}
+:root[data-theme="dark"] .chart-lightbox-scrim{background:radial-gradient(circle at 55% 30%,rgba(217,179,108,.16),transparent 36%),linear-gradient(90deg,rgba(0,0,0,.18),rgba(0,0,0,.38))}
+:root[data-theme="dark"] .chart-lightbox-card{border-color:rgba(255,255,255,.16);background:linear-gradient(145deg,rgba(30,35,44,.82),rgba(25,29,37,.58) 46%,rgba(65,45,18,.32));box-shadow:0 34px 90px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.14),inset 0 -28px 70px rgba(217,179,108,.06)}
+.chart-lightbox-close{position:absolute;top:18px;right:18px;z-index:2;width:42px;height:42px;border-radius:999px;padding:0;font-size:24px;line-height:1;background:rgba(255,255,255,.46);backdrop-filter:blur(10px)}
+:root[data-theme="dark"] .chart-lightbox-close{background:rgba(20,23,29,.58)}
+.chart-lightbox-kicker{position:relative;z-index:1;font-size:12px;text-transform:uppercase;letter-spacing:.16em;font-weight:900;color:var(--accent);margin-bottom:8px}
+.chart-lightbox-card h2{position:relative;z-index:1;font-size:26px;line-height:1.1;margin:0 56px 18px 0}
+.chart-lightbox-body{position:relative;z-index:1;height:calc(100% - 76px);overflow:auto;padding-right:4px}
+.expanded-chart-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.expanded-chart-summary>div{border:1px solid rgba(255,255,255,.36);background:rgba(255,255,255,.34);border-radius:18px;padding:12px 14px;backdrop-filter:blur(12px)}
+:root[data-theme="dark"] .expanded-chart-summary>div{background:rgba(15,18,24,.34);border-color:rgba(255,255,255,.12)}
+.expanded-chart-summary span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:850;margin-bottom:4px}.expanded-chart-summary b{font-size:22px;color:var(--text)}
+.expanded-chart-layout{display:grid;grid-template-columns:minmax(260px,.88fr) minmax(300px,1.12fr);gap:26px;align-items:center;min-height:0}.expanded-pie-wrap{position:relative;display:grid;place-items:center;min-height:360px}.pie-svg-expanded{width:min(44vh,420px);height:min(44vh,420px);filter:drop-shadow(0 22px 35px rgba(60,40,14,.22))}.pie-total-expanded{max-width:150px}.pie-total-expanded span{font-size:12px}.pie-total-expanded b{font-size:22px;max-width:150px}.chart-legend{align-self:stretch;overflow:auto;display:grid;gap:8px;align-content:start;padding:6px 4px 6px 0}.chart-legend-head,.chart-legend-row{display:grid;grid-template-columns:14px minmax(0,1fr) 64px 110px;gap:10px;align-items:center}.chart-legend-head{grid-template-columns:14px minmax(0,1fr) 64px 110px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;border-bottom:1px solid var(--line);padding:0 0 8px}.chart-legend-row{border:1px solid rgba(128,128,128,.18);background:rgba(255,255,255,.32);border-radius:14px;padding:9px 10px;font-size:13px}.chart-legend-row span:nth-child(2){font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chart-legend-row b{text-align:right}.chart-legend-row em{text-align:right;font-style:normal;color:var(--muted);font-weight:800}.chart-modal-note{margin-top:14px}
+:root[data-theme="dark"] .chart-legend-row{background:rgba(15,18,24,.30)}
+@keyframes liquidGlassSettle{0%{border-radius:44px;transform:translateY(34px) scale(.88,.82)}55%{border-radius:24px;transform:translateY(-4px) scale(1.012,.992)}100%{border-radius:30px;transform:translateY(0) scale(1)}}
+@keyframes liquidBlob{0%{transform:translate(0,0) rotate(18deg) scale(1);border-radius:46% 54% 60% 40%}100%{transform:translate(-36px,30px) rotate(31deg) scale(1.12);border-radius:58% 42% 44% 56%}}
+@media(max-width:1220px){.chart-lightbox-card{left:24px;right:24px;bottom:86px}.expanded-chart-layout{grid-template-columns:1fr}.expanded-pie-wrap{min-height:280px}.pie-svg-expanded{width:300px;height:300px}}
+@media(max-width:760px){.chart-lightbox-card{left:10px;right:10px;top:10px;bottom:10px;border-radius:22px;padding:18px}.expanded-chart-summary{grid-template-columns:1fr}.chart-legend-head,.chart-legend-row{grid-template-columns:12px minmax(0,1fr) 54px 84px}.chart-lightbox-card h2{font-size:20px}.pie-svg-expanded{width:250px;height:250px}}
