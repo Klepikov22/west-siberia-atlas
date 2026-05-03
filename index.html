@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=32" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v31</div>
+      <div class="eyebrow">Дипломный веб-атлас · v32</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -91,6 +91,7 @@
         <option value="ink">Чернильные границы</option>
         <option value="vivid">Яркий аналитический</option>
         <option value="contrast">Контрастный демонстрационный</option>
+        <option value="matchaLatte">Матча латте</option>
       </select>
 
       <label class="control-label" for="basemapStyleSelect">Стиль подложки</label>
@@ -101,6 +102,7 @@
         <option value="clean">Почти белая</option>
         <option value="vivid">Яркая презентационная</option>
         <option value="darkOcean">Тёмная северная</option>
+        <option value="matchaLatte">Матча латте</option>
       </select>
 
       <label class="control-label" for="themeSelect">Базовая тема</label>
@@ -134,8 +136,33 @@
         <label><input type="checkbox" id="toggleAdmin" checked> Административный слой</label>
         <label><input type="checkbox" id="toggleCenters" checked> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
-        <label><input type="checkbox" id="toggleCircles" checked> Круги населения</label>
+        <label><input type="checkbox" id="toggleCircles" checked> Символы населения</label>
       </div>
+
+      <section class="population-symbol-controls" aria-label="Настройки символов населения">
+        <div class="symbol-controls-title">Символы населения</div>
+        <label class="control-label" for="populationSymbolType">Тип символа</label>
+        <select id="populationSymbolType">
+          <option value="circle" selected>Круги площади/радиуса</option>
+          <option value="bar">Столбцы высоты</option>
+        </select>
+        <label class="control-label" for="populationScaleMethod">Нормирование</label>
+        <select id="populationScaleMethod">
+          <option value="sqrt" selected>Квадратный корень</option>
+          <option value="linear">Линейное</option>
+          <option value="log">Логарифмическое</option>
+          <option value="quantile">Квантильное</option>
+        </select>
+        <div class="symbol-slider-row">
+          <label for="populationMinSize">Минимальный размер <b id="populationMinSizeValue">5</b></label>
+          <input id="populationMinSize" type="range" min="2" max="26" step="1" value="5">
+        </div>
+        <div class="symbol-slider-row">
+          <label for="populationMaxSize">Максимальный размер <b id="populationMaxSizeValue">39</b></label>
+          <input id="populationMaxSize" type="range" min="10" max="72" step="1" value="39">
+        </div>
+        <div class="mini-muted" id="populationSymbolHint">Размер символа пересчитывается по населению текущего слоя или отфильтрованной выборки.</div>
+      </section>
 
       <button id="resetView" type="button">Вернуть обзорный вид</button>
       <div class="button-row">
@@ -180,6 +207,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>

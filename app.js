@@ -1,4 +1,4 @@
-const APP_VERSION = '31';
+const APP_VERSION = '32';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8,7 +8,7 @@ const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper', regionStyle:'soft', basemapStyle:'sage',
+  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper', regionStyle:'soft', basemapStyle:'sage', populationSymbol:{type:'circle', scale:'sqrt', minSize:5, maxSize:39},
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, rawGeoJSON:null, rawCentersGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
@@ -46,7 +46,8 @@ const regionPalettes = {
   thin:['#b6d7c9','#dce9b8','#c7c5df','#e6b7a9','#accbe1','#eac989','#bddaaa','#e4c3d2','#c8b6cf','#d5e4c9'],
   ink:['#b8c7cf','#d8d4b2','#b3adc8','#c7a493','#9fb5c2','#c6aa78','#a9b28b','#c3a7ba','#a99db6','#c5c4ad'],
   vivid:['#2dd4bf','#facc15','#a78bfa','#fb7185','#38bdf8','#f59e0b','#84cc16','#f472b6','#c084fc','#22c55e'],
-  contrast:['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#1f78b4','#b2df8a','#fb9a99']
+  contrast:['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#1f78b4','#b2df8a','#fb9a99'],
+  matchaLatte:['#b8d2a0','#efe4bd','#97b989','#d8cda3','#accbb4','#c9b07e','#e6d7b0','#88aa7d','#c4d7a1','#b2c7ad']
 };
 function regionPalette(){ return regionPalettes[state.regionStyle] || regionPalettes.soft; }
 function regionStyleConfig(){
@@ -57,11 +58,21 @@ function regionStyleConfig(){
     thin:{line:dark?'#cbd5d0':'#8a958a', weight:.70, opacity:.82, fillOpacity:dark ? .36 : .32, selectedWeight:2.2},
     ink:{line:dark?'#efe2c2':'#4d463d', weight:1.35, opacity:.95, fillOpacity:dark ? .42 : .40, selectedWeight:3.1},
     vivid:{line:dark?'#fff0cc':'#6b4308', weight:1.20, opacity:.96, fillOpacity:dark ? .58 : .62, selectedWeight:3.2},
-    contrast:{line:dark?'#f6f1e5':'#242a31', weight:1.45, opacity:1, fillOpacity:dark ? .62 : .66, selectedWeight:3.4}
+    contrast:{line:dark?'#f6f1e5':'#242a31', weight:1.45, opacity:1, fillOpacity:dark ? .62 : .66, selectedWeight:3.4},
+    matchaLatte:{line:dark?'#d9e6bf':'#6f8454', weight:1.12, opacity:.94, fillOpacity:dark ? .48 : .53, selectedWeight:3.0}
   };
   return configs[state.regionStyle] || configs.soft;
 }
 const ramp = ['#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'];
+const valueRamps = {
+  default:ramp,
+  matchaLatte:['#fbf8e9','#e8efd0','#cfe3ad','#aacb83','#7fa95e','#5e8843','#3f652e'],
+  vivid:['#fff7ad','#d9f99d','#86efac','#34d399','#22d3ee','#38bdf8','#6366f1'],
+  contrast:['#f7f7f7','#d9f0a3','#addd8e','#78c679','#31a354','#006837','#004529'],
+  paper:['#f6edd5','#ead9af','#d5ba7a','#bd9854','#987243','#765334','#573b28'],
+  darkOcean:['#e4f5f1','#b8ddd6','#86c5bb','#57aa9d','#2f8b7d','#166b61','#064d49']
+};
+function activeValueRamp(){ return valueRamps[state.regionStyle] || valueRamps[state.basemapStyle] || valueRamps.default; }
 
 function fetchUrl(path){ return `${path}${path.includes('?')?'&':'?'}v=${APP_VERSION}`; }
 async function loadJson(path){
@@ -86,7 +97,8 @@ function valueColor(v, values){
   if(!sorted.length) return '#808080';
   const pos=sorted.findIndex(x=>x>=v);
   const q=pos<0?1:pos/(sorted.length-1||1);
-  return ramp[Math.max(0, Math.min(ramp.length-1, Math.floor(q*(ramp.length-1))))];
+  const rr=activeValueRamp();
+  return rr[Math.max(0, Math.min(rr.length-1, Math.floor(q*(rr.length-1))))];
 }
 function styleVars(){
   const dark = state.theme === 'dark';
@@ -98,8 +110,10 @@ function styleVars(){
     selectedLine: '#a65b00',
     railway: dark ? '#f3e7d0' : '#18130e',
     adminFillOpacity: regionStyleConfig().fillOpacity,
-    circleLine: dark ? '#2f210b' : '#6d4f1a',
-    circleFill: '#d9a441'
+    circleLine: state.regionStyle==='matchaLatte' ? (dark ? '#efe8c7' : '#5f7346') : (dark ? '#2f210b' : '#6d4f1a'),
+    circleFill: state.regionStyle==='matchaLatte' ? '#b7d889' : '#d9a441',
+    barFill: state.regionStyle==='matchaLatte' ? '#94b76f' : '#d9a441',
+    barLine: state.regionStyle==='matchaLatte' ? (dark ? '#e7efc9' : '#617845') : (dark ? '#2f210b' : '#6d4f1a')
   };
 }
 
@@ -115,11 +129,20 @@ function restoreAppearancePrefs(){
   const savedPiePalette = storageGet('wsAtlasPiePalette');
   const savedRegionStyle = storageGet('wsAtlasRegionStyle');
   const savedBasemapStyle = storageGet('wsAtlasBasemapStyle');
+  const savedSymbolType = storageGet('wsAtlasPopulationSymbolType');
+  const savedSymbolScale = storageGet('wsAtlasPopulationScale');
+  const savedSymbolMin = Number(storageGet('wsAtlasPopulationMinSize'));
+  const savedSymbolMax = Number(storageGet('wsAtlasPopulationMaxSize'));
   if(savedTheme === 'light' || savedTheme === 'dark') state.theme = savedTheme;
   if(savedUiStyle === 'normal' || savedUiStyle === 'glass') state.uiStyle = savedUiStyle;
   if(savedPiePalette && chartPalettes[savedPiePalette]) state.piePalette = savedPiePalette;
   if(savedRegionStyle && regionPalettes[savedRegionStyle]) state.regionStyle = savedRegionStyle;
-  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
+  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
+  if(['circle','bar'].includes(savedSymbolType)) state.populationSymbol.type=savedSymbolType;
+  if(['sqrt','linear','log','quantile'].includes(savedSymbolScale)) state.populationSymbol.scale=savedSymbolScale;
+  if(Number.isFinite(savedSymbolMin)) state.populationSymbol.minSize=Math.max(2, Math.min(26, savedSymbolMin));
+  if(Number.isFinite(savedSymbolMax)) state.populationSymbol.maxSize=Math.max(10, Math.min(72, savedSymbolMax));
+  if(state.populationSymbol.maxSize <= state.populationSymbol.minSize) state.populationSymbol.maxSize = state.populationSymbol.minSize + 6;
 }
 function applyAppearance(persist=false){
   document.documentElement.dataset.theme = state.theme;
@@ -131,6 +154,11 @@ function applyAppearance(persist=false){
   if(regionStyleSelect && regionStyleSelect.value !== state.regionStyle) regionStyleSelect.value = state.regionStyle;
   const basemapStyleSelect = $('basemapStyleSelect');
   if(basemapStyleSelect && basemapStyleSelect.value !== state.basemapStyle) basemapStyleSelect.value = state.basemapStyle;
+  const symbolTypeSelect = $('populationSymbolType');
+  if(symbolTypeSelect && symbolTypeSelect.value !== state.populationSymbol.type) symbolTypeSelect.value = state.populationSymbol.type;
+  const symbolScaleSelect = $('populationScaleMethod');
+  if(symbolScaleSelect && symbolScaleSelect.value !== state.populationSymbol.scale) symbolScaleSelect.value = state.populationSymbol.scale;
+  updatePopulationSymbolControls();
   const btn = $('uiStyleToggle');
   if(btn){
     const glass = state.uiStyle === 'glass';
@@ -146,10 +174,38 @@ function applyAppearance(persist=false){
     storageSet('wsAtlasUiStyle', state.uiStyle);
     storageSet('wsAtlasRegionStyle', state.regionStyle);
     storageSet('wsAtlasBasemapStyle', state.basemapStyle);
+    storageSet('wsAtlasPopulationSymbolType', state.populationSymbol.type);
+    storageSet('wsAtlasPopulationScale', state.populationSymbol.scale);
+    storageSet('wsAtlasPopulationMinSize', state.populationSymbol.minSize);
+    storageSet('wsAtlasPopulationMaxSize', state.populationSymbol.maxSize);
   }
   refreshPieLightboxIfOpen();
 }
-
+function updatePopulationSymbolControls(){
+  const min=$('populationMinSize'); const max=$('populationMaxSize');
+  const minLabel=$('populationMinSizeValue'); const maxLabel=$('populationMaxSizeValue');
+  if(min && Number(min.value)!==Number(state.populationSymbol.minSize)) min.value=state.populationSymbol.minSize;
+  if(max && Number(max.value)!==Number(state.populationSymbol.maxSize)) max.value=state.populationSymbol.maxSize;
+  if(minLabel) minLabel.textContent=String(Math.round(state.populationSymbol.minSize));
+  if(maxLabel) maxLabel.textContent=String(Math.round(state.populationSymbol.maxSize));
+  const hint=$('populationSymbolHint');
+  if(hint){
+    const type=state.populationSymbol.type==='bar'?'столбцы':'круги';
+    const scale={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale] || state.populationSymbol.scale;
+    hint.textContent=`${type}: ${scale} нормирование, размер ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.`;
+  }
+}
+function persistPopulationSymbolSettings(){
+  storageSet('wsAtlasPopulationSymbolType', state.populationSymbol.type);
+  storageSet('wsAtlasPopulationScale', state.populationSymbol.scale);
+  storageSet('wsAtlasPopulationMinSize', state.populationSymbol.minSize);
+  storageSet('wsAtlasPopulationMaxSize', state.populationSymbol.maxSize);
+}
+function rebuildPopulationSymbols(){
+  if(!state.layers.admin || !state.currentGeoJSON) return;
+  buildCircles(state.layers.admin, state.currentGeoJSON);
+  refreshVisibility(); updateLegend(state.currentGeoJSON, state._lastVals);
+}
 
 function ensureHoverBox(){
   if(state.hoverBox) return state.hoverBox;
@@ -628,7 +684,11 @@ function bindUi(){
   const basemapStyleSelect=$('basemapStyleSelect'); if(basemapStyleSelect) basemapStyleSelect.value=state.basemapStyle;
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
   on('regionStyleSelect','change', e=>{ state.regionStyle=regionPalettes[e.target.value]?e.target.value:'soft'; state.colors={}; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
-  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
+  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
+  on('populationSymbolType','change', e=>{ state.populationSymbol.type=['circle','bar'].includes(e.target.value)?e.target.value:'circle'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
+  on('populationScaleMethod','change', e=>{ state.populationSymbol.scale=['sqrt','linear','log','quantile'].includes(e.target.value)?e.target.value:'sqrt'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
+  on('populationMinSize','input', e=>{ const v=Math.max(2, Math.min(26, Number(e.target.value)||5)); state.populationSymbol.minSize=Math.min(v, state.populationSymbol.maxSize-2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
+  on('populationMaxSize','input', e=>{ const v=Math.max(10, Math.min(72, Number(e.target.value)||39)); state.populationSymbol.maxSize=Math.max(v, state.populationSymbol.minSize+2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('uiStyleToggle','click', ()=>{ state.uiStyle = state.uiStyle === 'glass' ? 'normal' : 'glass'; applyAppearance(true); });
   on('pieLevelSelect','change', e=>{ state.pieGrouping=e.target.value||'upper'; updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
   on('piePaletteSelect','change', e=>{ state.piePalette=chartPalettes[e.target.value]?e.target.value:'softPastel'; storageSet('wsAtlasPiePalette', state.piePalette); updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
@@ -771,16 +831,51 @@ async function refreshAdmin(seq){
   state.layers.admin=admin; buildCircles(admin, gj);
   updateLegend(gj, vals); refreshVisibility(); updateStatsAndSelection(); updateAttributePanel();
 }
-function populationRadius(pop,maxPop){ return 5 + Math.sqrt((Number(pop)||0)/(maxPop||1))*34; }
+function populationScaleValue(pop, vals){
+  const v=Number(pop)||0; if(!v) return 0;
+  const values=(vals||[]).filter(x=>Number.isFinite(x) && x>0).sort((a,b)=>a-b);
+  if(!values.length) return 0;
+  const min=values[0], max=values[values.length-1];
+  if(max===min) return 1;
+  if(state.populationSymbol.scale==='log'){
+    return (Math.log1p(v)-Math.log1p(min))/(Math.log1p(max)-Math.log1p(min)||1);
+  }
+  if(state.populationSymbol.scale==='quantile'){
+    let idx=values.findIndex(x=>x>=v); if(idx<0) idx=values.length-1;
+    return idx/(values.length-1||1);
+  }
+  const linear=(v-min)/(max-min||1);
+  if(state.populationSymbol.scale==='sqrt') return Math.sqrt(Math.max(0,linear));
+  return Math.max(0, linear);
+}
+function populationSymbolSize(pop, vals){
+  const min=Number(state.populationSymbol.minSize)||5;
+  const max=Math.max(min+2, Number(state.populationSymbol.maxSize)||39);
+  const t=Math.max(0, Math.min(1, populationScaleValue(pop, vals)));
+  return min + t*(max-min);
+}
+function populationRadius(pop,maxPop){
+  const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0) || [maxPop||1];
+  return populationSymbolSize(pop, vals);
+}
+function buildPopulationBarMarker(latlng, f, height, s){
+  const width=Math.max(8, Math.min(18, Math.round(height*.32)));
+  const html=`<div class="population-bar-symbol" style="width:${width}px;height:${height}px;background:${s.barFill};border-color:${s.barLine};"></div>`;
+  return L.marker(latlng,{interactive:true, icon:L.divIcon({className:'population-bar-icon', html, iconSize:[width+8,height+8], iconAnchor:[Math.round((width+8)/2), height+6]})});
+}
 function buildCircles(admin, gj){
-  const s=styleVars(); const maxPop=Math.max(...gj.features.map(f=>Number(f.properties.population)||0),1); const minPop=Math.min(...gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0), maxPop);
+  clearLayer('circles');
+  const s=styleVars(); const vals=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
+  const maxPop=Math.max(...vals,1); const minPop=Math.min(...vals, maxPop);
   state.maxPop=maxPop; state.minPop=minPop; state.layers.circles=L.layerGroup();
   admin.eachLayer(layer=>{
     const f=layer.feature; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
-    const c=layer.getBounds().getCenter(); const r=populationRadius(pop,maxPop);
-    const m=L.circleMarker(c,{radius:r, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
+    const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop, vals);
+    const m=state.populationSymbol.type==='bar'
+      ? buildPopulationBarMarker(c, f, size, s)
+      : L.circleMarker(c,{radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
     m.feature=f;
-    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:'круг населения', population:pop, density:p.density}, e.originalEvent));
+    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:state.populationSymbol.type==='bar'?'столбец населения':'круг населения', population:pop, density:p.density}, e.originalEvent));
     m.on('mousemove',(e)=>moveHover(e.originalEvent));
     m.on('mouseout', hideHover);
     m.on('click',(e)=>{L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
@@ -896,7 +991,10 @@ function refreshVectorStyles(){
   if(state.layers.water) state.layers.water.setStyle(waterStyle);
   if(state.layers.railways) state.layers.railways.setStyle({color:s.railway,weight:1.65,opacity:.88});
   if(state.layers.admin) refreshSelectionStyles();
-  if(state.layers.circles) state.layers.circles.eachLayer(m=>m.setStyle({color:s.circleLine, fillColor:s.circleFill, fillOpacity:.74, opacity:.98}));
+  if(state.layers.circles){
+    if(state.populationSymbol.type==='bar') rebuildPopulationSymbols();
+    else state.layers.circles.eachLayer(m=>m.setStyle && m.setStyle({color:s.circleLine, fillColor:s.circleFill, fillOpacity:.74, opacity:.98}));
+  }
   if(state.layers.centers) state.layers.centers.eachLayer(m=>m.setStyle && m.setStyle({color:'#3a2607', fillColor:'#f6c85f', fillOpacity:.82, opacity:.98}));
   refreshVisibility();
 }
@@ -1099,9 +1197,9 @@ function objectAttributesHtml(f){
 function updateLegend(gj, vals){
   const box=$('legendBox'); if(!box || !gj) return; let html='<b>Легенда</b>';
   if(state.mode==='admin_parent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
-  else { ramp.forEach((c,i)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===ramp.length-1?'больше':''}</div>`}); }
+  else { activeValueRamp().forEach((c,i,arr)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`}); }
   html+=`<div class="legend-section">Гидрография</div><div class="legend-row"><span class="swatch water-swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>`;
-  if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; html+=`<div class="legend-section">Круги населения</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationRadius(v,max)*1.25); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); html+=`<div class="mini-muted">Площадь круга пропорциональна населению. Наведите курсор на круг, чтобы увидеть значение.</div>`; }
+  if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0)||[]; const sectionTitle=state.populationSymbol.type==='bar'?'Столбцы населения':'Круги населения'; html+=`<div class="legend-section">${sectionTitle}</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationSymbolSize(v, vals)); if(state.populationSymbol.type==='bar'){ const h=Math.max(10,size); const w=Math.max(8, Math.min(18, Math.round(h*.32))); html+=`<div class="legend-row"><span class="bar-swatch" style="width:${w}px;height:${h}px"></span>${label}: ${num(v)}</div>`; } else { html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`; } }); const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale; html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`; }
   if($('toggleCenters')?.checked && state.maxCenterPop){ const cmax=state.maxCenterPop; const cmid=cmax/4; html+=`<div class="legend-section">Центры</div>`; [[cmax,'макс.'],[cmid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(7, centerRadius(v,cmax)*1.45); html+=`<div class="legend-row"><span class="center-circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); }
   box.innerHTML=html;
 }
