@@ -1,4 +1,4 @@
-const APP_VERSION = '38';
+const APP_VERSION = '39';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -2511,4 +2511,233 @@ function exportLegendHtml(){
   let html = $('legendBox')?.innerHTML || '';
   html = html.replace(/^\s*<b>Легенда<\/b>/i,'');
   return `<div class="export-legend-wrap">${html}</div>`;
+}
+
+
+/* v39 overrides: export map pan/zoom without rerender, unclipped hydrography, dynamic scale, uniform labels */
+function ensureExportFlags(){
+  if(typeof state.export.showGraticule !== 'boolean') state.export.showGraticule=true;
+  if(typeof state.export.showScale !== 'boolean') state.export.showScale=true;
+  if(typeof state.export.showAdmin !== 'boolean') state.export.showAdmin=true;
+  if(typeof state.export.showHydro !== 'boolean') state.export.showHydro=true;
+  if(typeof state.export.showRailways !== 'boolean') state.export.showRailways=true;
+  if(typeof state.export.showPopulation !== 'boolean') state.export.showPopulation=true;
+  if(typeof state.export.showLabels !== 'boolean') state.export.showLabels=true;
+  if(!state.export.paper) state.export.paper='a4Landscape';
+  if(!state.export.template) state.export.template='thesis';
+  state.export.projection='lambert';
+  if(!state.export.centralMeridian) state.export.centralMeridian=75;
+  if(!state.export.labelMode) state.export.labelMode='balanced';
+  if(!Number.isFinite(Number(state.export.minPopulation))) state.export.minPopulation=0;
+  if(!Number.isFinite(Number(state.export.minArea))) state.export.minArea=0;
+  if(!state.export.overlayPositions) state.export.overlayPositions={};
+  if(!state.export.mapViewport || typeof state.export.mapViewport!=='object') state.export.mapViewport={x:0,y:0,zoom:1.28};
+  if(!Number.isFinite(Number(state.export.mapViewport.x))) state.export.mapViewport.x=0;
+  if(!Number.isFinite(Number(state.export.mapViewport.y))) state.export.mapViewport.y=0;
+  if(!Number.isFinite(Number(state.export.mapViewport.zoom))) state.export.mapViewport.zoom=1.28;
+  if(Number(state.export.mapViewport.zoom)<1.18) state.export.mapViewport.zoom=1.28;
+}
+function exportViewportClamp(w,h,zoom,x,y){
+  const z=Math.max(1.18, Math.min(2.8, Number(zoom)||1.28));
+  const limX=Math.max(30, (w*(z-1))/2 + 160);
+  const limY=Math.max(30, (h*(z-1))/2 + 160);
+  return {zoom:z, x:Math.max(-limX, Math.min(limX, Number(x)||0)), y:Math.max(-limY, Math.min(limY, Number(y)||0))};
+}
+function exportMapBodyTransform(w,h){
+  ensureExportFlags();
+  const vp=exportViewportClamp(w,h,state.export.mapViewport.zoom,state.export.mapViewport.x,state.export.mapViewport.y);
+  state.export.mapViewport=vp;
+  const cx=w/2, cy=h/2;
+  return `translate(${vp.x.toFixed(1)} ${vp.y.toFixed(1)}) translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${vp.zoom.toFixed(4)}) translate(${-cx.toFixed(1)} ${-cy.toFixed(1)})`;
+}
+function exportExpandedGeoBBox(features){
+  const bbox=geoBBoxFromFeatures(features);
+  const [minX,minY,maxX,maxY]=bbox;
+  const dx=Math.max(0.1,maxX-minX), dy=Math.max(0.1,maxY-minY);
+  const out=[minX-dx*0.32, Math.max(-84,minY-dy*0.22), maxX+dx*0.32, Math.min(89,maxY+dy*0.42)];
+  out[1]=Math.min(out[1], 42.0);
+  out[3]=Math.max(out[3], 83.5);
+  return out;
+}
+async function buildExportSvgMap(){
+  const {w,h}=exportMapSize();
+  const features=exportScopeFeatures();
+  const bbox=exportExpandedGeoBBox(features);
+  const projection=makeExportProjection(bbox, w, h, 56);
+  const centerLat=(bbox[1]+bbox[3])/2, centerLon=(bbox[0]+bbox[2])/2;
+  const p1=projection(centerLon, centerLat), p2=projection(centerLon+1, centerLat);
+  const pxPerDeg=Math.max(1, Math.hypot(p2.x-p1.x,p2.y-p1.y));
+  const kmPerDeg=111.32*Math.cos(centerLat*Math.PI/180);
+  const kmPerPx=kmPerDeg/pxPerDeg;
+  const field=valField();
+  const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>!Number.isNaN(v)) : [];
+  const parts=[];
+  const bodyTransform=exportMapBodyTransform(w,h);
+  parts.push(`<svg class="export-map-svg" data-map-w="${w}" data-map-h="${h}" data-base-km-per-px="${kmPerPx}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="0" y="0" width="${w}" height="${h}" rx="18" ry="18"/></clipPath><filter id="labelShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1" stdDeviation="1.25" flood-color="#ffffff" flood-opacity="0.94"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="${exportBasemapFill()}"/><g clip-path="url(#exportMapClip)"><g id="exportMapBody" class="export-map-body" transform="${bodyTransform}">`);
+  if(state.export.showGraticule) parts.push(await exportGraticuleSvg(projection,w,h,bbox));
+  if(state.export.showHydro) parts.push(await exportHydroSvg(projection,bbox));
+  if(state.export.showAdmin) parts.push(exportAdminPolygonsSvg(features, projection, vals));
+  if(state.export.showRailways) parts.push(await exportRailSvg(projection,bbox));
+  if(state.export.showPopulation) parts.push(exportPopulationCirclesSvg(features, projection));
+  if(state.export.showLabels && state.export.labelMode!=='none') parts.push(exportAdminLabelsSvg(features, projection, w, h));
+  if(state.export.showGraticule) parts.push(exportGraticuleLabelsSvg(projection,w,h,bbox));
+  parts.push(`</g></g>`);
+  if(state.export.showScale) parts.push(`<g id="exportScaleBar">${exportScaleBarSvgFromKmPerPx(kmPerPx/(Number(state.export.mapViewport?.zoom)||1.28), w, h)}</g>`);
+  parts.push(`<rect x="0.5" y="0.5" width="${w-1}" height="${h-1}" rx="18" fill="none" stroke="rgba(52,67,75,.16)" stroke-width="1"/></svg>`);
+  return parts.join('');
+}
+async function exportHydroSvg(project,bbox){
+  try{
+    const rivers=await loadJson(state.manifest.layers.hydro.rivers);
+    const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+    const northCapPath=state.manifest?.layers?.north_ocean_cap ? state.manifest.layers.north_ocean_cap : 'data/reference/north_ocean_cap.geojson';
+    let northCap=null;
+    try{ northCap=await loadJson(northCapPath); }catch(_){ northCap=null; }
+    const showReservoirs=Number(state.year)>=1959;
+    const vars=styleVars();
+    const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
+    const waterPaths=(waterRaw.features||[]).filter(f=>(showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.86" stroke="${vars.waterLine}" stroke-width="0.65" stroke-opacity="0.68"/>`).join('');
+    const riverPaths=(rivers.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="none" stroke="${vars.river}" stroke-width="0.78" stroke-opacity="0.62"/>`).join('');
+    return `<g class="export-hydro"><g>${capPaths}${waterPaths}</g><g>${riverPaths}</g></g>`;
+  }catch(e){ console.warn('export hydro svg skipped',e); return ''; }
+}
+function exportScaleBarSvgFromKmPerPx(kmPerPx,w,h){
+  const targetPx=190;
+  const targetKm=Math.max(1,kmPerPx*targetPx);
+  const nice=[10,25,50,75,100,150,200,300,500,750,1000,1500,2000,3000].filter(v=>v<=targetKm).pop() || 10;
+  const px=Math.max(45,Math.min(360,nice/kmPerPx));
+  const x=36, y=h-42;
+  return `<line x1="${x}" y1="${y}" x2="${(x+px).toFixed(1)}" y2="${y}" stroke="#253241" stroke-width="3"/><line x1="${x}" y1="${y-6}" x2="${x}" y2="${y+6}" stroke="#253241" stroke-width="2"/><line x1="${(x+px).toFixed(1)}" y1="${y-6}" x2="${(x+px).toFixed(1)}" y2="${y+6}" stroke="#253241" stroke-width="2"/><text x="${(x+px/2).toFixed(1)}" y="${y-10}" text-anchor="middle" font-size="12" font-weight="800" fill="#253241">${nice} км</text>`;
+}
+function exportScaleBarSvg(project,w,h,bbox){
+  const centerLat=(bbox[1]+bbox[3])/2, centerLon=(bbox[0]+bbox[2])/2;
+  const p1=project(centerLon, centerLat), p2=project(centerLon+1, centerLat);
+  const pxPerDeg=Math.max(1, Math.hypot(p2.x-p1.x,p2.y-p1.y));
+  const kmPerDeg=111.32*Math.cos(centerLat*Math.PI/180);
+  const z=Number(state.export.mapViewport?.zoom)||1.28;
+  return `<g id="exportScaleBar">${exportScaleBarSvgFromKmPerPx((kmPerDeg/pxPerDeg)/z,w,h)}</g>`;
+}
+function exportUnitOrder(p){
+  const unit=String(p?.unit_type||p?.type||'').toLowerCase();
+  const name=String(p?.name||'').toLowerCase();
+  const text=unit+' '+name;
+  if(/губерни|област|край|республик/.test(text)) return 'upper';
+  if(/округ/.test(text)) return 'district';
+  if(/уезд/.test(text)) return 'uezd';
+  if(/район/.test(text)) return 'raion';
+  return 'default';
+}
+function exportLabelStyleForOrder(order){
+  if(order==='upper') return {fs:12.2, fw:760, boxPad:9};
+  if(order==='district') return {fs:11.4, fw:760, boxPad:8};
+  if(order==='uezd') return {fs:10.9, fw:760, boxPad:8};
+  if(order==='raion') return {fs:10.6, fw:760, boxPad:8};
+  return {fs:10.8, fw:760, boxPad:8};
+}
+function exportAdminLabelsSvg(features, project, w, h){
+  const sorted=[...(features||[])].map(f=>({f,p:f.properties||{},c:exportLabelPoint(f)})).filter(x=>x.c).sort((a,b)=>exportLabelWeight(b.p)-exportLabelWeight(a.p));
+  const placed=[]; const labels=[];
+  const labelMode=state.export.labelMode || 'balanced';
+  const limit=labelMode==='major'?18:labelMode==='dense'?150:70;
+  sorted.forEach((it,idx)=>{
+    if(idx>=limit) return;
+    const name=cleanAdminLabelName(it.p.name || it.p.unit_name || it.p.admin_name || ''); if(!name) return;
+    const st=exportLabelStyleForOrder(exportUnitOrder(it.p));
+    const pt=project(it.c[0],it.c[1]);
+    const fs=st.fs, tw=Math.min(190, Math.max(58, name.length*fs*0.56)), th=fs+st.boxPad;
+    const box={left:pt.x-tw/2,right:pt.x+tw/2,top:pt.y-th/2,bottom:pt.y+th/2};
+    if(box.left<8||box.right>w-8||box.top<8||box.bottom>h-8) return;
+    if(placed.some(q=>!(box.right<q.left || box.left>q.right || box.bottom<q.top || box.top>q.bottom))) return;
+    placed.push(box);
+    labels.push(`<g class="export-admin-label export-admin-label-${escapeHtml(exportUnitOrder(it.p))}" filter="url(#labelShadow)"><rect x="${box.left.toFixed(1)}" y="${box.top.toFixed(1)}" width="${tw.toFixed(1)}" height="${th.toFixed(1)}" rx="6" fill="rgba(255,255,255,.84)" stroke="rgba(75,80,74,.18)"/><text x="${pt.x.toFixed(1)}" y="${(pt.y+fs*.35).toFixed(1)}" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="${fs}" font-weight="${st.fw}" fill="#27323d">${escapeHtml(name)}</text></g>`);
+  });
+  return `<g class="export-labels">${labels.join('')}</g>`;
+}
+function applyExportViewportTransformOnly(){
+  ensureExportFlags();
+  const svg=$('exportSvgMap')?.querySelector('svg.export-map-svg');
+  if(!svg) return;
+  const w=Number(svg.dataset.mapW)||exportMapSize().w;
+  const h=Number(svg.dataset.mapH)||exportMapSize().h;
+  const vp=exportViewportClamp(w,h,state.export.mapViewport.zoom,state.export.mapViewport.x,state.export.mapViewport.y);
+  state.export.mapViewport=vp;
+  const body=svg.querySelector('#exportMapBody');
+  if(body) body.setAttribute('transform', exportMapBodyTransform(w,h));
+  const scale=svg.querySelector('#exportScaleBar');
+  if(scale){
+    const base=Number(svg.dataset.baseKmPerPx)||1;
+    scale.innerHTML=exportScaleBarSvgFromKmPerPx(base/(Number(state.export.mapViewport.zoom)||1.28),w,h);
+  }
+}
+function initExportMapInteraction(){
+  const frame=document.querySelector('.export-map-frame-v38');
+  const box=$('exportSvgMap');
+  if(!frame || !box || box.dataset.boundPanZoomV39==='1'){
+    const nav=frame?.querySelector('.export-map-nav');
+    if(nav && nav.dataset.boundNavV39!=='1'){
+      nav.dataset.boundNavV39='1';
+      nav.addEventListener('click', e=>{
+        const btn=e.target.closest('button[data-export-nav]'); if(!btn) return;
+        ensureExportFlags();
+        const act=btn.dataset.exportNav;
+        if(act==='zoom-in') state.export.mapViewport.zoom=Math.min(2.8,(Number(state.export.mapViewport.zoom)||1.28)+0.14);
+        else if(act==='zoom-out') state.export.mapViewport.zoom=Math.max(1.18,(Number(state.export.mapViewport.zoom)||1.28)-0.14);
+        else if(act==='reset') state.export.mapViewport={x:0,y:0,zoom:1.28};
+        applyExportViewportTransformOnly();
+      });
+    }
+    return;
+  }
+  box.dataset.boundPanZoomV39='1';
+  box.style.cursor='grab';
+  box.addEventListener('wheel', e=>{
+    if(e.target.closest('.export-map-card')) return;
+    e.preventDefault();
+    ensureExportFlags();
+    const old=Number(state.export.mapViewport.zoom)||1.28;
+    const next=old + (e.deltaY<0 ? 0.12 : -0.12);
+    const {w,h}=exportMapSize();
+    state.export.mapViewport=exportViewportClamp(w,h,next,state.export.mapViewport.x,state.export.mapViewport.y);
+    applyExportViewportTransformOnly();
+  }, {passive:false});
+  box.addEventListener('pointerdown', e=>{
+    if(e.target.closest('.export-map-card') || e.target.closest('.export-map-nav')) return;
+    ensureExportFlags();
+    const startX=e.clientX, startY=e.clientY;
+    const start={...state.export.mapViewport};
+    box.setPointerCapture?.(e.pointerId);
+    box.style.cursor='grabbing';
+    const move=ev=>{
+      const {w,h}=exportMapSize();
+      state.export.mapViewport=exportViewportClamp(w,h,start.zoom,start.x+(ev.clientX-startX),start.y+(ev.clientY-startY));
+      applyExportViewportTransformOnly();
+    };
+    const up=()=>{ box.style.cursor='grab'; document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); };
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  }, {passive:false});
+  const nav=frame.querySelector('.export-map-nav');
+  if(nav && nav.dataset.boundNavV39!=='1'){
+    nav.dataset.boundNavV39='1';
+    nav.addEventListener('click', e=>{
+      const btn=e.target.closest('button[data-export-nav]'); if(!btn) return;
+      ensureExportFlags();
+      const act=btn.dataset.exportNav;
+      if(act==='zoom-in') state.export.mapViewport.zoom=Math.min(2.8,(Number(state.export.mapViewport.zoom)||1.28)+0.14);
+      else if(act==='zoom-out') state.export.mapViewport.zoom=Math.max(1.18,(Number(state.export.mapViewport.zoom)||1.28)-0.14);
+      else if(act==='reset') state.export.mapViewport={x:0,y:0,zoom:1.28};
+      applyExportViewportTransformOnly();
+    });
+  }
+}
+function renderExportPreviewCard(){
+  ensureExportFlags();
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const template=state.export.template || 'thesis';
+  const paper=state.export.paper || 'a4Landscape';
+  wrap.innerHTML=`<article class="export-layout export-layout-v38 export-paper-${paper} export-template-${template}"><header class="export-header export-header-v38"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p>${exportFilterStatusHtml()}</div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header><section class="export-main export-main-full"><div class="export-map-frame export-map-frame-v36 export-map-frame-v38"><div id="exportSvgMap" class="export-svg-map"><div class="export-map-placeholder">Формируем карту…</div></div><div class="export-map-nav"><button type="button" data-export-nav="zoom-in">＋</button><button type="button" data-export-nav="zoom-out">－</button><button type="button" data-export-nav="reset">⌂</button></div>${exportOverlayBlocksHtml(features)}</div></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
+  updateExportLiveMap();
+  initExportOverlayDrag();
+  initExportMapInteraction();
 }
