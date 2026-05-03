@@ -80,6 +80,79 @@ function showHoverLater(payload, originalEvent){
     if(payload.density!=null && !Number.isNaN(Number(payload.density))) rows.push(`<div class="hover-row"><span>плотность</span><b>${num1(payload.density)}</b></div>`);
     if(payload.extra) rows.push(`<div class="hover-extra">${escapeHtml(payload.extra)}</div>`);
     box.innerHTML=`<div class="hover-title">${escapeHtml(payload.title||'объект')}</div>${rows.join('')}`;
+    setTimeout(makeChartsClickable, 0);
+    // === CHART MODAL WITH LIQUID ANIMATION ===
+function openChartModalFromElement(el) {
+  const modal = document.getElementById('chartModal');
+  const content = modal.querySelector('.chart-modal-content');
+  const body = document.getElementById('chartModalBody');
+
+  const rect = el.getBoundingClientRect();
+
+  content.style.left = rect.left + 'px';
+  content.style.top = rect.top + 'px';
+  content.style.width = rect.width + 'px';
+  content.style.height = rect.height + 'px';
+
+  body.innerHTML = el.innerHTML;
+
+  modal.classList.add('active');
+
+  requestAnimationFrame(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const targetWidth = vw * 0.8;
+    const targetHeight = vh * 0.8;
+
+    const targetLeft = (vw - targetWidth) / 2;
+    const targetTop = (vh - targetHeight) / 2;
+
+    const scaleX = targetWidth / rect.width;
+    const scaleY = targetHeight / rect.height;
+
+    content.style.transform = `translate(${targetLeft - rect.left}px, ${targetTop - rect.top}px) scale(${scaleX}, ${scaleY})`;
+  });
+}
+
+function closeChartModal() {
+  const modal = document.getElementById('chartModal');
+  const content = modal.querySelector('.chart-modal-content');
+
+  content.style.transform = 'translate(0,0) scale(1)';
+  modal.classList.remove('active');
+}
+
+// === INIT EVENTS ===
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('chartModalClose')?.addEventListener('click', closeChartModal);
+
+  document.getElementById('chartModal')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('chart-modal-backdrop')) {
+      closeChartModal();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeChartModal();
+  });
+});
+
+// === MAKE CHARTS CLICKABLE ===
+function makeChartsClickable() {
+  document.querySelectorAll('.pie-card').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.onclick = () => openChartModalFromElement(el);
+  });
+}
+
+// === PATCH FOR YOUR EXISTING CODE ===
+// ВАЖНО: добавь ВРУЧНУЮ в свою функцию updateGroupAnalytics:
+// после строки: box.innerHTML = html;
+// вставь: setTimeout(makeChartsClickable, 0);
+
+console.log('Chart modal with liquid animation loaded');
+
     box.style.display='block';
     moveHover(state.lastHoverEvent);
     requestAnimationFrame(()=>box.classList.add('visible'));
