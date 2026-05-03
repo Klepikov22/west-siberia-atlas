@@ -170,3 +170,23 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
 :root[data-theme="dark"] .leaflet-tooltip.center-map-label.city-label{background:rgba(21,26,32,.86);color:#f7f4e8;border-color:rgba(255,255,255,.20)}
 :root[data-theme="dark"] .leaflet-tooltip.center-map-label.large-city-label{background:rgba(55,39,18,.94);color:#fff5d6;border-color:rgba(217,179,108,.48)}
 .center-label-anchor{display:none!important;}
+
+
+/* v20: pie charts for population/area shares and tighter overview zoom */
+.pie-charts{margin-bottom:12px}
+.pie-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pie-card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:10px;min-width:0}
+.pie-card h3{font-size:12px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pie-wrap{position:relative;display:grid;place-items:center;margin:2px 0 8px}
+.pie-svg{width:132px;height:132px;filter:drop-shadow(0 4px 10px rgba(40,30,10,.10))}
+.pie-hole{fill:var(--panel);stroke:var(--line);stroke-width:1}
+.pie-total{position:absolute;display:grid;place-items:center;text-align:center;max-width:72px;line-height:1.05}
+.pie-total span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pie-total b{font-size:12px;overflow:hidden;text-overflow:ellipsis;max-width:72px}
+.pie-legend{display:grid;gap:5px;max-height:156px;overflow:auto;padding-right:2px}
+.pie-legend-row{display:grid;grid-template-columns:12px minmax(0,1fr) 42px;gap:6px;align-items:center;font-size:11px}
+.pie-legend-row span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.pie-legend-row b{text-align:right;font-size:11px}
+.pie-dot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+:root[data-theme="dark"] .pie-svg{filter:drop-shadow(0 4px 10px rgba(0,0,0,.25))}
+@media(max-width:1220px){.pie-grid{grid-template-columns:1fr}.pie-svg{width:120px;height:120px}}
