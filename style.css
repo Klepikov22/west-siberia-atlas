@@ -1310,3 +1310,72 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 :root[data-theme="dark"] .export-map-card-head h3{color:#aebbc7}
 :root[data-theme="dark"] .export-degree-label{fill:rgba(210,225,236,.56);stroke:rgba(12,18,26,.72)}
 @media(max-width:1200px){.export-modal-v36 .export-shell{grid-template-columns:1fr;inset:6px}.export-modal-v36 .export-controls{max-height:36dvh}.export-modal-v36 .export-preview-area{min-height:60dvh}.export-modal-v36 .export-paper-screen,.export-modal-v36 .export-paper-a4Landscape,.export-modal-v36 .export-paper-a4Portrait{width:100%;min-height:720px}.export-modal-v36 .export-map-frame-v36{height:560px;min-height:560px}.export-map-card{max-width:46%}}
+
+/* v37 export workspace: larger preview, Lambert export controls, layer filters */
+.export-modal-v36 .export-shell,
+.export-modal .export-shell{
+  inset:10px 14px 14px 244px;
+  grid-template-columns:260px minmax(0,1fr);
+  gap:12px;
+  border-radius:22px;
+}
+.export-modal-v36 .export-controls,
+.export-modal .export-controls{
+  padding:12px 12px 14px;
+  font-size:12px;
+}
+.export-modal-v36 .export-controls h2,
+.export-modal .export-controls h2{font-size:22px;margin:0}
+.export-modal-v36 .control-label,
+.export-modal .control-label{margin-top:10px;font-size:11px}
+.export-modal-v36 .export-text-input,
+.export-modal-v36 select,
+.export-modal-v36 .export-context-text,
+.export-modal .export-text-input,
+.export-modal select,
+.export-modal .export-context-text{padding:9px 10px;border-radius:11px;font-size:12px}
+.export-modal-v36 .export-preview-area,
+.export-modal .export-preview-area{padding:10px 14px 14px;overflow:auto}
+.export-modal-v36 .export-preview-card,
+.export-modal .export-preview-card{min-height:calc(100vh - 56px);display:flex;align-items:flex-start;justify-content:center}
+.export-modal-v36 .export-layout,
+.export-modal .export-layout{width:min(100%,1540px);padding:14px 18px 16px;border-radius:22px}
+.export-modal-v36 .export-paper-screen,
+.export-modal .export-paper-screen{width:min(100%,1720px)}
+.export-modal-v36 .export-paper-a4Portrait,
+.export-modal .export-paper-a4Portrait{width:min(100%,1120px)}
+.export-modal-v36 .export-header,
+.export-modal .export-header{padding-bottom:9px;margin-bottom:10px}
+.export-modal-v36 .export-title-block h1,
+.export-modal .export-title-block h1{font-size:28px;line-height:1.08}
+.export-modal-v36 .export-template-presentation .export-title-block h1,
+.export-modal .export-template-presentation .export-title-block h1{font-size:34px}
+.export-modal-v36 .export-title-block p,
+.export-modal .export-title-block p{font-size:13px;margin-top:5px}
+.export-modal-v36 .export-map-frame-v36,
+.export-modal .export-map-frame-v36{min-height:760px;height:calc(100vh - 190px);max-height:none;border-radius:20px}
+.export-modal-v36 .export-paper-screen .export-map-frame-v36,
+.export-modal .export-paper-screen .export-map-frame-v36{min-height:740px;height:calc(100vh - 175px)}
+.export-modal-v36 .export-paper-a4Portrait .export-map-frame-v36,
+.export-modal .export-paper-a4Portrait .export-map-frame-v36{min-height:980px;height:calc(100vh - 175px)}
+.export-modal-v36 .export-svg-map,
+.export-modal .export-svg-map{width:100%;height:100%}
+.export-modal-v36 .export-map-svg,
+.export-modal .export-map-svg{width:100%;height:100%;display:block}
+.export-layer-grid{grid-template-columns:1fr;gap:6px;margin-top:10px}
+.export-filter-controls{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px;margin:10px 0 12px}
+.export-filter-controls input[type="range"]{width:100%;margin:4px 0 0}
+.export-filter-note{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:999px;background:rgba(168,130,48,.11);color:#7f5a11;font-size:11px;font-weight:750}
+.export-map-card{max-width:330px}
+.export-map-card-legend{max-height:52%;overflow:hidden}
+.export-map-card-legend .export-map-card-body{max-height:360px;overflow:auto;padding-right:4px}
+.export-map-card-stats{width:250px}
+.export-map-card-context{width:340px}
+.export-map-card-body .export-filter-note{margin-top:8px}
+.export-degree-label{font-family:Inter,Arial,sans-serif;font-size:11px;font-weight:700;fill:rgba(59,73,83,.56);paint-order:stroke;stroke:rgba(255,255,255,.8);stroke-width:3px;stroke-linejoin:round}
+.export-preview-status{padding-left:4px}
+@media(max-width:1200px){
+  .export-modal-v36 .export-shell,.export-modal .export-shell{inset:8px;grid-template-columns:1fr}
+  .export-modal-v36 .export-controls,.export-modal .export-controls{max-height:42vh}
+  .export-modal-v36 .export-map-frame-v36,.export-modal .export-map-frame-v36{height:70vh;min-height:560px}
+}

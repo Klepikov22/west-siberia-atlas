@@ -1,4 +1,4 @@
-const APP_VERSION = '36';
+const APP_VERSION = '37';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13,7 +13,7 @@ const state = {
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
   visibleParents:new Set(), parentCounts:new Map(), parentFilterYear:null,
-  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, showGraticule:true, showScale:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:'', paper:'a4Landscape', template:'thesis', liveMap:null, liveLayers:[], overlayPositions:{}},
+  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, showGraticule:true, showScale:true, showAdmin:true, showHydro:true, showRailways:true, showPopulation:true, showLabels:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:'', paper:'a4Landscape', template:'thesis', projection:'lambert', centralMeridian:75, labelMode:'balanced', minPopulation:0, minArea:0, liveMap:null, liveLayers:[], overlayPositions:{}},
   filters:{
     population:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
@@ -1004,7 +1004,7 @@ function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)
 function refreshSelectionStyles(){ if(!state.layers.admin) return; state.layers.admin.eachLayer(l=>l.setStyle(adminStyle(l.feature,state._lastVals))); }
 function refreshSelectionStylesFor(id){ const l=state.adminLayerById.get(id); if(l) l.setStyle(adminStyle(l.feature,state._lastVals)); }
 
-function exportScopeFeatures(scope=state.export.scope){
+function baseExportScopeFeatures(scope=state.export.scope){
   const current=state.currentGeoJSON?.features || [];
   if(scope==='selection'){
     const sel=selectedFeatures();
@@ -1015,6 +1015,20 @@ function exportScopeFeatures(scope=state.export.scope){
     return (state.rawGeoJSON?.features || current).filter(f=> names.includes(parentNameFromFeature(f)));
   }
   return current;
+}
+function exportScopeFeatures(scope=state.export.scope){
+  let features=baseExportScopeFeatures(scope);
+  const minPop=Number(state.export.minPopulation)||0;
+  const minArea=Number(state.export.minArea)||0;
+  if(minPop>0) features=features.filter(f=>(Number(f.properties?.population)||0)>=minPop);
+  if(minArea>0) features=features.filter(f=>(Number(f.properties?.area_km2)||0)>=minArea);
+  return features;
+}
+function exportFilterStatusHtml(){
+  const parts=[];
+  if(Number(state.export.minPopulation)>0) parts.push(`население ≥ ${num(state.export.minPopulation)}`);
+  if(Number(state.export.minArea)>0) parts.push(`площадь ≥ ${num(state.export.minArea)} км²`);
+  return parts.length ? `<div class="export-filter-note">Фильтр: ${escapeHtml(parts.join(' · '))}</div>` : '';
 }
 function featuresBounds(features){
   try{
@@ -1103,11 +1117,17 @@ function syncExportDefaults(resetTitle=true){
   if($(map.mode)) $(map.mode).value=state.export.contextMode;
   if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
   if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+  updateExportFilterLabels();
 }
 function syncExportContextText(){
   const preset=exportContextPresets(state.year);
   state.export.contextText = state.export.contextMode==='long' ? preset.long : preset.short;
   if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+  updateExportFilterLabels();
+}
+function updateExportFilterLabels(){
+  const pop=$('exportMinPopLabel'); if(pop) pop.textContent=(Number(state.export.minPopulation)||0)>0 ? `показывать АТЕ с населением ≥ ${num(state.export.minPopulation)}` : 'без ограничения';
+  const area=$('exportMinAreaLabel'); if(area) area.textContent=(Number(state.export.minArea)||0)>0 ? `показывать АТЕ с площадью ≥ ${num(state.export.minArea)} км²` : 'без ограничения';
 }
 async function openExportMode(){
   const modal=ensureExportModal();
@@ -1133,7 +1153,7 @@ function renderExportPreviewCard(){
   const wrap=$('exportPreviewCard'); if(!wrap) return;
   const features=exportScopeFeatures();
   const previewImg = state.export.mapImage ? `<img src="${state.export.mapImage}" alt="Предпросмотр карты" class="export-map-image">` : `<div class="export-map-placeholder">Карта будет показана здесь после обновления превью.</div>`;
-  wrap.innerHTML=`<article class="export-layout"><header class="export-header"><div class="export-title-block"><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p></div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame">${previewImg}</div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">Источник: интерактивный веб‑атлас дипломного исследования «Пространственная трансформация системы АТЕ Западной Сибири в XVIII–XX веках». Подготовлено в режиме экспорта v${APP_VERSION}.</footer></article>`;
+  wrap.innerHTML=`<article class="export-layout"><header class="export-header"><div class="export-title-block"><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p>${exportFilterStatusHtml()}</div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame">${previewImg}</div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">Источник: интерактивный веб‑атлас дипломного исследования «Пространственная трансформация системы АТЕ Западной Сибири в XVIII–XX веках». Подготовлено в режиме экспорта v${APP_VERSION}.</footer></article>`;
 }
 async function refreshExportPreview(){
   if(!state.export.open) return;
@@ -1577,6 +1597,11 @@ function ensureExportModal(){
   bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(); });
   bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; renderExportPreviewCard(); });
   bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; renderExportPreviewCard(); });
+  bind('exportProjectionSelect','change', e=>{ state.export.projection=e.target.value; renderExportPreviewCard(); });
+  ['Admin','Hydro','Railways','Population','Labels'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; renderExportPreviewCard(); }));
+  bind('exportLabelModeSelect','change', e=>{ state.export.labelMode=e.target.value; state.export.showLabels=e.target.value!=='none'; if($('exportShowLabels')) $('exportShowLabels').checked=state.export.showLabels; renderExportPreviewCard(); });
+  bind('exportMinPopRange','input', e=>{ state.export.minPopulation=Number(e.target.value)||0; updateExportFilterLabels(); renderExportPreviewCard(); });
+  bind('exportMinAreaRange','input', e=>{ state.export.minArea=Number(e.target.value)||0; updateExportFilterLabels(); renderExportPreviewCard(); });
   bind('exportFitScope','change', e=>{ state.export.fitScope=!!e.target.checked; });
   bind('exportShowLegend','change', e=>{ state.export.showLegend=!!e.target.checked; renderExportPreviewCard(); });
   bind('exportShowStats','change', e=>{ state.export.showStats=!!e.target.checked; renderExportPreviewCard(); });
@@ -1599,6 +1624,10 @@ function syncExportDefaults(resetTitle=true){
   if($(fields.scope)) $(fields.scope).value=state.export.scope;
   if($(fields.paper)) $(fields.paper).value=state.export.paper;
   if($(fields.template)) $(fields.template).value=state.export.template;
+  if($(fields.projection)) $(fields.projection).value=state.export.projection;
+  if($(fields.labelMode)) $(fields.labelMode).value=state.export.labelMode;
+  if($(fields.minPop)) $(fields.minPop).value=String(state.export.minPopulation||0);
+  if($(fields.minArea)) $(fields.minArea).value=String(state.export.minArea||0);
   if($(fields.fit)) $(fields.fit).checked=state.export.fitScope;
   if($(fields.legend)) $(fields.legend).checked=state.export.showLegend;
   if($(fields.stats)) $(fields.stats).checked=state.export.showStats;
@@ -1606,6 +1635,11 @@ function syncExportDefaults(resetTitle=true){
   if($(fields.mode)) $(fields.mode).value=state.export.contextMode;
   if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
   if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+  updateExportFilterLabels();
+}
+function updateExportFilterLabels(){
+  const pop=$('exportMinPopLabel'); if(pop) pop.textContent=(Number(state.export.minPopulation)||0)>0 ? `показывать АТЕ с населением ≥ ${num(state.export.minPopulation)}` : 'без ограничения';
+  const area=$('exportMinAreaLabel'); if(area) area.textContent=(Number(state.export.minArea)||0)>0 ? `показывать АТЕ с площадью ≥ ${num(state.export.minArea)} км²` : 'без ограничения';
 }
 async function openExportMode(){
   const modal=ensureExportModal();
@@ -1623,7 +1657,7 @@ function renderExportPreviewCard(){
   const features=exportScopeFeatures();
   const template=state.export.template || 'thesis';
   const paper=state.export.paper || 'a4Landscape';
-  wrap.innerHTML=`<article class="export-layout export-paper-${paper} export-template-${template}"><header class="export-header"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p></div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст периода</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame"><div id="exportLiveMap" class="export-live-map"></div></div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
+  wrap.innerHTML=`<article class="export-layout export-paper-${paper} export-template-${template}"><header class="export-header"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p>${exportFilterStatusHtml()}</div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст периода</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame"><div id="exportLiveMap" class="export-live-map"></div></div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
   setTimeout(()=>updateExportLiveMap(), 40);
 }
 async function refreshExportPreview(fitMainMap=false){
@@ -1702,6 +1736,18 @@ async function downloadExportPng(){
 function ensureExportFlags(){
   if(typeof state.export.showGraticule !== 'boolean') state.export.showGraticule=true;
   if(typeof state.export.showScale !== 'boolean') state.export.showScale=true;
+  if(typeof state.export.showAdmin !== 'boolean') state.export.showAdmin=true;
+  if(typeof state.export.showHydro !== 'boolean') state.export.showHydro=true;
+  if(typeof state.export.showRailways !== 'boolean') state.export.showRailways=true;
+  if(typeof state.export.showPopulation !== 'boolean') state.export.showPopulation=true;
+  if(typeof state.export.showLabels !== 'boolean') state.export.showLabels=true;
+  if(!state.export.paper) state.export.paper='a4Landscape';
+  if(!state.export.template) state.export.template='thesis';
+  if(!state.export.projection) state.export.projection='lambert';
+  if(!state.export.centralMeridian) state.export.centralMeridian=75;
+  if(!state.export.labelMode) state.export.labelMode='balanced';
+  if(!Number.isFinite(Number(state.export.minPopulation))) state.export.minPopulation=0;
+  if(!Number.isFinite(Number(state.export.minArea))) state.export.minArea=0;
   if(!state.export.overlayPositions) state.export.overlayPositions={};
 }
 function ensureExportModal(){
@@ -1709,7 +1755,7 @@ function ensureExportModal(){
   ensureExportFlags();
   modal=document.createElement('div');
   modal.id='exportMode'; modal.className='export-modal export-modal-v36'; modal.setAttribute('aria-hidden','true');
-  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div><section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle"><aside class="export-controls"><div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div><label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text"><label class="control-label" for="exportSubtitleInput">Подзаголовок</label><input id="exportSubtitleInput" class="export-text-input" type="text"><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select><label class="control-label" for="exportPaperSelect">Формат листа</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select><label class="control-label" for="exportTemplateSelect">Режим оформления</label><select id="exportTemplateSelect"><option value="thesis">Карта для диплома</option><option value="article">Карта для статьи</option><option value="presentation">Презентационный слайд</option></select><div class="export-option-grid"><label><input type="checkbox" id="exportFitScope" checked> Автоцентрирование по охвату</label><label><input type="checkbox" id="exportShowLegend" checked> Легенда внутри карты</label><label><input type="checkbox" id="exportShowStats" checked> Сводка внутри карты</label><label><input type="checkbox" id="exportShowContext" checked> Контекст внутри карты</label><label><input type="checkbox" id="exportShowGraticule" checked> Градусная сетка</label><label><input type="checkbox" id="exportShowScale" checked> Масштабная линейка</label></div><details id="exportContextDetails" class="export-context-box" open><summary>Контекст периода</summary><label class="control-label" for="exportContextMode">Режим текста</label><select id="exportContextMode"><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="5"></textarea></details><div class="button-row export-buttons"><button id="exportFitNow" type="button">Подогнать карту</button><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button><div class="mini-muted">Легенду, сводку и контекст можно перетаскивать прямо внутри картографического поля. Итоговый PNG сохраняет их текущее положение.</div></aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div></section>`;
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div><section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle"><aside class="export-controls"><div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div><label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text"><label class="control-label" for="exportSubtitleInput">Подзаголовок</label><input id="exportSubtitleInput" class="export-text-input" type="text"><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select><label class="control-label" for="exportPaperSelect">Формат листа</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select><label class="control-label" for="exportTemplateSelect">Режим оформления</label><select id="exportTemplateSelect"><option value="thesis">Карта для диплома</option><option value="article">Карта для статьи</option><option value="presentation">Презентационный слайд</option></select><label class="control-label" for="exportProjectionSelect">Проекция экспортной карты</label><select id="exportProjectionSelect"><option value="lambert">Коническая Ламберта · 75°E</option><option value="mercator">Меркатор / экранная</option></select><div class="export-option-grid export-layer-grid"><label><input type="checkbox" id="exportFitScope" checked> Автоцентрирование по охвату</label><label><input type="checkbox" id="exportShowAdmin" checked> Полигоны АТЕ</label><label><input type="checkbox" id="exportShowHydro" checked> Гидрография</label><label><input type="checkbox" id="exportShowRailways" checked> Железные дороги</label><label><input type="checkbox" id="exportShowPopulation" checked> Круги населения</label><label><input type="checkbox" id="exportShowLabels" checked> Подписи АТЕ</label><label><input type="checkbox" id="exportShowLegend" checked> Легенда внутри карты</label><label><input type="checkbox" id="exportShowStats" checked> Сводка внутри карты</label><label><input type="checkbox" id="exportShowContext" checked> Контекст внутри карты</label><label><input type="checkbox" id="exportShowGraticule" checked> Градусная сетка</label><label><input type="checkbox" id="exportShowScale" checked> Масштабная линейка</label></div><div class="export-filter-controls"><label class="control-label" for="exportLabelModeSelect">Генерализация подписей</label><select id="exportLabelModeSelect"><option value="none">Не показывать</option><option value="major">Только крупнейшие</option><option value="balanced">Сбалансированно</option><option value="dense">Плотнее</option></select><label class="control-label" for="exportMinPopRange">Фильтр АТЕ по населению</label><input id="exportMinPopRange" type="range" min="0" max="1000000" step="10000" value="0"><div id="exportMinPopLabel" class="mini-muted">без ограничения</div><label class="control-label" for="exportMinAreaRange">Фильтр АТЕ по площади</label><input id="exportMinAreaRange" type="range" min="0" max="500000" step="5000" value="0"><div id="exportMinAreaLabel" class="mini-muted">без ограничения</div></div><details id="exportContextDetails" class="export-context-box" open><summary>Контекст периода</summary><label class="control-label" for="exportContextMode">Режим текста</label><select id="exportContextMode"><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="5"></textarea></details><div class="button-row export-buttons"><button id="exportFitNow" type="button">Подогнать карту</button><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button><div class="mini-muted">Легенду, сводку и контекст можно перетаскивать прямо внутри картографического поля. Итоговый PNG сохраняет их текущее положение.</div></aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div></section>`;
   document.body.appendChild(modal);
   modal.querySelector('.export-close').addEventListener('click', closeExportMode);
   modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
@@ -1719,6 +1765,11 @@ function ensureExportModal(){
   bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(false); });
   bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; renderExportPreviewCard(); });
   bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; renderExportPreviewCard(); });
+  bind('exportProjectionSelect','change', e=>{ state.export.projection=e.target.value; renderExportPreviewCard(); });
+  ['Admin','Hydro','Railways','Population','Labels'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; renderExportPreviewCard(); }));
+  bind('exportLabelModeSelect','change', e=>{ state.export.labelMode=e.target.value; state.export.showLabels=e.target.value!=='none'; if($('exportShowLabels')) $('exportShowLabels').checked=state.export.showLabels; renderExportPreviewCard(); });
+  bind('exportMinPopRange','input', e=>{ state.export.minPopulation=Number(e.target.value)||0; updateExportFilterLabels(); renderExportPreviewCard(); });
+  bind('exportMinAreaRange','input', e=>{ state.export.minArea=Number(e.target.value)||0; updateExportFilterLabels(); renderExportPreviewCard(); });
   bind('exportFitScope','change', e=>{ state.export.fitScope=!!e.target.checked; });
   bind('exportShowLegend','change', e=>{ state.export.showLegend=!!e.target.checked; renderExportPreviewCard(); });
   bind('exportShowStats','change', e=>{ state.export.showStats=!!e.target.checked; renderExportPreviewCard(); });
@@ -1738,21 +1789,35 @@ function syncExportDefaults(resetTitle=true){
   if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
   if(resetTitle || !state.export.subtitle) state.export.subtitle=defaultExportSubtitle(features);
   syncExportContextText();
-  const fields={title:'exportTitleInput', subtitle:'exportSubtitleInput', scope:'exportScopeSelect', fit:'exportFitScope', legend:'exportShowLegend', stats:'exportShowStats', context:'exportShowContext', graticule:'exportShowGraticule', scale:'exportShowScale', mode:'exportContextMode', paper:'exportPaperSelect', template:'exportTemplateSelect'};
+  const fields={title:'exportTitleInput', subtitle:'exportSubtitleInput', scope:'exportScopeSelect', fit:'exportFitScope', legend:'exportShowLegend', stats:'exportShowStats', context:'exportShowContext', graticule:'exportShowGraticule', scale:'exportShowScale', admin:'exportShowAdmin', hydro:'exportShowHydro', railways:'exportShowRailways', population:'exportShowPopulation', labels:'exportShowLabels', mode:'exportContextMode', paper:'exportPaperSelect', template:'exportTemplateSelect', projection:'exportProjectionSelect', labelMode:'exportLabelModeSelect', minPop:'exportMinPopRange', minArea:'exportMinAreaRange'};
   if($(fields.title)) $(fields.title).value=state.export.title;
   if($(fields.subtitle)) $(fields.subtitle).value=state.export.subtitle;
   if($(fields.scope)) $(fields.scope).value=state.export.scope;
   if($(fields.paper)) $(fields.paper).value=state.export.paper;
   if($(fields.template)) $(fields.template).value=state.export.template;
+  if($(fields.projection)) $(fields.projection).value=state.export.projection;
+  if($(fields.labelMode)) $(fields.labelMode).value=state.export.labelMode;
+  if($(fields.minPop)) $(fields.minPop).value=String(state.export.minPopulation||0);
+  if($(fields.minArea)) $(fields.minArea).value=String(state.export.minArea||0);
   if($(fields.fit)) $(fields.fit).checked=state.export.fitScope;
   if($(fields.legend)) $(fields.legend).checked=state.export.showLegend;
   if($(fields.stats)) $(fields.stats).checked=state.export.showStats;
   if($(fields.context)) $(fields.context).checked=state.export.showContext;
   if($(fields.graticule)) $(fields.graticule).checked=state.export.showGraticule;
   if($(fields.scale)) $(fields.scale).checked=state.export.showScale;
+  if($(fields.admin)) $(fields.admin).checked=state.export.showAdmin;
+  if($(fields.hydro)) $(fields.hydro).checked=state.export.showHydro;
+  if($(fields.railways)) $(fields.railways).checked=state.export.showRailways;
+  if($(fields.population)) $(fields.population).checked=state.export.showPopulation;
+  if($(fields.labels)) $(fields.labels).checked=state.export.showLabels;
   if($(fields.mode)) $(fields.mode).value=state.export.contextMode;
   if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
   if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+  updateExportFilterLabels();
+}
+function updateExportFilterLabels(){
+  const pop=$('exportMinPopLabel'); if(pop) pop.textContent=(Number(state.export.minPopulation)||0)>0 ? `показывать АТЕ с населением ≥ ${num(state.export.minPopulation)}` : 'без ограничения';
+  const area=$('exportMinAreaLabel'); if(area) area.textContent=(Number(state.export.minArea)||0)>0 ? `показывать АТЕ с площадью ≥ ${num(state.export.minArea)} км²` : 'без ограничения';
 }
 async function openExportMode(){
   const modal=ensureExportModal();
@@ -1770,7 +1835,7 @@ function renderExportPreviewCard(){
   const features=exportScopeFeatures();
   const template=state.export.template || 'thesis';
   const paper=state.export.paper || 'a4Landscape';
-  wrap.innerHTML=`<article class="export-layout export-paper-${paper} export-template-${template}"><header class="export-header"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p></div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header><section class="export-main export-main-full"><div class="export-map-frame export-map-frame-v36"><div id="exportSvgMap" class="export-svg-map"><div class="export-map-placeholder">Формируем карту…</div></div>${exportOverlayBlocksHtml(features)}</div></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
+  wrap.innerHTML=`<article class="export-layout export-paper-${paper} export-template-${template}"><header class="export-header"><div class="export-title-block"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p>${exportFilterStatusHtml()}</div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header><section class="export-main export-main-full"><div class="export-map-frame export-map-frame-v36"><div id="exportSvgMap" class="export-svg-map"><div class="export-map-placeholder">Формируем карту…</div></div>${exportOverlayBlocksHtml(features)}</div></section><footer class="export-footer">${escapeHtml(exportSourceCaption())}</footer></article>`;
   updateExportLiveMap();
   initExportOverlayDrag();
 }
@@ -1821,27 +1886,27 @@ async function updateExportLiveMap(){
 }
 function exportMapSize(){
   const paper=state.export.paper || 'a4Landscape';
-  if(paper==='a4Portrait') return {w:980,h:780};
-  if(paper==='screen') return {w:1320,h:650};
-  return {w:1220,h:700};
+  if(paper==='a4Portrait') return {w:1080,h:1320};
+  if(paper==='screen') return {w:1680,h:880};
+  return {w:1540,h:980};
 }
 async function buildExportSvgMap(){
   const {w,h}=exportMapSize();
   const features=exportScopeFeatures();
   const bbox=expandedGeoBBox(geoBBoxFromFeatures(features), 0.075);
-  const projection=makeExportProjection(bbox, w, h, 34);
+  const projection=makeExportProjection(bbox, w, h, 48);
   const field=valField();
   const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>!Number.isNaN(v)):[];
   const parts=[];
   parts.push(`<svg class="export-map-svg" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="0" y="0" width="${w}" height="${h}" rx="18" ry="18"/></clipPath><filter id="labelShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#ffffff" flood-opacity="0.95"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="${exportBasemapFill()}"/><g clip-path="url(#exportMapClip)">`);
   if(state.export.showGraticule) parts.push(await exportGraticuleSvg(projection,w,h,bbox));
-  if($('toggleHydro')?.checked !== false){
+  if(state.export.showHydro){
     parts.push(await exportHydroSvg(projection,bbox));
   }
-  parts.push(exportAdminPolygonsSvg(features, projection, vals));
-  if($('toggleRailways')?.checked !== false) parts.push(await exportRailSvg(projection,bbox));
-  if($('toggleCircles')?.checked !== false) parts.push(exportPopulationCirclesSvg(features, projection));
-  parts.push(exportAdminLabelsSvg(features, projection, w, h));
+  if(state.export.showAdmin) parts.push(exportAdminPolygonsSvg(features, projection, vals));
+  if(state.export.showRailways) parts.push(await exportRailSvg(projection,bbox));
+  if(state.export.showPopulation) parts.push(exportPopulationCirclesSvg(features, projection));
+  if(state.export.showLabels && state.export.labelMode!=='none') parts.push(exportAdminLabelsSvg(features, projection, w, h));
   parts.push(`</g>`);
   if(state.export.showGraticule) parts.push(exportGraticuleLabelsSvg(projection,w,h,bbox));
   if(state.export.showScale) parts.push(exportScaleBarSvg(projection,w,h,bbox));
@@ -1876,14 +1941,56 @@ function walkCoords(geom, cb){
   else if(t==='GeometryCollection') (geom.geometries||[]).forEach(g=>walkCoords(g,cb));
 }
 function mercY(lat){ const r=Math.max(-84,Math.min(84,lat))*Math.PI/180; return Math.log(Math.tan(Math.PI/4+r/2)); }
+function lambertForwardFactory(options={}){
+  const deg=Math.PI/180;
+  const phi1=(options.phi1 ?? 48)*deg, phi2=(options.phi2 ?? 68)*deg;
+  const lat0=(options.lat0 ?? 57)*deg, lon0=(options.lon0 ?? 75)*deg;
+  const n=Math.log(Math.cos(phi1)/Math.cos(phi2))/Math.log(Math.tan(Math.PI/4+phi2/2)/Math.tan(Math.PI/4+phi1/2));
+  const F=(Math.cos(phi1)*Math.pow(Math.tan(Math.PI/4+phi1/2), n))/n;
+  const rho0=F/Math.pow(Math.tan(Math.PI/4+lat0/2), n);
+  return (lon,lat)=>{
+    const lam=lon*deg, phi=Math.max(-84,Math.min(84,lat))*deg;
+    const rho=F/Math.pow(Math.tan(Math.PI/4+phi/2), n);
+    const theta=n*(lam-lon0);
+    return [rho*Math.sin(theta), rho0-rho*Math.cos(theta)];
+  };
+}
 function makeExportProjection(bbox,w,h,pad=30){
+  if(state.export.projection==='mercator') return makeMercatorExportProjection(bbox,w,h,pad);
+  return makeLambertExportProjection(bbox,w,h,pad);
+}
+function makeMercatorExportProjection(bbox,w,h,pad=30){
   const [minLon,minLat,maxLon,maxLat]=bbox;
   const x0=minLon, x1=maxLon, y0=mercY(minLat), y1=mercY(maxLat);
   const sx=(w-pad*2)/(x1-x0||1), sy=(h-pad*2)/(y1-y0||1);
   const s=Math.min(sx,sy);
   const ox=(w-(x1-x0)*s)/2, oy=(h-(y1-y0)*s)/2;
   const fn=(lon,lat)=>({x:ox+(lon-x0)*s, y:h-(oy+(mercY(lat)-y0)*s)});
-  fn.scale=s; fn.bbox=bbox; fn.w=w; fn.h=h; fn.pad=pad; fn.x0=x0; fn.y0=y0; fn.ox=ox; fn.oy=oy;
+  fn.scale=s; fn.bbox=bbox; fn.w=w; fn.h=h; fn.pad=pad; fn.kind='mercator';
+  return fn;
+}
+function makeLambertExportProjection(bbox,w,h,pad=30){
+  const [minLon,minLat,maxLon,maxLat]=bbox;
+  const centerLon=Number(state.export.centralMeridian)||75;
+  const centerLat=(minLat+maxLat)/2;
+  const p0=lambertForwardFactory({lon0:centerLon, lat0:centerLat, phi1:48, phi2:68});
+  const sample=[];
+  const steps=12;
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    sample.push([minLon+(maxLon-minLon)*t,minLat]);
+    sample.push([minLon+(maxLon-minLon)*t,maxLat]);
+    sample.push([minLon,minLat+(maxLat-minLat)*t]);
+    sample.push([maxLon,minLat+(maxLat-minLat)*t]);
+  }
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  sample.forEach(([lon,lat])=>{ const [x,y]=p0(lon,lat); minX=Math.min(minX,x); maxX=Math.max(maxX,x); minY=Math.min(minY,y); maxY=Math.max(maxY,y); });
+  const sx=(w-pad*2)/(maxX-minX||1), sy=(h-pad*2)/(maxY-minY||1);
+  const s=Math.min(sx,sy);
+  const ox=(w-(maxX-minX)*s)/2 - minX*s;
+  const oy=(h-(maxY-minY)*s)/2 - minY*s;
+  const fn=(lon,lat)=>{ const [x,y]=p0(lon,lat); return {x:ox+x*s, y:oy+y*s}; };
+  fn.scale=s; fn.bbox=bbox; fn.w=w; fn.h=h; fn.pad=pad; fn.kind='lambert'; fn.centerLon=centerLon; fn.centerLat=centerLat; fn.raw=p0;
   return fn;
 }
 function geomToSvgPath(geom, project){
@@ -1951,9 +2058,10 @@ function featureVisualCenter(geom){
 function exportAdminLabelsSvg(features, project, w, h){
   const sorted=[...(features||[])].map(f=>({f,p:f.properties||{},c:featureVisualCenter(f.geometry)})).filter(x=>x.c).sort((a,b)=>(Number(b.p.population)||0)-(Number(a.p.population)||0));
   const placed=[]; const labels=[];
-  const zThreshold=(features||[]).length>160?28:(features||[]).length>80?46:9999;
+  const labelMode=state.export.labelMode || 'balanced';
+  const zThreshold=labelMode==='major'?16:labelMode==='dense'?9999:((features||[]).length>160?42:(features||[]).length>80?68:9999);
   sorted.forEach((it,idx)=>{
-    if(idx>zThreshold && (Number(it.p.population)||0)<(sorted[0]?.p?.population||0)*0.08) return;
+    if(idx>zThreshold && (Number(it.p.population)||0)<(sorted[0]?.p?.population||0)*(labelMode==='major'?0.16:0.06)) return;
     const name=cleanAdminLabelName(it.p.name || it.p.unit_name || it.p.admin_name || ''); if(!name) return;
     const pt=project(it.c[0],it.c[1]);
     const fs=idx<8?12:idx<24?10.5:9.2; const tw=Math.min(160, Math.max(42, name.length*fs*.54)); const th=fs+8;
@@ -1991,11 +2099,14 @@ function exportGraticuleLabelsSvg(project,w,h,bbox){
   return `<g class="export-graticule-labels">${labels.join('')}</g>`;
 }
 function exportScaleBarSvg(project,w,h,bbox){
-  const centerLat=(bbox[1]+bbox[3])/2;
-  const kmPerPx=(111.32*Math.cos(centerLat*Math.PI/180))*((bbox[2]-bbox[0])/(w-68));
-  const targetPx=150; const targetKm=Math.max(1,kmPerPx*targetPx);
+  const centerLat=(bbox[1]+bbox[3])/2, centerLon=(bbox[0]+bbox[2])/2;
+  const p1=project(centerLon, centerLat), p2=project(centerLon+1, centerLat);
+  const pxPerDeg=Math.max(1, Math.hypot(p2.x-p1.x,p2.y-p1.y));
+  const kmPerDeg=111.32*Math.cos(centerLat*Math.PI/180);
+  const kmPerPx=kmPerDeg/pxPerDeg;
+  const targetPx=170; const targetKm=Math.max(1,kmPerPx*targetPx);
   const nice=[25,50,100,150,200,300,500,750,1000,1500,2000].filter(v=>v<=targetKm).pop() || 25;
-  const px=nice/kmPerPx; const x=30, y=h-34;
+  const px=nice/kmPerPx; const x=36, y=h-42;
   return `<g class="export-scale-bar"><line x1="${x}" y1="${y}" x2="${(x+px).toFixed(1)}" y2="${y}" stroke="#253241" stroke-width="3"/><line x1="${x}" y1="${y-6}" x2="${x}" y2="${y+6}" stroke="#253241" stroke-width="2"/><line x1="${(x+px).toFixed(1)}" y1="${y-6}" x2="${(x+px).toFixed(1)}" y2="${y+6}" stroke="#253241" stroke-width="2"/><text x="${(x+px/2).toFixed(1)}" y="${y-10}" text-anchor="middle" font-size="12" font-weight="800" fill="#253241">${nice} км</text></g>`;
 }
 function initExportOverlayDrag(){
