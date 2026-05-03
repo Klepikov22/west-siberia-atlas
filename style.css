@@ -1216,3 +1216,97 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 .export-template-presentation{padding:28px;background:linear-gradient(135deg,#f7f5ef,#edf2e7)}.export-template-presentation .export-title-block h1{font-size:38px;line-height:1.02}.export-template-presentation .export-title-block p{font-size:17px}.export-template-presentation .export-main{grid-template-columns:minmax(0,1fr) 270px}.export-template-presentation .export-map-frame{min-height:560px}.export-template-presentation .export-context{font-size:15px}
 .export-layout{box-sizing:border-box;margin:0 auto}.export-map-frame{position:relative}.export-preview-card{display:flex;justify-content:center}.export-preview-area{background:linear-gradient(180deg,var(--bg),rgba(0,0,0,.025))}
 @media(max-width:1200px){.export-paper-a4Landscape,.export-paper-a4Portrait,.export-paper-screen{width:100%;aspect-ratio:auto}.export-paper-a4Portrait .export-side{grid-template-columns:1fr}.export-live-map{min-height:420px}}
+
+/* v36: подписи административных единиц строятся по полигонам, а не по центрам */
+.leaflet-tooltip.admin-poly-label{
+  pointer-events:none;
+  display:none;
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:3px 8px;
+  border-radius:9px;
+  border:1px solid rgba(92,82,64,.26);
+  background:rgba(255,255,255,.82);
+  color:#24313b;
+  box-shadow:0 3px 10px rgba(45,38,25,.13);
+  font-weight:850;
+  font-size:11.5px;
+  line-height:1.1;
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+.leaflet-tooltip.admin-poly-label.major{
+  max-width:230px;
+  padding:4px 9px;
+  font-size:12.5px;
+  background:rgba(255,255,255,.88);
+  border-color:rgba(137,103,45,.36);
+  box-shadow:0 5px 14px rgba(45,38,25,.16);
+}
+.leaflet-tooltip.admin-poly-label.medium{font-size:11.8px;opacity:.96}
+.leaflet-tooltip.admin-poly-label.minor{font-size:10.8px;opacity:.88}
+:root[data-theme="dark"] .leaflet-tooltip.admin-poly-label{
+  background:rgba(21,26,32,.82);
+  color:#f2efe6;
+  border-color:rgba(255,255,255,.16);
+  text-shadow:0 1px 0 rgba(0,0,0,.72);
+  box-shadow:0 4px 12px rgba(0,0,0,.26);
+}
+:root[data-ui="glass"] .leaflet-tooltip.admin-poly-label{
+  background:rgba(255,255,255,.64);
+  backdrop-filter:blur(9px) saturate(1.12);
+  -webkit-backdrop-filter:blur(9px) saturate(1.12);
+}
+:root[data-theme="dark"][data-ui="glass"] .leaflet-tooltip.admin-poly-label{
+  background:rgba(20,25,32,.66);
+}
+.leaflet-tooltip.export-admin-label{
+  display:block!important;
+  font-size:10.5px;
+  padding:2px 6px;
+}
+.leaflet-tooltip.export-admin-label.major{font-size:11.5px}
+.leaflet-tooltip.export-admin-label.minor{font-size:9.8px;opacity:.82}
+
+/* v36: rebuilt export composer, direct SVG map, movable in-map blocks, graticule and scale */
+.export-modal-v36 .export-shell{inset:8px;grid-template-columns:292px minmax(0,1fr);gap:12px;border-radius:22px}
+.export-modal-v36 .export-controls{padding:14px 12px 16px}
+.export-modal-v36 .export-controls h2{font-size:22px}
+.export-modal-v36 .export-preview-area{padding:12px 16px 18px;overflow:auto}
+.export-modal-v36 .export-preview-card{min-height:82dvh;display:flex;justify-content:center;align-items:flex-start}
+.export-modal-v36 .export-layout{padding:20px;max-width:none}
+.export-modal-v36 .export-paper-screen{width:1680px;min-height:940px;aspect-ratio:16/9}
+.export-modal-v36 .export-paper-a4Landscape{width:1580px;min-height:1110px;aspect-ratio:1.414/1}
+.export-modal-v36 .export-paper-a4Portrait{width:1120px;min-height:1584px;aspect-ratio:1/1.414}
+.export-modal-v36 .export-main-full{display:block;margin-top:14px}
+.export-modal-v36 .export-map-frame-v36{position:relative;min-height:760px;height:760px;border-radius:22px;overflow:hidden;background:#eaf2ed;display:block;box-shadow:inset 0 0 0 1px rgba(93,84,65,.14)}
+.export-modal-v36 .export-paper-screen .export-map-frame-v36{height:690px;min-height:690px}
+.export-modal-v36 .export-paper-a4Portrait .export-map-frame-v36{height:1030px;min-height:1030px}
+.export-svg-map{position:absolute;inset:0;width:100%;height:100%}
+.export-map-svg{display:block;width:100%;height:100%}
+.export-degree-label{font-family:Inter,Arial,sans-serif;font-size:11px;font-weight:800;fill:rgba(54,72,82,.50);paint-order:stroke;stroke:rgba(255,255,255,.82);stroke-width:3px;stroke-linejoin:round}
+.export-scale-bar text{font-family:Inter,Arial,sans-serif;paint-order:stroke;stroke:rgba(255,255,255,.86);stroke-width:3px;stroke-linejoin:round}
+.export-map-card{position:absolute;z-index:5;max-width:min(360px,34%);min-width:230px;border:1px solid rgba(134,123,98,.30);border-radius:16px;background:rgba(255,253,247,.86);box-shadow:0 10px 28px rgba(44,51,44,.14);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#253241;overflow:hidden}
+.export-map-card-head{display:flex;align-items:center;gap:8px;padding:9px 12px 7px;border-bottom:1px solid rgba(134,123,98,.22);cursor:grab;user-select:none;background:rgba(255,255,255,.34)}
+.export-map-card-head:active{cursor:grabbing}
+.export-map-card-head h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#6d7884}
+.export-map-card-body{padding:10px 12px;font-size:12px;line-height:1.42;max-height:300px;overflow:auto}
+.export-map-card-context{max-width:430px}
+.export-map-card-context p{margin:0}
+.export-map-card-legend{max-width:300px}
+.export-map-card .export-info-grid{gap:7px}.export-map-card .export-info-card{padding:7px 8px;background:rgba(255,255,255,.76)}
+.export-map-card .legend-section{font-size:12px;margin-top:8px;padding-top:7px}.export-map-card .legend-row{font-size:12px;margin:5px 0}
+.export-template-article .export-map-card{max-width:300px}.export-template-article .export-map-card-body{font-size:11.4px;max-height:240px}
+.export-template-presentation .export-map-card{border-radius:18px;background:rgba(255,253,247,.90)}.export-template-presentation .export-map-card-body{font-size:13px}
+.export-template-presentation .export-map-frame-v36{height:670px;min-height:670px}
+.export-template-presentation .export-title-block h1{font-size:40px}
+.export-template-thesis .export-title-block h1{font-size:33px}
+.export-map-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6b7580}
+.export-modal-v36 .export-side{display:none}
+.export-modal-v36 .export-footer{font-size:13px;margin-top:12px}
+:root[data-theme="dark"] .export-map-card{background:rgba(22,29,38,.86);color:#eaf1f8;border-color:rgba(255,255,255,.12)}
+:root[data-theme="dark"] .export-map-card-head{background:rgba(255,255,255,.05);border-bottom-color:rgba(255,255,255,.10)}
+:root[data-theme="dark"] .export-map-card-head h3{color:#aebbc7}
+:root[data-theme="dark"] .export-degree-label{fill:rgba(210,225,236,.56);stroke:rgba(12,18,26,.72)}
+@media(max-width:1200px){.export-modal-v36 .export-shell{grid-template-columns:1fr;inset:6px}.export-modal-v36 .export-controls{max-height:36dvh}.export-modal-v36 .export-preview-area{min-height:60dvh}.export-modal-v36 .export-paper-screen,.export-modal-v36 .export-paper-a4Landscape,.export-modal-v36 .export-paper-a4Portrait{width:100%;min-height:720px}.export-modal-v36 .export-map-frame-v36{height:560px;min-height:560px}.export-map-card{max-width:46%}}
