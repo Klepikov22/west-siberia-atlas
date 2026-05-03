@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 const APP_VERSION = '21';
-=======
-const APP_VERSION = '20';
->>>>>>> 0653f9b1851fc9b19cc94eb4c20a763fdd5f546e
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15,10 +11,7 @@ const state = {
   manifest:null, year:null, mode:'admin_parent', theme:'light', tool:'pan',
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
-<<<<<<< HEAD
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null,
-=======
->>>>>>> 0653f9b1851fc9b19cc94eb4c20a763fdd5f546e
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
@@ -90,79 +83,6 @@ function showHoverLater(payload, originalEvent){
     if(payload.density!=null && !Number.isNaN(Number(payload.density))) rows.push(`<div class="hover-row"><span>плотность</span><b>${num1(payload.density)}</b></div>`);
     if(payload.extra) rows.push(`<div class="hover-extra">${escapeHtml(payload.extra)}</div>`);
     box.innerHTML=`<div class="hover-title">${escapeHtml(payload.title||'объект')}</div>${rows.join('')}`;
-    setTimeout(makeChartsClickable, 0);
-    // === CHART MODAL WITH LIQUID ANIMATION ===
-function openChartModalFromElement(el) {
-  const modal = document.getElementById('chartModal');
-  const content = modal.querySelector('.chart-modal-content');
-  const body = document.getElementById('chartModalBody');
-
-  const rect = el.getBoundingClientRect();
-
-  content.style.left = rect.left + 'px';
-  content.style.top = rect.top + 'px';
-  content.style.width = rect.width + 'px';
-  content.style.height = rect.height + 'px';
-
-  body.innerHTML = el.innerHTML;
-
-  modal.classList.add('active');
-
-  requestAnimationFrame(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    const targetWidth = vw * 0.8;
-    const targetHeight = vh * 0.8;
-
-    const targetLeft = (vw - targetWidth) / 2;
-    const targetTop = (vh - targetHeight) / 2;
-
-    const scaleX = targetWidth / rect.width;
-    const scaleY = targetHeight / rect.height;
-
-    content.style.transform = `translate(${targetLeft - rect.left}px, ${targetTop - rect.top}px) scale(${scaleX}, ${scaleY})`;
-  });
-}
-
-function closeChartModal() {
-  const modal = document.getElementById('chartModal');
-  const content = modal.querySelector('.chart-modal-content');
-
-  content.style.transform = 'translate(0,0) scale(1)';
-  modal.classList.remove('active');
-}
-
-// === INIT EVENTS ===
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('chartModalClose')?.addEventListener('click', closeChartModal);
-
-  document.getElementById('chartModal')?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('chart-modal-backdrop')) {
-      closeChartModal();
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeChartModal();
-  });
-});
-
-// === MAKE CHARTS CLICKABLE ===
-function makeChartsClickable() {
-  document.querySelectorAll('.pie-card').forEach(el => {
-    el.style.cursor = 'pointer';
-    el.onclick = () => openChartModalFromElement(el);
-  });
-}
-
-// === PATCH FOR YOUR EXISTING CODE ===
-// ВАЖНО: добавь ВРУЧНУЮ в свою функцию updateGroupAnalytics:
-// после строки: box.innerHTML = html;
-// вставь: setTimeout(makeChartsClickable, 0);
-
-console.log('Chart modal with liquid animation loaded');
-
     box.style.display='block';
     moveHover(state.lastHoverEvent);
     requestAnimationFrame(()=>box.classList.add('visible'));
@@ -434,11 +354,7 @@ function adminStyle(feature, vals){
 }
 async function refreshAdmin(seq){
   clearLayer('admin'); clearLayer('circles'); state.adminLayerById.clear();
-<<<<<<< HEAD
   const path=state.manifest.layers.admin[String(state.year)]; const gj=normalizeAdminStats(await loadJson(path));
-=======
-  const path=state.manifest.layers.admin[String(state.year)]; const gj=await loadJson(path);
->>>>>>> 0653f9b1851fc9b19cc94eb4c20a763fdd5f546e
   if(isStaleRefresh(seq)) return;
   state.currentGeoJSON=gj;
   const field=valField(); const vals=field?gj.features.map(f=>Number(f.properties[field])).filter(v=>!Number.isNaN(v)):[]; state._lastVals=vals;
@@ -694,49 +610,6 @@ function expandedSharePieHtml(features, field, title, scope){
   const slices=rows.map((r,i)=>{ const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=palette[i%palette.length]; const path=share>=0.9999 ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>` : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`; return {...r, share, color, path}; });
   const rowsHtml=slices.map(s=>`<div class="chart-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b><em>${num(s.value)}</em></div>`).join('');
   return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Клик по диаграмме в правой панели открывает это окно. При мультивыборке расчёт автоматически перестраивается по выбранным объектам.</div>`;
-}
-function pieChartsHtml(features, scope){
-  return `<div class="pie-charts"><div class="analytics-title">Доли верхнего уровня <span>население и площадь от суммы по ${scope}</span></div><div class="pie-grid">${sharePieHtml(features, 'population', 'Население')}${sharePieHtml(features, 'area_km2', 'Площадь')}</div></div>`;
-}
-function sharePieHtml(features, field, title){
-  const rows=shareRows(features, field);
-  if(!rows.length) return `<div class="pie-card"><h3>${escapeHtml(title)}</h3><div class="mini-muted">Нет данных для диаграммы.</div></div>`;
-  const total=sum(rows.map(r=>r.value));
-  let angle=0;
-  const slices=rows.map((r,i)=>{
-    const share=total ? r.value/total : 0;
-    const start=angle; const end=angle + share*360; angle=end;
-    const color=palette[i%palette.length];
-    const path=share>=0.9999
-      ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>`
-      : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`;
-    return {path, color, share, name:r.name, value:r.value};
-  });
-  const legend=slices.map(s=>`<div class="pie-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b></div>`).join('');
-  return `<div class="pie-card"><h3>${escapeHtml(title)}</h3><div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total"><span>итого</span><b>${num(total)}</b></div></div><div class="pie-legend">${legend}</div></div>`;
-}
-function shareRows(features, field){
-  const groups=new Map();
-  features.forEach(f=>{
-    const p=f.properties||{}; const value=Number(p[field])||0; if(value<=0) return;
-    const key=p.admin_parent || p.name || '—';
-    groups.set(key, (groups.get(key)||0)+value);
-  });
-  const sorted=[...groups.entries()].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
-  const top=sorted.slice(0,10);
-  const other=sum(sorted.slice(10).map(r=>r.value));
-  if(other>0) top.push({name:'Прочие', value:other});
-  return top;
-}
-function pieSlicePath(cx, cy, r, startAngle, endAngle){
-  const start=polarPoint(cx, cy, r, endAngle);
-  const end=polarPoint(cx, cy, r, startAngle);
-  const largeArc=endAngle-startAngle<=180 ? 0 : 1;
-  return `M ${cx} ${cy} L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
-}
-function polarPoint(cx, cy, r, angle){
-  const rad=(angle-90)*Math.PI/180;
-  return {x:cx + r*Math.cos(rad), y:cy + r*Math.sin(rad)};
 }
 function updateSelectionBox(){
   const box=$('selectionBox'); const sel=$('selectedFeatureSelect'); const selLabel=$('selectedFeatureSelectLabel'); const info=$('featureInfo');
