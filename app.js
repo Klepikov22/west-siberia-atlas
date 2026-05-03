@@ -1,4 +1,4 @@
-const APP_VERSION = '27';
+const APP_VERSION = '28';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -18,7 +18,7 @@ const state = {
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     density:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null}
   },
-  metricFilterDrag:{active:false, dx:0, dy:0}, parentFilterDrag:{active:false, dx:0, dy:0},
+  metricFilterDrag:{active:false, dx:0, dy:0}, parentFilterDrag:{active:false, dx:0, dy:0}, sidePanels:{left:false,right:false},
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
@@ -384,6 +384,37 @@ function initCollapsiblePanel(panelId, buttonId){
   });
   apply();
 }
+
+function initSidePanelToggles(){
+  const savedLeft=storageGet('wsAtlasLeftPanelHidden')==='1';
+  const savedRight=storageGet('wsAtlasRightPanelHidden')==='1';
+  setSidePanelHidden('left', savedLeft, false);
+  setSidePanelHidden('right', savedRight, false);
+  const leftBtn=$('toggleLeftPanel');
+  const rightBtn=$('toggleRightPanel');
+  if(leftBtn && leftBtn.dataset.ready!=='1'){
+    leftBtn.dataset.ready='1';
+    leftBtn.addEventListener('click', ()=>setSidePanelHidden('left', !document.body.classList.contains('left-panel-hidden'), true));
+  }
+  if(rightBtn && rightBtn.dataset.ready!=='1'){
+    rightBtn.dataset.ready='1';
+    rightBtn.addEventListener('click', ()=>setSidePanelHidden('right', !document.body.classList.contains('right-panel-hidden'), true));
+  }
+}
+function setSidePanelHidden(side, hidden, persist=true){
+  const isLeft=side==='left';
+  const cls=isLeft?'left-panel-hidden':'right-panel-hidden';
+  const btn=$(isLeft?'toggleLeftPanel':'toggleRightPanel');
+  document.body.classList.toggle(cls, !!hidden);
+  state.sidePanels[side]=!!hidden;
+  if(btn){
+    btn.setAttribute('aria-expanded', String(!hidden));
+    btn.title = hidden ? `Показать ${isLeft?'левую':'правую'} панель` : `Скрыть ${isLeft?'левую':'правую'} панель`;
+    btn.textContent = isLeft ? (hidden ? '›' : '‹') : (hidden ? '‹' : '›');
+  }
+  if(persist) storageSet(isLeft?'wsAtlasLeftPanelHidden':'wsAtlasRightPanelHidden', hidden?'1':'0');
+  window.setTimeout(()=>{ state.map?.invalidateSize(); updateLabelsVisibility(); updateCenterLabels(); }, 360);
+}
 function metricValueLabel(field, value){
   if(value==null || !Number.isFinite(Number(value))) return '—';
   return field==='density' ? num1(value) : num(value);
@@ -525,6 +556,7 @@ async function init(){
 
 function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
+  initSidePanelToggles();
   on('modeSelect','change', async e=>{state.mode=e.target.value; const seq=state.refreshSeq; await refreshAdmin(seq);});
   const themeSelect=$('themeSelect'); if(themeSelect) themeSelect.value=state.theme;
   const pieSelect=$('pieLevelSelect'); if(pieSelect) pieSelect.value=state.pieGrouping;
@@ -603,21 +635,33 @@ async function refreshAll(){
 
 function isReservoirFeature(f){
   const p=f.properties||{}; if(p.water_kind==='ocean') return false;
+  if(p.water_kind==='reservoir') return true;
   const text=Object.values(p).join(' ').toLowerCase();
   return p.reservoir===1 || p.reservoir===true || String(p.reservoir).toLowerCase()==='true' || text.includes('reservoir') || text.includes('водохранилище') || text.includes('vodokhran');
 }
+function riverStyle(f){
+  const s=styleVars();
+  const p=f.properties||{};
+  const raw=Number(p.strokeweig || p.strokeweight || p.weight || 1);
+  return {color:s.river, weight:Math.max(.35, Math.min(1.7, raw*.78)), opacity:state.theme==='light'?.50:.70};
+}
+function waterStyle(f){
+  const s=styleVars();
+  const p=f.properties||{};
+  const kind=p.water_kind || '';
+  const ocean=kind==='ocean';
+  const reservoir=kind==='reservoir' || isReservoirFeature(f);
+  return {color:s.waterLine, weight:ocean?.85:.65, opacity:ocean?.68:.82, fillColor:s.waterFill, fillOpacity:ocean?(state.theme==='light'?.46:.42):(reservoir?(state.theme==='light'?.58:.48):(state.theme==='light'?.74:.58))};
+}
 async function refreshHydro(seq){
-  clearLayer('rivers'); clearLayer('water'); const s=styleVars();
+  clearLayer('rivers'); clearLayer('water');
   const rivers=await loadJson(state.manifest.layers.hydro.rivers);
   const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
   if(isStaleRefresh(seq)) return;
   const showReservoirs = Number(state.year) >= 1959;
   const water={type:'FeatureCollection', features:waterRaw.features.filter(f=>showReservoirs || !isReservoirFeature(f))};
-  state.layers.rivers=L.geoJSON(rivers,{interactive:false, style:f=>({color:s.river, weight: Math.max(.45, Number(f.properties.strokeweig||1.0)), opacity: state.theme==='light'?.55:.75})});
-  state.layers.water=L.geoJSON(water,{interactive:false, style:f=>{
-    const ocean=(f.properties||{}).water_kind==='ocean';
-    return {color:s.waterLine, weight:ocean?1.0:.75, opacity:ocean?.78:.86, fillColor:s.waterFill, fillOpacity:ocean?(state.theme==='light'?.54:.48):(state.theme==='light'?.78:.60)};
-  }});
+  state.layers.rivers=L.geoJSON(rivers,{interactive:false, style:riverStyle});
+  state.layers.water=L.geoJSON(water,{interactive:false, style:waterStyle});
 }
 function adminStyle(feature, vals){
   const p=feature.properties; let fill='#999';
@@ -754,7 +798,7 @@ async function refreshRailways(seq){
   if(isStaleRefresh(seq)) return;
   const yr=state.year;
   const filtered={type:'FeatureCollection', features:gj.features.filter(f=>{const p=f.properties; const o=Number(p.year_open); const c=p.year_close==null?null:Number(p.year_close); return o<=yr && (c==null || c>yr);})};
-  const s=styleVars(); state.layers.railways=L.geoJSON(filtered,{style:{color:s.railway,weight:3.0,opacity:.95},onEachFeature:(f,l)=>{const p=f.properties;l.bindPopup(`ЖД-сегмент<br>постр.: ${p.year_open||'—'}<br>упразд.: ${p.year_close||'—'}`)}});
+  const s=styleVars(); state.layers.railways=L.geoJSON(filtered,{style:{color:s.railway,weight:1.65,opacity:.88},onEachFeature:(f,l)=>{const p=f.properties;l.bindPopup(`ЖД-сегмент<br>постр.: ${p.year_open||'—'}<br>упразд.: ${p.year_close||'—'}`)}});
 }
 
 function refreshVisibility(){
@@ -774,9 +818,9 @@ function refreshVisibility(){
 function bringLayerGroupToFront(layer){ if(!layer) return; if(layer.bringToFront) layer.bringToFront(); if(layer.eachLayer) layer.eachLayer(l=>{ if(l.bringToFront) l.bringToFront(); }); }
 function refreshVectorStyles(){
   const s=styleVars();
-  if(state.layers.rivers) state.layers.rivers.setStyle(f=>({color:s.river, weight:Math.max(.45, Number(f.properties.strokeweig||1.0)), opacity:state.theme==='light'?.55:.75}));
-  if(state.layers.water) state.layers.water.setStyle(f=>{const ocean=(f.properties||{}).water_kind==='ocean'; return {color:s.waterLine, weight:ocean?1.0:.75, opacity:ocean?.78:.86, fillColor:s.waterFill, fillOpacity:ocean?(state.theme==='light'?.54:.48):(state.theme==='light'?.78:.60)};});
-  if(state.layers.railways) state.layers.railways.setStyle({color:s.railway,weight:3.0,opacity:.95});
+  if(state.layers.rivers) state.layers.rivers.setStyle(riverStyle);
+  if(state.layers.water) state.layers.water.setStyle(waterStyle);
+  if(state.layers.railways) state.layers.railways.setStyle({color:s.railway,weight:1.65,opacity:.88});
   if(state.layers.admin) refreshSelectionStyles();
   if(state.layers.circles) state.layers.circles.eachLayer(m=>m.setStyle({color:s.circleLine, fillColor:s.circleFill, fillOpacity:.74, opacity:.98}));
   if(state.layers.centers) state.layers.centers.eachLayer(m=>m.setStyle && m.setStyle({color:'#3a2607', fillColor:'#f6c85f', fillOpacity:.82, opacity:.98}));

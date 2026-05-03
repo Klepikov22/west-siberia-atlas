@@ -877,3 +877,61 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
   .chart-legend{padding-inline:4px!important}
   .chart-legend-row{padding:10px 12px!important}
 }
+
+/* v28: side panel hide buttons, smoother panel/collapse animations, thinner railways */
+:root{--left-panel-w:360px;--right-panel-w:390px;--panel-gap:12px}
+#leftPanel,#rightPanel{
+  will-change:transform,opacity,filter;
+  transition:transform .34s cubic-bezier(.22,.9,.22,1),opacity .24s ease,filter .24s ease,box-shadow .24s ease;
+}
+body.left-panel-hidden #leftPanel{transform:translateX(calc(-100% - 32px));opacity:0;filter:blur(2px);pointer-events:none}
+body.right-panel-hidden #rightPanel{transform:translateX(calc(100% + 32px));opacity:0;filter:blur(2px);pointer-events:none}
+.side-panel-toggle{
+  position:absolute;top:50%;z-index:1250;width:34px;height:74px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--text);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;padding:0;font-size:28px;font-weight:900;line-height:1;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:left .34s cubic-bezier(.22,.9,.22,1),right .34s cubic-bezier(.22,.9,.22,1),transform .22s ease,opacity .22s ease,background .22s ease,border-color .22s ease;transform:translateY(-50%);
+}
+.side-panel-toggle:hover{transform:translateY(-50%) scale(1.04);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}
+.left-panel-toggle{left:calc(var(--panel-gap) + var(--left-panel-w) + 8px)}
+.right-panel-toggle{right:calc(var(--panel-gap) + var(--right-panel-w) + 8px)}
+body.left-panel-hidden .left-panel-toggle{left:10px}
+body.right-panel-hidden .right-panel-toggle{right:10px}
+:root[data-ui="glass"] .side-panel-toggle{background:linear-gradient(145deg,rgba(255,255,255,.44),rgba(255,255,255,.20));border-color:rgba(255,255,255,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 16px 32px rgba(30,45,38,.16)}
+:root[data-theme="dark"][data-ui="glass"] .side-panel-toggle{background:linear-gradient(145deg,rgba(38,44,57,.54),rgba(18,22,30,.32));border-color:rgba(255,255,255,.14)}
+
+/* плавное сворачивание внутренних floating-панелей */
+#metricFilters,#parentFilterBar{
+  transition:left .28s ease,top .28s ease,width .28s ease,max-width .28s ease,transform .28s cubic-bezier(.22,.9,.22,1),opacity .22s ease,box-shadow .22s ease;
+}
+#metricFilters .metric-filter-grid,
+#parentFilterBar .parent-checkboxes{
+  display:grid!important;
+  overflow:hidden;
+  max-height:520px;
+  opacity:1;
+  transform:translateY(0);
+  transition:max-height .30s cubic-bezier(.22,.9,.22,1),opacity .20s ease,transform .30s cubic-bezier(.22,.9,.22,1),margin .24s ease,padding .24s ease;
+}
+#metricFilters.is-collapsed .metric-filter-grid,
+#parentFilterBar.is-collapsed .parent-checkboxes{
+  display:grid!important;
+  max-height:0!important;
+  opacity:0;
+  transform:translateY(-8px);
+  pointer-events:none;
+  margin:0!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
+}
+#metricFilters.is-collapsed,
+#parentFilterBar.is-collapsed{transform:translateY(2px)}
+
+.leaflet-overlay-pane svg path[stroke="#18130e"],
+.leaflet-overlay-pane svg path[stroke="#f3e7d0"]{stroke-width:1.65px}
+
+@media(max-width:1220px){:root{--left-panel-w:340px;--right-panel-w:360px}.left-panel-toggle{left:calc(12px + var(--left-panel-w) + 8px)}.right-panel-toggle{right:calc(12px + var(--right-panel-w) + 8px)}}
+@media(max-width:980px){
+  .side-panel-toggle{height:46px;width:46px;top:auto;bottom:50%;font-size:25px}
+  .left-panel-toggle{left:12px;bottom:calc(38dvh + 18px)}
+  .right-panel-toggle{right:12px;bottom:calc(31dvh + 18px)}
+  body.left-panel-hidden .left-panel-toggle{left:12px;bottom:calc(38dvh + 18px)}
+  body.right-panel-hidden .right-panel-toggle{right:12px;bottom:12px}
+}
