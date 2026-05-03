@@ -5,20 +5,71 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=22" />
+  <link rel="stylesheet" href="style.css?v=23" />
 </head>
 <body>
   <div id="app">
     <main id="mapWrap">
       <div id="map"></div>
+
       <div id="timelineBar" aria-label="Временная шкала">
         <div class="timeline-head"><span>Год</span><b id="timelineYearLabel">1914</b></div>
         <div id="yearTimeline" class="timeline-track"></div>
       </div>
+
+      <section id="metricFilters" class="map-widget" aria-label="Фильтры административных единиц">
+        <div class="map-widget-head">
+          <div>Фильтры АТЕ</div>
+          <button id="resetMetricFilters" type="button" class="mini-action">Сбросить</button>
+        </div>
+        <div class="metric-filter-grid">
+          <div class="metric-filter-item" data-filter-field="population">
+            <label>Население</label>
+            <select id="filter_population_mode" class="filter-mode-select">
+              <option value="all">все</option>
+              <option value="min">выше порога</option>
+              <option value="max">ниже порога</option>
+            </select>
+            <input id="filter_population_range" type="range" min="0" max="100" step="1" value="0">
+            <div class="filter-meta"><span id="filter_population_rangeLabel">порог не задан</span><b id="filter_population_summary">все</b></div>
+          </div>
+          <div class="metric-filter-item" data-filter-field="area_km2">
+            <label>Площадь</label>
+            <select id="filter_area_km2_mode" class="filter-mode-select">
+              <option value="all">все</option>
+              <option value="min">выше порога</option>
+              <option value="max">ниже порога</option>
+            </select>
+            <input id="filter_area_km2_range" type="range" min="0" max="100" step="1" value="0">
+            <div class="filter-meta"><span id="filter_area_km2_rangeLabel">порог не задан</span><b id="filter_area_km2_summary">все</b></div>
+          </div>
+          <div class="metric-filter-item" data-filter-field="density">
+            <label>Плотность</label>
+            <select id="filter_density_mode" class="filter-mode-select">
+              <option value="all">все</option>
+              <option value="min">выше порога</option>
+              <option value="max">ниже порога</option>
+            </select>
+            <input id="filter_density_range" type="range" min="0" max="100" step="1" value="0">
+            <div class="filter-meta"><span id="filter_density_rangeLabel">порог не задан</span><b id="filter_density_summary">все</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="parentFilterBar" class="map-widget" aria-label="Фильтр верхнеуровневых административных единиц">
+        <div class="map-widget-head">
+          <div>Верхнеуровневые АТЕ</div>
+          <div class="mini-action-row">
+            <button id="showAllParents" type="button" class="mini-action">Все</button>
+            <button id="clearAllParents" type="button" class="mini-action">Снять</button>
+          </div>
+        </div>
+        <div id="parentCheckboxes" class="parent-checkboxes"></div>
+      </section>
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v22</div>
+      <div class="eyebrow">Дипломный веб-атлас · v23</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -48,12 +99,6 @@
         </span>
       </button>
 
-      <label class="control-label" for="toolSelect">Инструмент</label>
-      <select id="toolSelect">
-        <option value="pan" selected>Курсор / одиночный выбор</option>
-        <option value="rectangle">Выбор прямоугольником</option>
-        <option value="polygon">Выбор полигоном</option>
-      </select>
       <div class="tool-button-row" aria-label="Инструменты карты">
         <button type="button" data-tool-button="pan" class="tool-btn active">Курсор</button>
         <button type="button" data-tool-button="rectangle" class="tool-btn">Рамка</button>
@@ -95,6 +140,11 @@
 
       <h2 class="section-title">Статистика слоя / выборки</h2>
       <section class="stats right-stats" id="rightStatsBox"></section>
+      <label class="control-label" for="pieLevelSelect">Круговые диаграммы</label>
+      <select id="pieLevelSelect">
+        <option value="upper" selected>По верхнему уровню АТД</option>
+        <option value="lower">По нижнему уровню АТД</option>
+      </select>
       <section class="feature-info group-analytics" id="groupAnalyticsBox"></section>
 
       <h2 class="section-title">Атрибуты слоя</h2>
@@ -102,6 +152,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=22"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>

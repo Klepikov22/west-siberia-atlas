@@ -1,4 +1,4 @@
-const APP_VERSION = '22';
+const APP_VERSION = '23';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8,10 +8,16 @@ const fmt = new Intl.NumberFormat('ru-RU');
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan',
-  map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, _lastVals:[],
+  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper',
+  map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, rawGeoJSON:null, rawCentersGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null,
+  visibleParents:new Set(), parentCounts:new Map(),
+  filters:{
+    population:{mode:'all', fraction:0, min:0, max:0, threshold:null},
+    area_km2:{mode:'all', fraction:0, min:0, max:0, threshold:null},
+    density:{mode:'all', fraction:0, min:0, max:0, threshold:null}
+  },
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
@@ -89,6 +95,7 @@ function applyAppearance(persist=false){
     storageSet('wsAtlasTheme', state.theme);
     storageSet('wsAtlasUiStyle', state.uiStyle);
   }
+  refreshPieLightboxIfOpen();
 }
 
 
@@ -263,6 +270,102 @@ function urbanBreakdown(features){
   return {available:true, urbanTotal, ruralTotal, urbanShare:total?urbanTotal/total:null};
 }
 
+function currentParentNames(){ return [...state.visibleParents]; }
+function parentNameFromFeature(f){ return String(f?.properties?.admin_parent || '—').trim() || '—'; }
+function syncVisibleParents(gj){
+  const parents=[...new Set((gj?.features||[]).map(parentNameFromFeature).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  const firstInit = state.parentCounts.size===0 && state.visibleParents.size===0;
+  const prevSize = state.visibleParents.size;
+  state.parentCounts = new Map(parents.map(name=>[name,(gj?.features||[]).filter(f=>parentNameFromFeature(f)===name).length]));
+  if(firstInit){
+    state.visibleParents = new Set(parents);
+  } else if(prevSize===0){
+    state.visibleParents = new Set();
+  } else {
+    const keep=new Set(parents.filter(name=>state.visibleParents.has(name)));
+    state.visibleParents = keep.size ? keep : new Set(parents);
+  }
+  renderParentCheckboxes(parents);
+}
+function renderParentCheckboxes(parents){
+  const box=$('parentCheckboxes'); if(!box) return;
+  box.innerHTML='';
+  parents.forEach(name=>{
+    const id=`parent_${name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g,'_')}`;
+    const label=document.createElement('label'); label.className='parent-check';
+    label.innerHTML=`<input type="checkbox" id="${id}" ${state.visibleParents.has(name)?'checked':''} data-parent-name="${escapeHtml(name)}"><span>${escapeHtml(name)}</span><b>${num(state.parentCounts.get(name)||0)}</b>`;
+    const input=label.querySelector('input');
+    input.addEventListener('change', ()=>{
+      if(input.checked) state.visibleParents.add(name); else state.visibleParents.delete(name);
+      rerenderFilteredLayers();
+    });
+    box.appendChild(label);
+  });
+}
+function setAllParentsVisible(flag){
+  const parents=[...state.parentCounts.keys()];
+  state.visibleParents = flag ? new Set(parents) : new Set();
+  renderParentCheckboxes(parents);
+  rerenderFilteredLayers();
+}
+function updateMetricFilterControls(){
+  ['population','area_km2','density'].forEach(field=>{
+    const filter=state.filters[field];
+    const range=$(`filter_${field}_range`); const mode=$(`filter_${field}_mode`);
+    const label=$(`filter_${field}_rangeLabel`); const summary=$(`filter_${field}_summary`);
+    if(mode) mode.value=filter.mode;
+    if(range){ range.min='0'; range.max='100'; range.step='1'; range.value=String(Math.round((filter.fraction||0)*100)); range.disabled = filter.mode==='all' || !(filter.max>filter.min); }
+    if(label){
+      if(!(filter.max>filter.min)) label.textContent='недостаточно данных';
+      else label.textContent=`диапазон: ${field==='density'?num1(filter.min):num(filter.min)} — ${field==='density'?num1(filter.max):num(filter.max)}`;
+    }
+    if(summary){
+      if(filter.mode==='all' || filter.threshold==null) summary.textContent='все';
+      else summary.textContent=`${filter.mode==='min'?'≥':'≤'} ${field==='density'?num1(filter.threshold):num(filter.threshold)}`;
+    }
+  });
+}
+function syncFilterRanges(features){
+  ['population','area_km2','density'].forEach(field=>{
+    const vals=features.map(f=>Number(f.properties?.[field])).filter(v=>Number.isFinite(v));
+    const filter=state.filters[field];
+    filter.min = vals.length ? Math.min(...vals) : 0;
+    filter.max = vals.length ? Math.max(...vals) : 0;
+    if(filter.mode==='all') filter.threshold = null;
+    else {
+      const frac=Math.max(0, Math.min(1, filter.fraction||0));
+      filter.threshold = filter.min + (filter.max-filter.min)*frac;
+    }
+  });
+  updateMetricFilterControls();
+}
+function featurePassesFilters(f){
+  const parent=parentNameFromFeature(f);
+  const totalParents=state.parentCounts?.size || 0;
+  if(totalParents && state.visibleParents.size!==totalParents && !state.visibleParents.has(parent)) return false;
+  return ['population','area_km2','density'].every(field=>{
+    const filter=state.filters[field];
+    if(filter.mode==='all' || filter.threshold==null) return true;
+    const value=Number(f.properties?.[field]); if(!Number.isFinite(value)) return false;
+    if(filter.mode==='min') return value >= filter.threshold;
+    if(filter.mode==='max') return value <= filter.threshold;
+    return true;
+  });
+}
+function filteredGeoJSON(gj){
+  if(!gj?.features) return {type:'FeatureCollection', features:[]};
+  return {type:'FeatureCollection', features: gj.features.filter(featurePassesFilters)};
+}
+async function rerenderFilteredLayers(){
+  if(!state.manifest || !state.map || !state.rawGeoJSON) return;
+  const seq=++state.refreshSeq;
+  clearLayer('admin'); clearLayer('circles'); clearLayer('centers'); clearLayer('labels'); clearCenterLabels();
+  state.adminLayerById.clear();
+  await refreshAdmin(seq); if(isStaleRefresh(seq)) return;
+  await refreshCenters(seq); if(isStaleRefresh(seq)) return;
+  refreshVisibility(); updateStatsAndSelection();
+}
+
 async function init(){
   restoreAppearancePrefs();
   applyAppearance(false);
@@ -307,10 +410,19 @@ function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
   on('modeSelect','change', async e=>{state.mode=e.target.value; const seq=state.refreshSeq; await refreshAdmin(seq);});
   const themeSelect=$('themeSelect'); if(themeSelect) themeSelect.value=state.theme;
+  const pieSelect=$('pieLevelSelect'); if(pieSelect) pieSelect.value=state.pieGrouping;
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
   on('uiStyleToggle','click', ()=>{ state.uiStyle = state.uiStyle === 'glass' ? 'normal' : 'glass'; applyAppearance(true); });
-  on('toolSelect','change', e=>setTool(e.target.value));
+  on('pieLevelSelect','change', e=>{ state.pieGrouping=e.target.value||'upper'; updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
+  ['population','area_km2','density'].forEach(field=>{
+    on(`filter_${field}_mode`,'change', e=>{ state.filters[field].mode=e.target.value; if(state.filters[field].mode==='all') state.filters[field].threshold=null; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+    on(`filter_${field}_range`,'input', e=>{ state.filters[field].fraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); });
+    on(`filter_${field}_range`,'change', e=>{ state.filters[field].fraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+  });
+  on('resetMetricFilters','click', ()=>{ ['population','area_km2','density'].forEach(field=>{ state.filters[field].mode='all'; state.filters[field].fraction=0; state.filters[field].threshold=null; }); syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+  on('showAllParents','click', ()=>setAllParentsVisible(true));
+  on('clearAllParents','click', ()=>setAllParentsVisible(false));
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
@@ -325,6 +437,7 @@ function bindUi(){
     ga.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && e.target.closest('.pie-card[data-chart-field]')){ e.preventDefault(); const card=e.target.closest('.pie-card[data-chart-field]'); openPieLightbox(card.dataset.chartField, card.dataset.chartTitle || 'Диаграмма'); } });
   }
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePieLightbox(); });
+  updateMetricFilterControls();
 }
 function setYearLabels(){ const a=$('activeYearLabel'), t=$('timelineYearLabel'); if(a) a.textContent=state.year; if(t) t.textContent=state.year; }
 function buildTimeline(){
@@ -390,9 +503,15 @@ function adminStyle(feature, vals){
 }
 async function refreshAdmin(seq){
   clearLayer('admin'); clearLayer('circles'); state.adminLayerById.clear();
-  const path=state.manifest.layers.admin[String(state.year)]; const gj=normalizeAdminStats(await loadJson(path));
+  const path=state.manifest.layers.admin[String(state.year)]; const raw=normalizeAdminStats(await loadJson(path));
   if(isStaleRefresh(seq)) return;
+  state.rawGeoJSON=raw;
+  syncVisibleParents(raw);
+  syncFilterRanges(raw.features||[]);
+  const gj=filteredGeoJSON(raw);
   state.currentGeoJSON=gj;
+  const visibleIds=new Set(gj.features.map(featureId));
+  state.selectedIds = new Set([...state.selectedIds].filter(id=>visibleIds.has(id)));
   const field=valField(); const vals=field?gj.features.map(f=>Number(f.properties[field])).filter(v=>!Number.isNaN(v)):[]; state._lastVals=vals;
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
@@ -456,11 +575,27 @@ async function refreshCenters(seq){
   const path=state.manifest.layers.centers[String(state.year)]; if(!path){ refreshVisibility(); return; }
   const gj=await loadJson(path);
   if(isStaleRefresh(seq)) return;
-  const pops=gj.features.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
+  state.rawCentersGeoJSON=gj;
+  const visibleNames=new Set((state.currentGeoJSON?.features||[]).map(f=>String(f.properties?.name||'').trim().toLowerCase()).filter(Boolean));
+  const visibleParents=new Set((state.currentGeoJSON?.features||[]).map(f=>String(f.properties?.admin_parent||'').trim()).filter(Boolean));
+  const visibleUnitIds=new Set((state.currentGeoJSON?.features||[]).map(f=>String(f.properties?.unit_id||'')).filter(Boolean));
+  const filteredFeatures=(gj.features||[]).filter(f=>{
+    const p=f.properties||{};
+    const unitId=String(p.unit_id||'');
+    const unitName=String(p.unit_name||p.name||'').trim().toLowerCase();
+    const parent=String(p.admin_parent||'').trim();
+    const hasMatchMeta = unitId || unitName || parent;
+    if(!hasMatchMeta) return true;
+    if(unitId && visibleUnitIds.has(unitId)) return true;
+    if(unitName && visibleNames.has(unitName)) return true;
+    if(parent && visibleParents.has(parent)) return true;
+    return false;
+  });
+  const pops=filteredFeatures.map(f=>pointPopulation(f.properties||{})).filter(v=>v>0);
   const maxCenterPop=Math.max(...pops,1); state.maxCenterPop=maxCenterPop;
   const centerGroup=L.layerGroup();
   const labelSeen=new Set();
-  gj.features.forEach(f=>{
+  filteredFeatures.forEach(f=>{
     if(!f.geometry || f.geometry.type!=='Point') return;
     const coords=f.geometry.coordinates; const latlng=L.latLng(coords[1], coords[0]); const p=f.properties||{};
     const pop=pointPopulation(p); const r=centerRadius(pop,maxCenterPop);
@@ -568,11 +703,17 @@ function updateGroupAnalytics(features){
   box.innerHTML=html;
   refreshPieLightboxIfOpen();
 }
+function pieGroupingMeta(){
+  return state.pieGrouping==='lower'
+    ? {label:'нижнего уровня', scopeText:'по выбранным АТЕ нижнего уровня'}
+    : {label:'верхнего уровня', scopeText:'по верхнему уровню АТД'};
+}
 function pieChartsHtml(features, scope){
-  return `<div class="pie-charts"><div class="analytics-title">Доли верхнего уровня <span>население и площадь от суммы по ${scope}</span></div><div class="pie-grid">${sharePieHtml(features, 'population', 'Население')}${sharePieHtml(features, 'area_km2', 'Площадь')}</div></div>`;
+  const meta=pieGroupingMeta();
+  return `<div class="pie-charts"><div class="analytics-title">Доли ${meta.label} <span>население и площадь от суммы по ${scope} · ${meta.scopeText}</span></div><div class="pie-grid">${sharePieHtml(features, 'population', 'Население')}${sharePieHtml(features, 'area_km2', 'Площадь')}</div></div>`;
 }
 function sharePieHtml(features, field, title){
-  const rows=shareRows(features, field);
+  const rows=shareRows(features, field, state.pieGrouping);
   if(!rows.length) return `<div class="pie-card empty"><h3>${escapeHtml(title)}</h3><div class="mini-muted">Нет данных для диаграммы.</div></div>`;
   const total=sum(rows.map(r=>r.value));
   let angle=0;
@@ -588,16 +729,19 @@ function sharePieHtml(features, field, title){
   const legend=slices.map(s=>`<div class="pie-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b></div>`).join('');
   return `<div class="pie-card" role="button" tabindex="0" data-chart-field="${escapeHtml(field)}" data-chart-title="${escapeHtml(title)}" title="Открыть диаграмму крупно"><h3>${escapeHtml(title)}<span class="pie-open-hint">↗</span></h3><div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total"><span>итого</span><b>${num(total)}</b></div></div><div class="pie-legend">${legend}</div></div>`;
 }
-function shareRows(features, field){
+function shareRows(features, field, grouping='upper'){
   const groups=new Map();
   features.forEach(f=>{
     const p=f.properties||{}; const value=Number(p[field])||0; if(value<=0) return;
-    const key=p.admin_parent || p.name || '—';
+    const key = grouping==='lower'
+      ? (p.name ? `${p.name}${p.admin_parent ? ` · ${p.admin_parent}` : ''}` : (p.unit_id || '—'))
+      : (p.admin_parent || p.name || '—');
     groups.set(key, (groups.get(key)||0)+value);
   });
   const sorted=[...groups.entries()].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
-  const top=sorted.slice(0,10);
-  const other=sum(sorted.slice(10).map(r=>r.value));
+  const limit=grouping==='lower' ? 12 : 10;
+  const top=sorted.slice(0,limit);
+  const other=sum(sorted.slice(limit).map(r=>r.value));
   if(other>0) top.push({name:'Прочие', value:other});
   return top;
 }
@@ -637,15 +781,17 @@ function refreshPieLightboxIfOpen(){
 function renderPieLightbox(field, title){
   const modal=ensurePieLightbox(); const head=modal.querySelector('#chartLightboxTitle'); const body=modal.querySelector('#chartLightboxBody');
   const features=state.lastAnalyticsFeatures || selectedFeatures(); const scope=state.lastAnalyticsScope || (state.selectedIds.size ? 'выборке' : 'текущему слою');
-  if(head) head.textContent=`${title}: доли верхнего уровня`;
+  const meta=pieGroupingMeta();
+  if(head) head.textContent=`${title}: доли ${meta.label}`;
   if(body) body.innerHTML=expandedSharePieHtml(features, field, title, scope);
 }
 function expandedSharePieHtml(features, field, title, scope){
-  const rows=shareRows(features, field); if(!rows.length) return '<div class="mini-muted">Нет данных для диаграммы.</div>';
+  const rows=shareRows(features, field, state.pieGrouping); if(!rows.length) return '<div class="mini-muted">Нет данных для диаграммы.</div>';
   const total=sum(rows.map(r=>r.value)); let angle=0;
   const slices=rows.map((r,i)=>{ const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=palette[i%palette.length]; const path=share>=0.9999 ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>` : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`; return {...r, share, color, path}; });
   const rowsHtml=slices.map(s=>`<div class="chart-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b><em>${num(s.value)}</em></div>`).join('');
-  return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Клик по диаграмме в правой панели открывает это окно. При мультивыборке расчёт автоматически перестраивается по выбранным объектам.</div>`;
+  const meta=pieGroupingMeta();
+  return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Группировка</span><b>${meta.label}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Окно наследует текущую оболочку интерфейса. При переключении между обычным стилем и Liquid glass оформление обновляется сразу.</div>`;
 }
 function updateSelectionBox(){
   const box=$('selectionBox'); const sel=$('selectedFeatureSelect'); const selLabel=$('selectedFeatureSelectLabel'); const info=$('featureInfo');
