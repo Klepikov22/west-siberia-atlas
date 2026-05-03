@@ -1,4 +1,4 @@
-const APP_VERSION = '23';
+const APP_VERSION = '25';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -14,10 +14,11 @@ const state = {
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null,
   visibleParents:new Set(), parentCounts:new Map(),
   filters:{
-    population:{mode:'all', fraction:0, min:0, max:0, threshold:null},
-    area_km2:{mode:'all', fraction:0, min:0, max:0, threshold:null},
-    density:{mode:'all', fraction:0, min:0, max:0, threshold:null}
+    population:{minEnabled:false, maxEnabled:false, minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
+    area_km2:{minEnabled:false, maxEnabled:false, minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
+    density:{minEnabled:false, maxEnabled:false, minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null}
   },
+  metricFilterDrag:{active:false, dx:0, dy:0},
   dragStart:null, dragRect:null, polygonPoints:[], polygonLine:null, polygonMarkers:null, middlePan:null, hoverBox:null, hoverTimer:null, hoverPayload:null, centerLabelOverlay:null, centerLabelItems:[], refreshSeq:0
 };
 
@@ -308,20 +309,91 @@ function setAllParentsVisible(flag){
   renderParentCheckboxes(parents);
   rerenderFilteredLayers();
 }
+
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+function initMetricFilterDragging(){
+  const panel=$('metricFilters'); const handle=$('metricFiltersHandle') || panel?.querySelector('.drag-handle');
+  if(!panel || !handle || panel.dataset.dragReady==='1') return;
+  panel.dataset.dragReady='1';
+  const startDrag=(ev)=>{
+    if(ev.target.closest('button,input,select,label')) return;
+    const point=ev.touches?.[0] || ev;
+    const rect=panel.getBoundingClientRect();
+    state.metricFilterDrag={active:true, dx:point.clientX-rect.left, dy:point.clientY-rect.top};
+    panel.classList.add('is-dragging');
+    panel.style.left=`${rect.left}px`; panel.style.top=`${rect.top}px`;
+    panel.style.right='auto'; panel.style.bottom='auto'; panel.style.width=`${rect.width}px`;
+    ev.preventDefault();
+  };
+  const moveDrag=(ev)=>{
+    if(!state.metricFilterDrag?.active) return;
+    const point=ev.touches?.[0] || ev;
+    const rect=panel.getBoundingClientRect();
+    const left=clamp(point.clientX-state.metricFilterDrag.dx, 8, window.innerWidth-rect.width-8);
+    const top=clamp(point.clientY-state.metricFilterDrag.dy, 8, window.innerHeight-rect.height-8);
+    panel.style.left=`${left}px`; panel.style.top=`${top}px`;
+    ev.preventDefault();
+  };
+  const endDrag=()=>{
+    if(!state.metricFilterDrag?.active) return;
+    state.metricFilterDrag.active=false;
+    panel.classList.remove('is-dragging');
+  };
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, {passive:false});
+  window.addEventListener('mousemove', moveDrag, {passive:false});
+  window.addEventListener('touchmove', moveDrag, {passive:false});
+  window.addEventListener('mouseup', endDrag);
+  window.addEventListener('touchend', endDrag);
+  window.addEventListener('resize', ()=>{
+    const rect=panel.getBoundingClientRect();
+    if(panel.style.top){
+      panel.style.left=`${clamp(rect.left,8,window.innerWidth-rect.width-8)}px`;
+      panel.style.top=`${clamp(rect.top,8,window.innerHeight-rect.height-8)}px`;
+    }
+  });
+}
+function metricValueLabel(field, value){
+  if(value==null || !Number.isFinite(Number(value))) return '—';
+  return field==='density' ? num1(value) : num(value);
+}
+function metricThreshold(filter, kind){
+  const frac = Math.max(0, Math.min(1, kind==='min' ? (filter.minFraction ?? 0) : (filter.maxFraction ?? 1)));
+  if(!(filter.max>filter.min)) return null;
+  return filter.min + (filter.max-filter.min)*frac;
+}
+function normalizeFilterFractions(field){
+  const filter=state.filters[field];
+  filter.minFraction=Math.max(0, Math.min(1, filter.minFraction ?? 0));
+  filter.maxFraction=Math.max(0, Math.min(1, filter.maxFraction ?? 1));
+  if(filter.minFraction > filter.maxFraction){
+    const mid=(filter.minFraction+filter.maxFraction)/2;
+    filter.minFraction=mid; filter.maxFraction=mid;
+  }
+  filter.minThreshold = filter.minEnabled ? metricThreshold(filter,'min') : null;
+  filter.maxThreshold = filter.maxEnabled ? metricThreshold(filter,'max') : null;
+}
 function updateMetricFilterControls(){
   ['population','area_km2','density'].forEach(field=>{
     const filter=state.filters[field];
-    const range=$(`filter_${field}_range`); const mode=$(`filter_${field}_mode`);
+    normalizeFilterFractions(field);
+    const minCheck=$(`filter_${field}_minEnabled`), maxCheck=$(`filter_${field}_maxEnabled`);
+    const minRange=$(`filter_${field}_minRange`), maxRange=$(`filter_${field}_maxRange`);
     const label=$(`filter_${field}_rangeLabel`); const summary=$(`filter_${field}_summary`);
-    if(mode) mode.value=filter.mode;
-    if(range){ range.min='0'; range.max='100'; range.step='1'; range.value=String(Math.round((filter.fraction||0)*100)); range.disabled = filter.mode==='all' || !(filter.max>filter.min); }
+    const hasRange=filter.max>filter.min;
+    if(minCheck) minCheck.checked=!!filter.minEnabled;
+    if(maxCheck) maxCheck.checked=!!filter.maxEnabled;
+    if(minRange){ minRange.value=String(Math.round((filter.minFraction||0)*100)); minRange.disabled=!filter.minEnabled || !hasRange; }
+    if(maxRange){ maxRange.value=String(Math.round((filter.maxFraction??1)*100)); maxRange.disabled=!filter.maxEnabled || !hasRange; }
     if(label){
-      if(!(filter.max>filter.min)) label.textContent='недостаточно данных';
-      else label.textContent=`диапазон: ${field==='density'?num1(filter.min):num(filter.min)} — ${field==='density'?num1(filter.max):num(filter.max)}`;
+      if(!hasRange) label.textContent='недостаточно данных';
+      else label.textContent=`диапазон слоя: ${metricValueLabel(field, filter.min)} — ${metricValueLabel(field, filter.max)}`;
     }
     if(summary){
-      if(filter.mode==='all' || filter.threshold==null) summary.textContent='все';
-      else summary.textContent=`${filter.mode==='min'?'≥':'≤'} ${field==='density'?num1(filter.threshold):num(filter.threshold)}`;
+      const parts=[];
+      if(filter.minEnabled && filter.minThreshold!=null) parts.push(`≥ ${metricValueLabel(field, filter.minThreshold)}`);
+      if(filter.maxEnabled && filter.maxThreshold!=null) parts.push(`≤ ${metricValueLabel(field, filter.maxThreshold)}`);
+      summary.textContent=parts.length ? parts.join(' · ') : 'все';
     }
   });
 }
@@ -331,11 +403,7 @@ function syncFilterRanges(features){
     const filter=state.filters[field];
     filter.min = vals.length ? Math.min(...vals) : 0;
     filter.max = vals.length ? Math.max(...vals) : 0;
-    if(filter.mode==='all') filter.threshold = null;
-    else {
-      const frac=Math.max(0, Math.min(1, filter.fraction||0));
-      filter.threshold = filter.min + (filter.max-filter.min)*frac;
-    }
+    normalizeFilterFractions(field);
   });
   updateMetricFilterControls();
 }
@@ -345,10 +413,10 @@ function featurePassesFilters(f){
   if(totalParents && state.visibleParents.size!==totalParents && !state.visibleParents.has(parent)) return false;
   return ['population','area_km2','density'].every(field=>{
     const filter=state.filters[field];
-    if(filter.mode==='all' || filter.threshold==null) return true;
+    if(!filter.minEnabled && !filter.maxEnabled) return true;
     const value=Number(f.properties?.[field]); if(!Number.isFinite(value)) return false;
-    if(filter.mode==='min') return value >= filter.threshold;
-    if(filter.mode==='max') return value <= filter.threshold;
+    if(filter.minEnabled && filter.minThreshold!=null && value < filter.minThreshold) return false;
+    if(filter.maxEnabled && filter.maxThreshold!=null && value > filter.maxThreshold) return false;
     return true;
   });
 }
@@ -416,11 +484,15 @@ function bindUi(){
   on('pieLevelSelect','change', e=>{ state.pieGrouping=e.target.value||'upper'; updateGroupAnalytics(selectedFeatures()); refreshPieLightboxIfOpen(); });
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.addEventListener('click', ()=>setTool(btn.dataset.toolButton)));
   ['population','area_km2','density'].forEach(field=>{
-    on(`filter_${field}_mode`,'change', e=>{ state.filters[field].mode=e.target.value; if(state.filters[field].mode==='all') state.filters[field].threshold=null; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
-    on(`filter_${field}_range`,'input', e=>{ state.filters[field].fraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); });
-    on(`filter_${field}_range`,'change', e=>{ state.filters[field].fraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+    on(`filter_${field}_minEnabled`,'change', e=>{ state.filters[field].minEnabled=!!e.target.checked; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+    on(`filter_${field}_maxEnabled`,'change', e=>{ state.filters[field].maxEnabled=!!e.target.checked; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+    on(`filter_${field}_minRange`,'input', e=>{ state.filters[field].minFraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); });
+    on(`filter_${field}_maxRange`,'input', e=>{ state.filters[field].maxFraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); });
+    on(`filter_${field}_minRange`,'change', e=>{ state.filters[field].minFraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+    on(`filter_${field}_maxRange`,'change', e=>{ state.filters[field].maxFraction=(Number(e.target.value)||0)/100; syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
   });
-  on('resetMetricFilters','click', ()=>{ ['population','area_km2','density'].forEach(field=>{ state.filters[field].mode='all'; state.filters[field].fraction=0; state.filters[field].threshold=null; }); syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+  on('resetMetricFilters','click', ()=>{ ['population','area_km2','density'].forEach(field=>{ Object.assign(state.filters[field], {minEnabled:false, maxEnabled:false, minFraction:0, maxFraction:1, minThreshold:null, maxThreshold:null}); }); syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
+  initMetricFilterDragging();
   on('showAllParents','click', ()=>setAllParentsVisible(true));
   on('clearAllParents','click', ()=>setAllParentsVisible(false));
   on('finishPolygon','click', finishPolygonSelection);
@@ -784,14 +856,34 @@ function renderPieLightbox(field, title){
   const meta=pieGroupingMeta();
   if(head) head.textContent=`${title}: доли ${meta.label}`;
   if(body) body.innerHTML=expandedSharePieHtml(features, field, title, scope);
+  bindExpandedPieHover(modal);
+}
+function bindExpandedPieHover(modal){
+  if(!modal) return;
+  const setActive=(idx)=>{
+    modal.querySelectorAll('[data-slice-index]').forEach(el=>el.classList.toggle('is-linked-hover', el.dataset.sliceIndex===String(idx)));
+  };
+  const clearActive=()=>modal.querySelectorAll('[data-slice-index]').forEach(el=>el.classList.remove('is-linked-hover'));
+  modal.querySelectorAll('[data-slice-index]').forEach(el=>{
+    el.addEventListener('mouseenter', ()=>setActive(el.dataset.sliceIndex));
+    el.addEventListener('mouseleave', clearActive);
+    el.addEventListener('focus', ()=>setActive(el.dataset.sliceIndex));
+    el.addEventListener('blur', clearActive);
+  });
 }
 function expandedSharePieHtml(features, field, title, scope){
   const rows=shareRows(features, field, state.pieGrouping); if(!rows.length) return '<div class="mini-muted">Нет данных для диаграммы.</div>';
   const total=sum(rows.map(r=>r.value)); let angle=0;
-  const slices=rows.map((r,i)=>{ const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=palette[i%palette.length]; const path=share>=0.9999 ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>` : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`; return {...r, share, color, path}; });
-  const rowsHtml=slices.map(s=>`<div class="chart-legend-row"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b><em>${num(s.value)}</em></div>`).join('');
+  const slices=rows.map((r,i)=>{
+    const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=palette[i%palette.length];
+    const shape=share>=0.9999
+      ? `<circle class="expanded-pie-slice" data-slice-index="${i}" tabindex="0" cx="50" cy="50" r="42" fill="${color}"></circle>`
+      : `<path class="expanded-pie-slice" data-slice-index="${i}" tabindex="0" d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`;
+    return {...r, share, color, shape, index:i};
+  });
+  const rowsHtml=slices.map(s=>`<div class="chart-legend-row" data-slice-index="${s.index}" tabindex="0"><span class="pie-dot" style="background:${s.color}"></span><span title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span><b>${pct(s.share)}</b><em>${num(s.value)}</em></div>`).join('');
   const meta=pieGroupingMeta();
-  return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Группировка</span><b>${meta.label}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.path).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Окно наследует текущую оболочку интерфейса. При переключении между обычным стилем и Liquid glass оформление обновляется сразу.</div>`;
+  return `<div class="expanded-chart-summary"><div><span>Год</span><b>${state.year}</b></div><div><span>Расчёт</span><b>${scope}</b></div><div><span>Группировка</span><b>${meta.label}</b></div><div><span>Итого</span><b>${num(total)}</b></div></div><div class="expanded-chart-layout"><div class="expanded-pie-wrap"><svg class="pie-svg pie-svg-expanded" viewBox="0 0 100 100" role="img" aria-label="${escapeHtml(title)}">${slices.map(s=>s.shape).join('')}<circle cx="50" cy="50" r="22" class="pie-hole"></circle></svg><div class="pie-total pie-total-expanded"><span>${escapeHtml(field==='area_km2'?'км²':'чел.')}</span><b>${num(total)}</b></div></div><div class="chart-legend"><div class="chart-legend-head"><i></i><span>Группа</span><b>доля</b><em>значение</em></div>${rowsHtml}</div></div><div class="mini-muted chart-modal-note">Наведи на сектор или строку легенды — связанный элемент подсветится и слегка увеличится.</div>`;
 }
 function updateSelectionBox(){
   const box=$('selectionBox'); const sel=$('selectedFeatureSelect'); const selLabel=$('selectedFeatureSelectLabel'); const info=$('featureInfo');

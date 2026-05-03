@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=23" />
+  <link rel="stylesheet" href="style.css?v=25" />
 </head>
 <body>
   <div id="app">
@@ -17,41 +17,47 @@
         <div id="yearTimeline" class="timeline-track"></div>
       </div>
 
-      <section id="metricFilters" class="map-widget" aria-label="Фильтры административных единиц">
-        <div class="map-widget-head">
-          <div>Фильтры АТЕ</div>
+      <section id="metricFilters" class="map-widget draggable-widget" aria-label="Фильтры административных единиц">
+        <div class="map-widget-head drag-handle" id="metricFiltersHandle" title="Перетащить панель фильтров">
+          <div><span class="drag-grip">⋮⋮</span>Фильтры АТЕ</div>
           <button id="resetMetricFilters" type="button" class="mini-action">Сбросить</button>
         </div>
         <div class="metric-filter-grid">
           <div class="metric-filter-item" data-filter-field="population">
             <label>Население</label>
-            <select id="filter_population_mode" class="filter-mode-select">
-              <option value="all">все</option>
-              <option value="min">выше порога</option>
-              <option value="max">ниже порога</option>
-            </select>
-            <input id="filter_population_range" type="range" min="0" max="100" step="1" value="0">
-            <div class="filter-meta"><span id="filter_population_rangeLabel">порог не задан</span><b id="filter_population_summary">все</b></div>
+            <div class="filter-checks">
+              <label class="filter-check"><input id="filter_population_minEnabled" type="checkbox"><span>от</span></label>
+              <label class="filter-check"><input id="filter_population_maxEnabled" type="checkbox"><span>до</span></label>
+            </div>
+            <div class="range-pair">
+              <input id="filter_population_minRange" type="range" min="0" max="100" step="1" value="0" aria-label="Минимум населения">
+              <input id="filter_population_maxRange" type="range" min="0" max="100" step="1" value="100" aria-label="Максимум населения">
+            </div>
+            <div class="filter-meta"><span id="filter_population_rangeLabel">диапазон не задан</span><b id="filter_population_summary">все</b></div>
           </div>
           <div class="metric-filter-item" data-filter-field="area_km2">
             <label>Площадь</label>
-            <select id="filter_area_km2_mode" class="filter-mode-select">
-              <option value="all">все</option>
-              <option value="min">выше порога</option>
-              <option value="max">ниже порога</option>
-            </select>
-            <input id="filter_area_km2_range" type="range" min="0" max="100" step="1" value="0">
-            <div class="filter-meta"><span id="filter_area_km2_rangeLabel">порог не задан</span><b id="filter_area_km2_summary">все</b></div>
+            <div class="filter-checks">
+              <label class="filter-check"><input id="filter_area_km2_minEnabled" type="checkbox"><span>от</span></label>
+              <label class="filter-check"><input id="filter_area_km2_maxEnabled" type="checkbox"><span>до</span></label>
+            </div>
+            <div class="range-pair">
+              <input id="filter_area_km2_minRange" type="range" min="0" max="100" step="1" value="0" aria-label="Минимум площади">
+              <input id="filter_area_km2_maxRange" type="range" min="0" max="100" step="1" value="100" aria-label="Максимум площади">
+            </div>
+            <div class="filter-meta"><span id="filter_area_km2_rangeLabel">диапазон не задан</span><b id="filter_area_km2_summary">все</b></div>
           </div>
           <div class="metric-filter-item" data-filter-field="density">
             <label>Плотность</label>
-            <select id="filter_density_mode" class="filter-mode-select">
-              <option value="all">все</option>
-              <option value="min">выше порога</option>
-              <option value="max">ниже порога</option>
-            </select>
-            <input id="filter_density_range" type="range" min="0" max="100" step="1" value="0">
-            <div class="filter-meta"><span id="filter_density_rangeLabel">порог не задан</span><b id="filter_density_summary">все</b></div>
+            <div class="filter-checks">
+              <label class="filter-check"><input id="filter_density_minEnabled" type="checkbox"><span>от</span></label>
+              <label class="filter-check"><input id="filter_density_maxEnabled" type="checkbox"><span>до</span></label>
+            </div>
+            <div class="range-pair">
+              <input id="filter_density_minRange" type="range" min="0" max="100" step="1" value="0" aria-label="Минимум плотности">
+              <input id="filter_density_maxRange" type="range" min="0" max="100" step="1" value="100" aria-label="Максимум плотности">
+            </div>
+            <div class="filter-meta"><span id="filter_density_rangeLabel">диапазон не задан</span><b id="filter_density_summary">все</b></div>
           </div>
         </div>
       </section>
@@ -69,7 +75,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v23</div>
+      <div class="eyebrow">Дипломный веб-атлас · v25</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -152,6 +158,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>
