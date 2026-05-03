@@ -1,0 +1,1 @@
+{"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"name": "Arctic Ocean Cap", "kind": "ocean_cap", "min_lat": 82}, "geometry": {"type": "Polygon", "coordinates": [[[-180, 82], [180, 82], [180, 90], [-180, 90], [-180, 82]]]}}]}
