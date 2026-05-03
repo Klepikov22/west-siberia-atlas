@@ -1,4 +1,4 @@
-const APP_VERSION = '32';
+const APP_VERSION = '33';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13,6 +13,7 @@ const state = {
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
   visibleParents:new Set(), parentCounts:new Map(), parentFilterYear:null,
+  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:''},
   filters:{
     population:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
@@ -726,7 +727,8 @@ function bindUi(){
     ga.addEventListener('click', e=>{ const card=e.target.closest('.pie-card[data-chart-field]'); if(card) openPieLightbox(card.dataset.chartField, card.dataset.chartTitle || 'Диаграмма'); });
     ga.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && e.target.closest('.pie-card[data-chart-field]')){ e.preventDefault(); const card=e.target.closest('.pie-card[data-chart-field]'); openPieLightbox(card.dataset.chartField, card.dataset.chartTitle || 'Диаграмма'); } });
   }
-  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePieLightbox(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closePieLightbox(); closeExportMode(); } });
+  on('openExportMode','click', openExportMode);
   updateMetricFilterControls();
 }
 function setYearLabels(){ const a=$('activeYearLabel'), t=$('timelineYearLabel'); if(a) a.textContent=state.year; if(t) t.textContent=state.year; }
@@ -1002,8 +1004,161 @@ function refreshVectorStyles(){
 function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); showFeature(f); }
 function refreshSelectionStyles(){ if(!state.layers.admin) return; state.layers.admin.eachLayer(l=>l.setStyle(adminStyle(l.feature,state._lastVals))); }
 function refreshSelectionStylesFor(id){ const l=state.adminLayerById.get(id); if(l) l.setStyle(adminStyle(l.feature,state._lastVals)); }
+
+function exportScopeFeatures(scope=state.export.scope){
+  const current=state.currentGeoJSON?.features || [];
+  if(scope==='selection'){
+    const sel=selectedFeatures();
+    return state.selectedIds.size ? sel : current;
+  }
+  if(scope==='parents'){
+    const names=[...state.visibleParents];
+    return (state.rawGeoJSON?.features || current).filter(f=> names.includes(parentNameFromFeature(f)));
+  }
+  return current;
+}
+function featuresBounds(features){
+  try{
+    if(!features?.length) return state.dataBounds || null;
+    const b=L.geoJSON({type:'FeatureCollection', features}).getBounds();
+    return b.isValid() ? b : (state.dataBounds || null);
+  }catch(_){ return state.dataBounds || null; }
+}
+function exportScopeLabel(){
+  return state.export.scope==='selection' ? (state.selectedIds.size ? 'выбранной выборке' : 'текущему слою') : state.export.scope==='parents' ? 'отмеченным верхнеуровневым АТЕ' : 'текущему слою';
+}
+function parentSummary(features){
+  const names=[...new Set(features.map(parentNameFromFeature).filter(Boolean))];
+  return names.slice(0,6).join(', ') + (names.length>6 ? ` и ещё ${names.length-6}` : '');
+}
+function exportContextPresets(year){
+  const y=Number(year);
+  const base = {
+    1897:{short:'Конец XIX века: дореволюционная система административно-территориального деления Западной Сибири. На карте представлены губернии и области Степного края, внутри которых показаны уезды.', long:'Конец XIX века: дореволюционная система административно-территориального деления Западной Сибири. Пространственная организация региона опиралась на губернии и области (Тобольская и Томская губернии, Акмолинская и Семипалатинская области), а базовым уровнем внутри них выступали уезды. Карта полезна для фиксации исходной конфигурации перед преобразованиями XX века.'},
+    1914:{short:'Позднеимперский этап: сеть губерний, областей и уездов накануне революционных преобразований.', long:'Позднеимперский этап: сеть губерний, областей и уездов накануне революционных преобразований. Для Западной Сибири это финальная версия имперской сетки АТЕ перед советской перекройкой пространства, что важно для сравнения с последующим окружно-районным и областным устройством.'},
+    1926:{short:'Раннесоветский переходный этап: окружно-районная система Сибирского края по материалам переписи 1926 года.', long:'Раннесоветский переходный этап: окружно-районная система Сибирского края по материалам переписи 1926 года. Карта фиксирует один из ключевых моментов трансформации АТЕ Западной Сибири, когда дореволюционные уезды уже исчезли, а новая окружно-районная сеть ещё не сменилась устойчивой областной схемой.'},
+    1939:{short:'Предвоенный советский этап: укрепление областной системы административно-территориального деления.', long:'Предвоенный советский этап: укрепление областной системы административно-территориального деления. К этому моменту в Западной Сибири сформировалась более стабильная областная сетка, отражающая результаты советской административной реформы 1930-х годов.'},
+    1959:{short:'Послевоенный этап: административная система Западной Сибири по переписи 1959 года.', long:'Послевоенный этап: административная система Западной Сибири по переписи 1959 года. Карта позволяет оценить пространственную конфигурацию районов и верхнеуровневых АТЕ на рубеже массовой урбанизации и индустриального освоения региона.'},
+    1970:{short:'Зрелый советский период: сеть районов и областей в условиях устойчивой административной структуры.', long:'Зрелый советский период: сеть районов и областей в условиях устойчивой административной структуры. Карта отражает этап относительной стабильности советской сетки АТЕ и пригодна для сопоставления динамики населения и плотности.'},
+    1979:{short:'Позднесоветский этап: пространственная структура АТЕ Западной Сибири в конце 1970-х годов.', long:'Позднесоветский этап: пространственная структура АТЕ Западной Сибири в конце 1970-х годов. Используется для анализа изменений накануне заключительного десятилетия СССР.'},
+    1989:{short:'Финальный советский этап: система АТЕ Западной Сибири по переписи 1989 года.', long:'Финальный советский этап: система АТЕ Западной Сибири по переписи 1989 года. Этот срез удобен как база для сопоставления с современным административно-территориальным устройством.'},
+    2021:{short:'Современный этап: актуальная система административно-территориального деления и населения.', long:'Современный этап: актуальная система административно-территориального деления и населения. Карта показывает современную конфигурацию районов и регионов Западной Сибири и служит конечной точкой для сравнения с историческими состояниями.'}
+  };
+  return base[y] || {short:'Исторический срез административно-территориального деления Западной Сибири.', long:'Исторический срез административно-территориального деления Западной Сибири. Карта предназначена для анализа пространственной трансформации АТЕ региона в рамках дипломного исследования.'};
+}
+function defaultExportTitle(){
+  const modeTitles={admin_parent:'Административно-территориальное деление', population:'Население административных единиц', density:'Плотность населения', urban_share:'Доля городского населения', rail_length:'Длина железных дорог в пределах АТЕ', rail_density:'Плотность железных дорог', unit_type:'Типы административных единиц'};
+  return `${modeTitles[state.mode] || 'Карта Западной Сибири'} (${state.year} г.)`;
+}
+function defaultExportSubtitle(features){
+  const level=state.pieGrouping==='lower' ? 'нижний уровень АТЕ' : 'верхние АТЕ';
+  const parents=parentSummary(features);
+  return parents ? `Западная Сибирь · ${level} · ${parents}` : 'Западная Сибирь';
+}
+function exportStatsHtml(features){
+  const totalPop=sum(features.map(f=>Number(f.properties?.population)||0));
+  const totalArea=sum(features.map(f=>Number(f.properties?.area_km2)||0));
+  const density=totalArea ? totalPop/totalArea : null;
+  const urban=urbanBreakdown(features);
+  return `<div class="export-info-grid"><div class="export-info-card"><span>Объектов</span><b>${num(features.length)}</b></div><div class="export-info-card"><span>Население</span><b>${num(totalPop)}</b></div><div class="export-info-card"><span>Площадь, км²</span><b>${num(totalArea)}</b></div><div class="export-info-card"><span>Плотность</span><b>${num1(density)}</b></div>${urban.available?`<div class="export-info-card"><span>Доля городского населения</span><b>${pct(urban.urbanShare)}</b></div>`:''}<div class="export-info-card"><span>Охват</span><b>${escapeHtml(exportScopeLabel())}</b></div></div>`;
+}
+function exportLegendHtml(){
+  return `<div class="export-legend-wrap">${$('legendBox')?.innerHTML || ''}</div>`;
+}
+function ensureExportModal(){
+  let modal=$('exportMode'); if(modal) return modal;
+  modal=document.createElement('div');
+  modal.id='exportMode'; modal.className='export-modal'; modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div><section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle"><aside class="export-controls"><div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div><label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text"><label class="control-label" for="exportSubtitleInput">Подзаголовок</label><input id="exportSubtitleInput" class="export-text-input" type="text"><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select><div class="export-option-grid"><label><input type="checkbox" id="exportFitScope" checked> Автоцентрирование по охвату</label><label><input type="checkbox" id="exportShowLegend" checked> Показать легенду</label><label><input type="checkbox" id="exportShowStats" checked> Показать общую информацию</label><label><input type="checkbox" id="exportShowContext" checked> Показать контекст</label></div><details id="exportContextDetails" class="export-context-box" open><summary>Контекст периода</summary><label class="control-label" for="exportContextMode">Режим текста</label><select id="exportContextMode"><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="6"></textarea></details><div class="button-row export-buttons"><button id="exportFitNow" type="button">Подогнать карту</button><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button><div class="mini-muted">В экспортный макет боковые панели интерфейса не попадают. В PNG включаются только карта, заголовок, контекст, легенда и общая сводка.</div></aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div></section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.export-close').addEventListener('click', closeExportMode);
+  modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
+  const bind=(id, event, fn)=>{ const el=$(id); if(el) el.addEventListener(event, fn); };
+  bind('exportTitleInput','input', e=>{ state.export.title=e.target.value; renderExportPreviewCard(); });
+  bind('exportSubtitleInput','input', e=>{ state.export.subtitle=e.target.value; renderExportPreviewCard(); });
+  bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(); });
+  bind('exportFitScope','change', e=>{ state.export.fitScope=!!e.target.checked; });
+  bind('exportShowLegend','change', e=>{ state.export.showLegend=!!e.target.checked; renderExportPreviewCard(); });
+  bind('exportShowStats','change', e=>{ state.export.showStats=!!e.target.checked; renderExportPreviewCard(); });
+  bind('exportShowContext','change', e=>{ state.export.showContext=!!e.target.checked; $('exportContextDetails').style.display=state.export.showContext?'block':'none'; renderExportPreviewCard(); });
+  bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
+  bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
+  bind('exportFitNow','click', async ()=>{ await applyExportScopeToMap(); await refreshExportPreview(); });
+  bind('refreshExportPreview','click', refreshExportPreview);
+  bind('downloadExportPng','click', downloadExportPng);
+  return modal;
+}
+function syncExportDefaults(resetTitle=true){
+  const features=exportScopeFeatures();
+  if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
+  if(resetTitle || !state.export.subtitle) state.export.subtitle=defaultExportSubtitle(features);
+  syncExportContextText();
+  const map={title:'exportTitleInput', subtitle:'exportSubtitleInput', scope:'exportScopeSelect', fit:'exportFitScope', legend:'exportShowLegend', stats:'exportShowStats', context:'exportShowContext', mode:'exportContextMode'};
+  if($(map.title)) $(map.title).value=state.export.title;
+  if($(map.subtitle)) $(map.subtitle).value=state.export.subtitle;
+  if($(map.scope)) $(map.scope).value=state.export.scope;
+  if($(map.fit)) $(map.fit).checked=state.export.fitScope;
+  if($(map.legend)) $(map.legend).checked=state.export.showLegend;
+  if($(map.stats)) $(map.stats).checked=state.export.showStats;
+  if($(map.context)) $(map.context).checked=state.export.showContext;
+  if($(map.mode)) $(map.mode).value=state.export.contextMode;
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
+  if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+}
+function syncExportContextText(){
+  const preset=exportContextPresets(state.year);
+  state.export.contextText = state.export.contextMode==='long' ? preset.long : preset.short;
+  if($('exportContextText')) $('exportContextText').value=state.export.contextText;
+}
+async function openExportMode(){
+  const modal=ensureExportModal();
+  state.export.open=true; syncExportDefaults(true);
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  await refreshExportPreview();
+}
+function closeExportMode(){
+  const modal=$('exportMode'); if(!modal) return; state.export.open=false; modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+}
+async function applyExportScopeToMap(){
+  const features=exportScopeFeatures();
+  const b=featuresBounds(features);
+  if(b && state.map){ state.map.fitBounds(b,{padding:[38,38], animate:true, duration:.35, maxZoom:6.2}); await new Promise(r=>setTimeout(r, 420)); }
+}
+async function captureMapForExport(){
+  const target=$('map');
+  if(!target || typeof window.html2canvas!=='function') return '';
+  const canvas=await window.html2canvas(target,{backgroundColor:null, useCORS:true, logging:false, scale:2});
+  return canvas.toDataURL('image/png');
+}
+function renderExportPreviewCard(){
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const previewImg = state.export.mapImage ? `<img src="${state.export.mapImage}" alt="Предпросмотр карты" class="export-map-image">` : `<div class="export-map-placeholder">Карта будет показана здесь после обновления превью.</div>`;
+  wrap.innerHTML=`<article class="export-layout"><header class="export-header"><div class="export-title-block"><h1>${escapeHtml(state.export.title || defaultExportTitle())}</h1><p>${escapeHtml(state.export.subtitle || defaultExportSubtitle(features))}</p></div><div class="export-header-meta"><span>Год</span><b>${state.year}</b><span>Режим</span><b>${escapeHtml($('modeSelect')?.selectedOptions?.[0]?.textContent || state.mode)}</b></div></header>${state.export.showContext?`<section class="export-context"><h3>Контекст</h3><p>${escapeHtml(state.export.contextText || '')}</p></section>`:''}<section class="export-main"><div class="export-map-frame">${previewImg}</div><aside class="export-side">${state.export.showStats?`<section class="export-side-block"><h3>Общая информация</h3>${exportStatsHtml(features)}</section>`:''}${state.export.showLegend?`<section class="export-side-block"><h3>Легенда</h3>${exportLegendHtml()}</section>`:''}</aside></section><footer class="export-footer">Источник: интерактивный веб‑атлас дипломного исследования «Пространственная трансформация системы АТЕ Западной Сибири в XVIII–XX веках». Подготовлено в режиме экспорта v${APP_VERSION}.</footer></article>`;
+}
+async function refreshExportPreview(){
+  if(!state.export.open) return;
+  const status=$('exportPreviewStatus');
+  if(status) status.textContent='Готовим макет и снимок карты…';
+  if(state.export.fitScope) await applyExportScopeToMap();
+  await new Promise(r=>setTimeout(r, 120));
+  state.export.mapImage = await captureMapForExport();
+  renderExportPreviewCard();
+  if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+}
+async function downloadExportPng(){
+  const node=$('exportPreviewCard');
+  if(!node || typeof window.html2canvas!=='function') return;
+  const status=$('exportPreviewStatus'); if(status) status.textContent='Сохраняем PNG…';
+  const canvas=await window.html2canvas(node,{backgroundColor:'#f7f5ef', useCORS:true, logging:false, scale:2});
+  const a=document.createElement('a');
+  a.href=canvas.toDataURL('image/png');
+  a.download=`west_siberia_export_${state.year}_${state.mode}.png`;
+  document.body.appendChild(a); a.click(); a.remove();
+  if(status) status.textContent='PNG готов. Файл сохранён в загрузки браузера.';
+}
 function selectedFeatures(){ if(!state.currentGeoJSON) return []; if(!state.selectedIds.size) return state.currentGeoJSON.features; return state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); }
-function updateStatsAndSelection(){ if(!state.currentGeoJSON) return; updateStats(selectedFeatures()); updateSelectionBox(); updateLegend(state.currentGeoJSON,state._lastVals); }
+function updateStatsAndSelection(){ if(!state.currentGeoJSON) return; updateStats(selectedFeatures()); updateSelectionBox(); updateLegend(state.currentGeoJSON,state._lastVals); if(state.export.open) renderExportPreviewCard(); }
 function updateStats(features){
   const all=!state.selectedIds.size;
   const pops=features.map(f=>Number(f.properties.population)||0);
