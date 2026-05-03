@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=26" />
+  <link rel="stylesheet" href="style.css?v=27" />
 </head>
 <body>
   <div id="app">
@@ -20,7 +20,10 @@
       <section id="metricFilters" class="map-widget draggable-widget" aria-label="Фильтры административных единиц">
         <div class="map-widget-head drag-handle" id="metricFiltersHandle" title="Перетащить панель фильтров">
           <div><span class="drag-grip">⋮⋮</span>Фильтры АТЕ</div>
-          <button id="resetMetricFilters" type="button" class="mini-action">Сбросить</button>
+          <div class="panel-actions">
+            <button id="collapseMetricFilters" type="button" class="mini-action collapse-action" aria-expanded="true" title="Свернуть / развернуть фильтры">Свернуть</button>
+            <button id="resetMetricFilters" type="button" class="mini-action">Сбросить</button>
+          </div>
         </div>
         <div class="metric-filter-grid">
           <div class="metric-filter-item" data-filter-field="population">
@@ -56,13 +59,14 @@
       <section id="parentFilterBar" class="map-widget draggable-widget parent-filter-widget" aria-label="Фильтр верхнеуровневых административных единиц">
         <div class="parent-filter-title drag-handle" id="parentFilterHandle" title="Перетащить панель">
           <span class="drag-grip">⋮⋮</span><span>Верхнеуровневые АТЕ</span>
+          <button id="collapseParentFilter" type="button" class="mini-action collapse-action" aria-expanded="true" title="Свернуть / развернуть список АТЕ">Свернуть</button>
         </div>
         <div id="parentCheckboxes" class="parent-checkboxes"></div>
       </section>
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v26</div>
+      <div class="eyebrow">Дипломный веб-атлас · v27</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -154,6 +158,6 @@
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=26"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>

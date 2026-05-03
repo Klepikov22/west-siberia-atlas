@@ -1,4 +1,4 @@
-const APP_VERSION = '26';
+const APP_VERSION = '27';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -33,6 +33,11 @@ const chartPalettes = {
 };
 function chartPalette(){
   return chartPalettes[state.piePalette] || chartPalettes.softPastel;
+}
+function chartSliceColor(name, index){
+  if(String(name || '').trim().toLowerCase()==='прочие') return '#d6d6d6';
+  const colors=chartPalette();
+  return colors[index % colors.length];
 }
 const ramp = ['#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6','#3182bd','#08519c'];
 
@@ -285,7 +290,7 @@ function urbanBreakdown(features){
 }
 
 function currentParentNames(){ return [...state.visibleParents]; }
-function parentNameFromFeature(f){ return String(f?.properties?.admin_parent || '—').trim() || '—'; }
+function parentNameFromFeature(f){ const v=String(f?.properties?.admin_parent ?? '').trim(); return v || null; }
 function syncVisibleParents(gj){
   const parents=[...new Set((gj?.features||[]).map(parentNameFromFeature).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
   state.parentCounts = new Map(parents.map(name=>[name,(gj?.features||[]).filter(f=>parentNameFromFeature(f)===name).length]));
@@ -363,6 +368,22 @@ function initDraggableWidget(panelId, handleId, dragStateKey){
     }
   });
 }
+function initCollapsiblePanel(panelId, buttonId){
+  const panel=$(panelId); const button=$(buttonId);
+  if(!panel || !button || button.dataset.collapseReady==='1') return;
+  button.dataset.collapseReady='1';
+  const apply=()=>{
+    const collapsed=panel.classList.contains('is-collapsed');
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.textContent = collapsed ? 'Развернуть' : 'Свернуть';
+  };
+  button.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    panel.classList.toggle('is-collapsed');
+    apply();
+  });
+  apply();
+}
 function metricValueLabel(field, value){
   if(value==null || !Number.isFinite(Number(value))) return '—';
   return field==='density' ? num1(value) : num(value);
@@ -433,6 +454,7 @@ function syncFilterRanges(features){
 function featurePassesFilters(f){
   const parent=parentNameFromFeature(f);
   const totalParents=state.parentCounts?.size || 0;
+  if(totalParents && !parent) return false;
   if(totalParents && state.visibleParents.size!==totalParents && !state.visibleParents.has(parent)) return false;
   return ['population','area_km2','density'].every(field=>{
     const filter=state.filters[field];
@@ -466,7 +488,10 @@ async function init(){
   setYearLabels(); buildTimeline();
 
   const b = state.manifest.map_bounds_4326_expanded_200km || [57.411848,42.485993,92.272637,74.021644];
-  state.dataBounds = L.latLngBounds([[b[1],b[0]],[b[3],b[2]]]);
+  const centerLat=(b[1]+b[3])/2;
+  const lonPad=275/(111.32*Math.max(0.25, Math.cos(centerLat*Math.PI/180)));
+  const expandedBounds=[b[0]-lonPad,b[1],b[2]+lonPad,b[3]];
+  state.dataBounds = L.latLngBounds([[expandedBounds[1],expandedBounds[0]],[expandedBounds[3],expandedBounds[2]]]);
   state.softBounds = state.dataBounds.pad(0.20);
   state.map = L.map('map', {
     zoomControl:true,
@@ -526,6 +551,8 @@ function bindUi(){
   on('resetMetricFilters','click', ()=>{ ['population','area_km2','density'].forEach(field=>{ Object.assign(state.filters[field], {minFraction:0, maxFraction:1, minThreshold:null, maxThreshold:null}); }); syncFilterRanges(state.rawGeoJSON?.features||[]); rerenderFilteredLayers(); });
   initDraggableWidget('metricFilters','metricFiltersHandle','metricFilterDrag');
   initDraggableWidget('parentFilterBar','parentFilterHandle','parentFilterDrag');
+  initCollapsiblePanel('metricFilters','collapseMetricFilters');
+  initCollapsiblePanel('parentFilterBar','collapseParentFilter');
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
@@ -823,7 +850,7 @@ function sharePieHtml(features, field, title){
   const slices=rows.map((r,i)=>{
     const share=total ? r.value/total : 0;
     const start=angle; const end=angle + share*360; angle=end;
-    const colors=chartPalette(); const color=colors[i%colors.length];
+    const color=chartSliceColor(r.name, i);
     const path=share>=0.9999
       ? `<circle cx="50" cy="50" r="42" fill="${color}"></circle>`
       : `<path d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`;
@@ -836,9 +863,13 @@ function shareRows(features, field, grouping='upper'){
   const groups=new Map();
   features.forEach(f=>{
     const p=f.properties||{}; const value=Number(p[field])||0; if(value<=0) return;
-    const key = grouping==='lower'
-      ? (p.name ? `${p.name}${p.admin_parent ? ` · ${p.admin_parent}` : ''}` : (p.unit_id || '—'))
-      : (p.admin_parent || p.name || '—');
+    let key;
+    if(grouping==='lower'){
+      key = p.name ? `${p.name}${p.admin_parent ? ` · ${p.admin_parent}` : ''}` : (p.unit_id || '—');
+    } else {
+      key = String(p.admin_parent || '').trim();
+      if(!key) return;
+    }
     groups.set(key, (groups.get(key)||0)+value);
   });
   const sorted=[...groups.entries()].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
@@ -906,7 +937,7 @@ function expandedSharePieHtml(features, field, title, scope){
   const rows=shareRows(features, field, state.pieGrouping); if(!rows.length) return '<div class="mini-muted">Нет данных для диаграммы.</div>';
   const total=sum(rows.map(r=>r.value)); let angle=0;
   const slices=rows.map((r,i)=>{
-    const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const colors=chartPalette(); const color=colors[i%colors.length];
+    const share=total ? r.value/total : 0; const start=angle; const end=angle+share*360; angle=end; const color=chartSliceColor(r.name, i);
     const shape=share>=0.9999
       ? `<circle class="expanded-pie-slice" data-slice-index="${i}" tabindex="0" cx="50" cy="50" r="42" fill="${color}"></circle>`
       : `<path class="expanded-pie-slice" data-slice-index="${i}" tabindex="0" d="${pieSlicePath(50,50,42,start,end)}" fill="${color}"></path>`;

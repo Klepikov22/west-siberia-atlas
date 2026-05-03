@@ -807,3 +807,73 @@ body[data-tool="pan"] .leaflet-interactive{cursor:pointer}
   #metricFilters{bottom:160px}
   #parentFilterBar{bottom:10px}
 }
+
+/* v27: collapsible floating panels, cleaner chart legend spacing, wider map extent handled in JS */
+.panel-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-left:auto;
+}
+.collapse-action{
+  white-space:nowrap;
+}
+#metricFilters .map-widget-head,
+#parentFilterBar .parent-filter-title{
+  min-height:30px;
+}
+#parentFilterBar .parent-filter-title{
+  justify-content:flex-start;
+}
+#parentFilterBar .parent-filter-title .collapse-action{
+  margin-left:auto;
+}
+#metricFilters.is-collapsed,
+#parentFilterBar.is-collapsed{
+  width:auto!important;
+  min-width:0!important;
+  max-width:min(360px,calc(100vw - 24px));
+}
+#metricFilters.is-collapsed .metric-filter-grid,
+#parentFilterBar.is-collapsed .parent-checkboxes{
+  display:none!important;
+}
+#metricFilters.is-collapsed .map-widget-head,
+#parentFilterBar.is-collapsed .parent-filter-title{
+  margin-bottom:0!important;
+  border-bottom:0!important;
+  padding-bottom:0!important;
+}
+#metricFilters.is-collapsed .mini-action:not(.collapse-action){
+  display:none;
+}
+.parent-filter-widget .parent-checkboxes{
+  padding:2px 2px 2px 0;
+}
+.chart-legend{
+  padding:10px 18px 10px 8px!important;
+  gap:10px;
+}
+.chart-legend-head{
+  padding:0 16px 10px!important;
+}
+.chart-legend-row{
+  padding:11px 16px!important;
+  margin-inline:2px;
+}
+.chart-legend-row .pie-dot,
+.pie-legend-row .pie-dot{
+  box-shadow:0 0 0 2px rgba(255,255,255,.52),0 2px 8px rgba(0,0,0,.10);
+}
+.expanded-chart-layout{
+  gap:34px!important;
+}
+@media(max-width:980px){
+  #metricFilters.is-collapsed,
+  #parentFilterBar.is-collapsed{
+    width:auto!important;
+    max-width:calc(100vw - 20px);
+  }
+  .chart-legend{padding-inline:4px!important}
+  .chart-legend-row{padding:10px 12px!important}
+}
