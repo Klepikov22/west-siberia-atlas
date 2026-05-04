@@ -1,4 +1,4 @@
-const APP_VERSION = '58';
+const APP_VERSION = '59';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5566,3 +5566,202 @@ exportMapSize = function exportMapSizeV58(){
 };
 /* Принудительно прогреваем состояние после финального присваивания. */
 try { ensureExportFlags(); } catch(e) { console.error('v58 export state init failed', e); }
+
+/* v59: hide export resize affordances after mouse release and keep filter UI accessible */
+function clearExportEditingAffordancesV59(){
+  try{
+    if(!state || !state.export) return;
+    state.export.activeFrame='';
+    state.export.selectedWidget='';
+  }catch(_){ }
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(el=>{
+    el.classList.remove('is-selected');
+    el.classList.add('export-resize-muted');
+  });
+  document.querySelectorAll('.export-map-card-v50').forEach(el=>{
+    el.classList.remove('is-selected');
+    el.classList.add('export-resize-muted');
+  });
+}
+function activateExportInnerFrameV59(el){
+  if(!el) return;
+  try{ if(state?.export) state.export.activeFrame='inner'; }catch(_){ }
+  el.classList.remove('export-resize-muted');
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(node=>node.classList.toggle('is-selected', node===el));
+}
+function activateExportWidgetV59(card){
+  if(!card) return;
+  const key=card.dataset.exportWidget||'';
+  try{ if(state?.export) state.export.selectedWidget=key; }catch(_){ }
+  card.classList.remove('export-resize-muted');
+  document.querySelectorAll('.export-map-card-v50').forEach(node=>node.classList.toggle('is-selected', node===card));
+}
+if(typeof v51SetActiveFrame === 'function'){
+  v51SetActiveFrame = function v51SetActiveFrameV59(frameEl, name){
+    document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(el=>{
+      const on = name==='inner' && el===frameEl;
+      el.classList.toggle('is-selected', on);
+      if(on) el.classList.remove('export-resize-muted');
+    });
+    if(state?.export) state.export.activeFrame = name || '';
+  };
+}
+if(typeof v51SelectWidget === 'function'){
+  v51SelectWidget = function v51SelectWidgetV59(key){
+    if(state?.export) state.export.selectedWidget = key || '';
+    document.querySelectorAll('.export-map-card-v50').forEach(el=>{
+      const on = !!key && el.dataset.exportWidget===key;
+      el.classList.toggle('is-selected', on);
+      if(on) el.classList.remove('export-resize-muted');
+    });
+  };
+}
+initExportOverlayDrag = function initExportOverlayDragV59(){
+  const frame=document.querySelector('.export-map-frame-v51') || document.querySelector('.export-map-frame-v50');
+  if(!frame) return;
+  if(frame.dataset.v59Bound!=='1'){
+    frame.dataset.v59Bound='1';
+    frame.addEventListener('pointerdown',ev=>{
+      if(ev.target===frame || ev.target.classList.contains('export-svg-map')) clearExportEditingAffordancesV59();
+    }, {passive:true});
+  }
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBoundV59==='1') return;
+    card.dataset.dragBoundV59='1';
+    card.addEventListener('pointerdown',ev=>{
+      if(ev.target.closest('.export-card-resize-handle')) return;
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault();
+      activateExportWidgetV59(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'card';
+      const dx=ev.clientX-cr.left, dy=ev.clientY-cr.top;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx));
+        const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy));
+        card.style.left=left+'px'; card.style.top=top+'px';
+        ensureExportFlags();
+        state.export.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth};
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        if(moved){
+          card.classList.add('export-resize-muted');
+          clearExportEditingAffordancesV59();
+        }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  frame.querySelectorAll('.export-card-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV59==='1') return;
+    handle.dataset.boundV59='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const card=handle.closest('.export-map-card'); if(!card) return;
+      const key=card.dataset.exportWidget||'title';
+      activateExportWidgetV59(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const startX=ev.clientX, startW=cr.width;
+      const move=e=>{
+        const nw=Math.max(320, Math.min(fr.width-(cr.left-fr.left)-8, startW + (e.clientX-startX)));
+        card.style.width=nw+'px';
+        ensureExportFlags();
+        const pos=state.export.overlayPositions[key] || {left:Math.round(cr.left-fr.left), top:Math.round(cr.top-fr.top), width:startW};
+        pos.width=Math.round(nw); state.export.overlayPositions[key]=pos;
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        card.classList.add('export-resize-muted');
+        clearExportEditingAffordancesV59();
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline-v51') || frame.querySelector('.export-field-outline-v50');
+  if(outline && outline.dataset.dragBoundV59!=='1'){
+    outline.dataset.dragBoundV59='1';
+    outline.addEventListener('pointerdown',ev=>{
+      activateExportInnerFrameV59(outline);
+      if(ev.target.classList.contains('export-resize-handle')) return;
+      ev.preventDefault(); ev.stopPropagation();
+      ensureExportFlags();
+      state.export.autoFitField=false;
+      const fr=frame.getBoundingClientRect(), or=outline.getBoundingClientRect();
+      const dx=ev.clientX-or.left, dy=ev.clientY-or.top; const fw=or.width, fh=or.height;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx));
+        const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy));
+        outline.style.left=left+'px'; outline.style.top=top+'px';
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        state.export.innerFrame={x:Math.round(parseFloat(outline.style.left)||0),y:Math.round(parseFloat(outline.style.top)||0),w:Math.round(fw),h:Math.round(fh)};
+        outline.classList.add('export-resize-muted');
+        clearExportEditingAffordancesV59();
+        if(moved) renderExportPreviewCard(); else syncExportDefaults(false);
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  }
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV59==='1') return;
+    handle.dataset.boundV59='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      ensureExportFlags();
+      const dir=handle.dataset.dir; const target=handle.dataset.frame;
+      if(target==='inner' && outline) activateExportInnerFrameV59(outline);
+      const startX=ev.clientX,startY=ev.clientY;
+      const size0=exportMapSize();
+      const w0=Number(size0.w), h0=Number(size0.h);
+      const f0={...exportMapFieldRect(w0,h0)};
+      const move=e=>{
+        const dx=e.clientX-startX, dy=e.clientY-startY;
+        if(target==='outer'){
+          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
+          state.export.canvasWidth=Math.max(minW,w0+dx);
+          state.export.canvasHeight=Math.max(minH,h0+dy);
+        }else{
+          state.export.autoFitField=false;
+          const nw=f0.w+(dir.includes('e')?dx:0);
+          const nh=f0.h+(dir.includes('s')?dy:0);
+          state.export.innerFrame={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))};
+        }
+        syncExportDefaults(false);
+        renderExportPreviewCard();
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        if(outline) outline.classList.add('export-resize-muted');
+        clearExportEditingAffordancesV59();
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+};
+(function initV59Patch(){
+  const boot=()=>{
+    try{
+      document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50,.export-map-card-v50').forEach(el=>el.classList.add('export-resize-muted'));
+      const mf=document.getElementById('metricFilters');
+      if(mf){ mf.classList.add('metric-filters-scrollable-v59'); }
+    }catch(e){ console.warn('v59 UI patch init failed', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();

@@ -1785,3 +1785,52 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 .filter-manual-row input:disabled{opacity:.55;background:rgba(255,255,255,.35)}
 .metric-filter-item[data-filter-field="urban_share"]{order:4}
 .parent-filter-actions .mini-action:disabled{opacity:.45;cursor:default;filter:grayscale(.2)}
+
+/* v59: editing handles are transient; filter panel must expose the urban-share slider */
+.export-field-outline-v51,
+.export-field-outline-v50{
+  border-style:solid!important;
+  border-color:rgba(166,145,116,.40)!important;
+  box-shadow:none!important;
+}
+.export-field-outline-v51 .export-resize-handle,
+.export-field-outline-v50 .export-resize-handle,
+.export-field-outline-v51.export-resize-muted .export-resize-handle,
+.export-field-outline-v50.export-resize-muted .export-resize-handle{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.export-field-outline-v51.is-selected:not(.export-resize-muted),
+.export-field-outline-v50.is-selected:not(.export-resize-muted){
+  border-style:dashed!important;
+  border-color:rgba(180,107,64,.72)!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.42) inset!important;
+}
+.export-field-outline-v51.is-selected:not(.export-resize-muted) .export-resize-handle,
+.export-field-outline-v50.is-selected:not(.export-resize-muted) .export-resize-handle{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+.export-title-card-v50 .export-card-resize-handle{
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:opacity .14s ease, transform .14s ease;
+}
+.export-title-card-v50.is-selected:not(.export-resize-muted) .export-card-resize-handle{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+.export-map-card-v50.export-resize-muted{box-shadow:0 8px 24px rgba(44,51,44,.12)!important}
+#metricFilters,
+#metricFilters.metric-filters-scrollable-v59{
+  max-height:min(650px, calc(100vh - 145px))!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding-bottom:18px!important;
+  scrollbar-width:thin;
+  overscroll-behavior:contain;
+}
+#metricFilters .metric-filter-grid{padding-bottom:12px!important}
+#metricFilters .metric-filter-item:last-child{margin-bottom:8px!important}
+#metricFilters::-webkit-scrollbar{width:8px}
+#metricFilters::-webkit-scrollbar-thumb{background:rgba(120,111,94,.30);border-radius:999px}
