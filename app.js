@@ -1,4 +1,4 @@
-const APP_VERSION = '50';
+const APP_VERSION = '51';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -4637,3 +4637,323 @@ function positionFloatingExportLauncherV48(){
   if(panel){ const r=panel.getBoundingClientRect(); const targetLeft=Math.max(8,Math.min(window.innerWidth-btn.offsetWidth-8,r.left-btn.offsetWidth-margin)); const targetTop=Math.max(8,Math.min(window.innerHeight-btn.offsetHeight-8,r.top)); btn.style.left=`${Math.round(targetLeft)}px`; btn.style.top=`${Math.round(targetTop)}px`; btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none'; }else{ btn.style.right='18px'; btn.style.top='18px'; btn.style.left='auto'; btn.style.transform='none'; }
 }
 setTimeout(positionFloatingExportLauncherV48,100); setTimeout(positionFloatingExportLauncherV48,700);
+
+
+/* v51: export placement cleanup, selectable inner frame, title resize, parent filter controls, hierarchy groundwork */
+const V51_1926_PARENT_GROUPS = {
+  'Барабинский округ':'Сибирский край',
+  'Барнаульский округ':'Сибирский край',
+  'Бийский округ':'Сибирский край',
+  'Ирбитский округ':'Уральская область',
+  'Ишимский округ':'Уральская область',
+  'Каменский округ':'Сибирский край',
+  'Кузнецкий округ':'Сибирский край',
+  'Курганский округ':'Уральская область',
+  'Новосибирский округ':'Сибирский край',
+  'Ойратская авт. область':'Сибирский край',
+  'Омский округ':'Сибирский край',
+  'Рубцовский округ':'Сибирский край',
+  'Славгородский округ':'Сибирский край',
+  'Тарский округ':'Сибирский край',
+  'Томский округ':'Сибирский край',
+  'Тюменский округ':'Уральская область',
+  'Шадринский округ':'Уральская область'
+};
+function deriveAdminSuperparent(props){
+  const explicit=String(props?.admin_superparent || props?.admin_group || props?.super_parent || '').trim();
+  if(explicit) return explicit;
+  const parent=String(props?.admin_parent || '').trim();
+  const year=Number(props?.year || state.year || 0);
+  if(year===1926 && parent) return V51_1926_PARENT_GROUPS[parent] || '';
+  return '';
+}
+function enrichHierarchyProps(gj){
+  if(!gj?.features) return gj;
+  gj.features.forEach(f=>{
+    if(!f.properties) f.properties={};
+    if(!f.properties.admin_intermediate) f.properties.admin_intermediate = String(f.properties.admin_parent || '').trim() || '';
+    if(!f.properties.admin_superparent) f.properties.admin_superparent = deriveAdminSuperparent(f.properties) || '';
+  });
+  return gj;
+}
+function syncVisibleParents(gj){
+  gj = enrichHierarchyProps(gj);
+  const parents=[...new Set((gj?.features||[]).map(parentNameFromFeature).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  state.parentCounts = new Map(parents.map(name=>[name,(gj?.features||[]).filter(f=>parentNameFromFeature(f)===name).length]));
+  if(state.parentFilterYear !== state.year){
+    state.visibleParents = new Set(parents);
+    state.parentFilterYear = state.year;
+  } else {
+    const keep=new Set(parents.filter(name=>state.visibleParents.has(name)));
+    state.visibleParents = keep.size ? keep : new Set(parents);
+  }
+  renderParentCheckboxes(parents);
+  updateParentFilterToolbarState();
+}
+function renderParentCheckboxes(parents){
+  const box=$('parentCheckboxes'); if(!box) return;
+  box.innerHTML='';
+  parents.forEach(name=>{
+    const id=`parent_${name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g,'_')}`;
+    const label=document.createElement('label'); label.className='parent-check';
+    label.innerHTML=`<input type="checkbox" id="${id}" ${state.visibleParents.has(name)?'checked':''} data-parent-name="${escapeHtml(name)}"><span title="${escapeHtml(name)}">${escapeHtml(name)}</span><b>${num(state.parentCounts.get(name)||0)}</b>`;
+    const input=label.querySelector('input');
+    input.addEventListener('change', ()=>{
+      if(input.checked) state.visibleParents.add(name); else state.visibleParents.delete(name);
+      updateParentFilterToolbarState();
+      rerenderFilteredLayers();
+    });
+    box.appendChild(label);
+  });
+  updateParentFilterToolbarState();
+}
+function updateParentFilterToolbarState(){
+  const total=(state.parentCounts && state.parentCounts.size) || 0;
+  const visible=(state.visibleParents && state.visibleParents.size) || 0;
+  const clearBtn=$('clearAllParentsBtn');
+  const showBtn=$('showAllParentsBtn');
+  if(clearBtn) clearBtn.disabled = total===0 || visible===0;
+  if(showBtn) showBtn.disabled = total===0 || visible===total;
+}
+function bindParentFilterToolbar(){
+  const showBtn=$('showAllParentsBtn'), clearBtn=$('clearAllParentsBtn');
+  if(showBtn && showBtn.dataset.bound!=='1'){
+    showBtn.dataset.bound='1';
+    showBtn.addEventListener('click', ()=>setAllParentsVisible(true));
+  }
+  if(clearBtn && clearBtn.dataset.bound!=='1'){
+    clearBtn.dataset.bound='1';
+    clearBtn.addEventListener('click', ()=>setAllParentsVisible(false));
+  }
+  updateParentFilterToolbarState();
+}
+function showFeature(f){
+  const p=f.properties||{}; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect');
+  if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id;
+  $('featureInfo').classList.remove('muted');
+  const intermediate=String(p.admin_intermediate || '').trim();
+  const superparent=String(p.admin_superparent || '').trim();
+  $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div>${intermediate && intermediate!==String(p.admin_parent||'').trim()?`<div class="info-row"><span>Промежуточный уровень</span><b>${escapeHtml(intermediate)}</b></div>`:''}${superparent?`<div class="info-row"><span>Вышестоящая группа</span><b>${escapeHtml(superparent)}</b></div>`:''}<div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`;
+}
+function v51EnsureExportFlagsExtra(){
+  ensureExportFlags.__base && ensureExportFlags.__base();
+  if(!state.export.overlayPositions || typeof state.export.overlayPositions!=='object') state.export.overlayPositions={};
+  if(typeof state.export.activeFrame !== 'string') state.export.activeFrame='';
+  if(typeof state.export.selectedWidget !== 'string') state.export.selectedWidget='';
+  if(!state.export.lastCanvasKey) state.export.lastCanvasKey='';
+}
+if(!ensureExportFlags.__base){ ensureExportFlags.__base = ensureExportFlags; }
+ensureExportFlags = v51EnsureExportFlagsExtra;
+function v51LegendApproxHeight(){
+  const gj=state.currentGeoJSON||state.rawGeoJSON||{features:[]};
+  let cats=0;
+  if(state.mode==='admin_parent' || state.mode==='unit_type') cats=[...new Set((gj.features||[]).map(f=>f?.properties?.[state.mode]).filter(Boolean))].slice(0,24).length;
+  let h=170 + cats*19;
+  if(state.export?.showPopulation) h += 64;
+  return Math.max(220, Math.min(h, Math.max(280, exportMapSize().h - 220)));
+}
+function v51DefaultOverlayPositions(w,h){
+  ensureExportFlags();
+  const gap=32;
+  const sideW=Math.max(250, Math.min(Number(state.export.panelWidth)||300, Math.floor(w*0.29)));
+  const titleWidth=Math.max(420, Math.min(w - sideW - gap*3, Number(state.export.overlayPositions?.title?.width)||Math.round(w*0.5)));
+  const rightLeft=Math.max(gap, w - sideW - gap);
+  const statsH=220;
+  const legendH=v51LegendApproxHeight();
+  const contextH=116;
+  let statsTop=gap + 96;
+  let legendTop=statsTop + statsH + 20;
+  let contextTop=legendTop + legendH + 18;
+  if(contextTop + contextH > h - gap){
+    contextTop = h - contextH - gap;
+    legendTop = Math.max(statsTop + statsH + 16, contextTop - legendH - 18);
+  }
+  return {
+    title:{left:gap, top:gap, width:titleWidth},
+    stats:{left:rightLeft, top:statsTop, width:sideW},
+    legend:{left:rightLeft, top:legendTop, width:sideW},
+    context:{left:rightLeft, top:contextTop, width:sideW}
+  };
+}
+function v51ClampWidgetPosition(pos, key, w, h){
+  const approxH = key==='title' ? 86 : key==='legend' ? v51LegendApproxHeight() : key==='stats' ? 220 : 116;
+  const width = Math.max(240, Math.min(w-16, Number(pos.width)||280));
+  const left = Math.max(8, Math.min(w-width-8, Number(pos.left)||0));
+  const top = Math.max(8, Math.min(h-approxH-8, Number(pos.top)||0));
+  return {left:Math.round(left), top:Math.round(top), width:Math.round(width)};
+}
+function v51NormalizeOverlayPositions(forceReset=false){
+  ensureExportFlags();
+  const {w,h}=exportMapSize();
+  const key=`${w}x${h}`;
+  const defs=v51DefaultOverlayPositions(w,h);
+  if(forceReset || state.export.lastCanvasKey !== key){
+    ['title','stats','legend','context'].forEach(k=>{ state.export.overlayPositions[k] = {...defs[k]}; });
+    state.export.lastCanvasKey = key;
+  }
+  ['title','stats','legend','context'].forEach(k=>{
+    const src={...(defs[k]||{}), ...(state.export.overlayPositions?.[k]||{})};
+    state.export.overlayPositions[k] = v51ClampWidgetPosition(src,k,w,h);
+  });
+}
+function syncExportDefaults(resetTitle=true){
+  ensureExportFlags();
+  const features=exportScopeFeatures();
+  if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
+  if(state.export.contextMode==='auto' || resetTitle || !state.export.contextText) syncExportContextText();
+  v51NormalizeOverlayPositions(false);
+  const f=exportMapFieldRect(...Object.values(exportMapSize()));
+  const V=(id,val)=>{ if($(id)) $(id).value=val; }, C=(id,val)=>{ if($(id)) $(id).checked=!!val; };
+  V('exportTitleInput',state.export.title); V('exportTitleFontSize',state.export.titleFontSize); V('exportPanelWidth',state.export.panelWidth); V('exportScopeSelect',state.export.scope); V('exportPaperSelect',state.export.paper); V('exportCanvasWidth',state.export.canvasWidth); V('exportCanvasHeight',state.export.canvasHeight);
+  C('exportAutoFitField',state.export.autoFitField); V('exportInnerX',f.x); V('exportInnerY',f.y); V('exportInnerWidth',f.w); V('exportInnerHeight',f.h);
+  ['top','right','bottom','left'].forEach(k=>V('exportBuffer'+k.charAt(0).toUpperCase()+k.slice(1),state.export.extentBuffer[k]));
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>C(`exportShow${name}`,state.export[`show${name}`]));
+  V('exportLabelModeSelect',state.export.labelMode); V('exportGraticuleLabelSizeInput',state.export.graticuleLabelSize); V('exportContextMode',state.export.contextMode); V('exportContextText',state.export.contextText||'');
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none';
+  const note=$('exportAutoFieldStatus'); if(note) note.textContent=exportFieldStatusText();
+  renderExportStatsFieldsControls?.();
+}
+function exportDraggableBlock(key, body, extraClass=''){
+  ensureExportFlags();
+  v51NormalizeOverlayPositions(false);
+  const {w,h}=exportMapSize();
+  const defs=v51DefaultOverlayPositions(w,h);
+  const raw={...(defs[key]||{}), ...(state.export.overlayPositions?.[key]||{})};
+  const pos=v51ClampWidgetPosition(raw,key,w,h);
+  state.export.overlayPositions[key]=pos;
+  const selected=(state.export.selectedWidget===key)?' is-selected':'';
+  const resizeHandle=key==='title' ? '<span class="export-card-resize-handle" data-widget-resize="title" title="Растянуть заголовок"></span>' : '';
+  return `<section class="export-map-card export-map-card-${key} export-map-card-v50 ${extraClass}${selected}" data-export-widget="${key}" style="left:${pos.left}px;top:${pos.top}px;width:${pos.width}px">${resizeHandle}<div class="export-map-card-body">${body}</div></section>`;
+}
+function exportOverlayBlocksHtml(features){
+  const titleSize=Math.max(24,Math.min(60,Number(state.export.titleFontSize)||34));
+  const contextText=state.export.contextMode==='auto'?exportContextAutoText():(state.export.contextText||'');
+  const titleHtml=`<div class="export-title-block-v50"><h1 style="font-size:${titleSize}px">${escapeHtml(state.export.title||defaultExportTitle())}</h1></div>`;
+  const blocks=[exportDraggableBlock('title',titleHtml,'export-title-card-v50')];
+  if(state.export.showStats) blocks.push(exportDraggableBlock('stats',`<div class="export-stats-plain-v43">${exportStatsHtml(features)}</div>`,'export-stats-card-v43'));
+  if(state.export.showLegend) blocks.push(exportDraggableBlock('legend',`<div class="export-legend-plain-v43 export-legend-plain-v51">${exportLegendHtml()}</div>`,'export-legend-card-v43'));
+  if(state.export.showContext) blocks.push(exportDraggableBlock('context',`<div class="export-context-plain-v43">${escapeHtml(contextText)}</div>`,'export-context-card-v43'));
+  return blocks.join('');
+}
+function renderExportPreviewCard(){
+  ensureExportFlags();
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const {w,h}=exportMapSize();
+  v51NormalizeOverlayPositions(false);
+  const field=exportMapFieldRect(w,h);
+  const innerSelected = state.export.activeFrame==='inner' ? ' is-selected' : '';
+  wrap.innerHTML=`<article class="export-layout export-layout-v50 export-layout-v51" style="width:${w}px"><section class="export-main export-main-v43"><div class="export-map-frame export-map-frame-v50 export-map-frame-v51" style="width:${w}px;height:${h}px"><div id="exportSvgMap" class="export-svg-map"></div><div class="export-outer-outline-v50 export-outer-outline-v51" title="Внешняя рамка PNG"><span class="export-resize-handle export-resize-se" data-frame="outer" data-dir="se"></span></div><div class="export-field-outline export-field-outline-v50 export-field-outline-v51${innerSelected}" style="left:${field.x}px;top:${field.y}px;width:${field.w}px;height:${field.h}px" title="Внутренняя рамка карты"><span class="export-resize-handle export-resize-se" data-frame="inner" data-dir="se"></span><span class="export-resize-handle export-resize-e" data-frame="inner" data-dir="e"></span><span class="export-resize-handle export-resize-s" data-frame="inner" data-dir="s"></span></div>${exportOverlayBlocksHtml(features)}</div></section></article>`;
+  updateExportLiveMap();
+  initExportOverlayDrag();
+  syncExportDefaults(false);
+}
+function v51SetActiveFrame(frameEl, name){
+  document.querySelectorAll('.export-field-outline-v51').forEach(el=>el.classList.toggle('is-selected', name==='inner' && el===frameEl));
+  state.export.activeFrame = name || '';
+}
+function v51SelectWidget(key){
+  state.export.selectedWidget = key || '';
+  document.querySelectorAll('.export-map-card-v50').forEach(el=>el.classList.toggle('is-selected', el.dataset.exportWidget===key));
+}
+function initExportOverlayDrag(){
+  const frame=document.querySelector('.export-map-frame-v51') || document.querySelector('.export-map-frame-v50'); if(!frame) return;
+  frame.addEventListener('pointerdown',ev=>{
+    if(ev.target===frame || ev.target.classList.contains('export-svg-map')){ v51SetActiveFrame(null,''); v51SelectWidget(''); }
+  }, {passive:true});
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBound==='1') return; card.dataset.dragBound='1';
+    card.addEventListener('pointerdown',ev=>{
+      if(ev.target.closest('.export-card-resize-handle')) return;
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault();
+      v51SelectWidget(card.dataset.exportWidget||'');
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget; const dx=ev.clientX-cr.left, dy=ev.clientY-cr.top;
+      const move=e=>{
+        const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx));
+        const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy));
+        card.style.left=left+'px'; card.style.top=top+'px';
+        state.export.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth};
+      };
+      const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  frame.querySelectorAll('.export-card-resize-handle').forEach(handle=>{
+    if(handle.dataset.bound==='1') return; handle.dataset.bound='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const card=handle.closest('.export-map-card'); if(!card) return;
+      const key=card.dataset.exportWidget||'title';
+      v51SelectWidget(key);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const startX=ev.clientX, startW=cr.width;
+      const move=e=>{
+        const nw=Math.max(320, Math.min(fr.width-(cr.left-fr.left)-8, startW + (e.clientX-startX)));
+        card.style.width=nw+'px';
+        const pos=state.export.overlayPositions[key] || {left:Math.round(cr.left-fr.left), top:Math.round(cr.top-fr.top), width:startW};
+        pos.width=Math.round(nw); state.export.overlayPositions[key]=pos;
+      };
+      const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up); renderExportPreviewCard();};
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline-v51') || frame.querySelector('.export-field-outline-v50');
+  if(outline && outline.dataset.dragBound!=='1'){
+    outline.dataset.dragBound='1';
+    outline.addEventListener('pointerdown',ev=>{
+      v51SetActiveFrame(outline,'inner');
+      if(ev.target.classList.contains('export-resize-handle')) return;
+      ev.preventDefault(); ev.stopPropagation(); state.export.autoFitField=false;
+      const fr=frame.getBoundingClientRect(), or=outline.getBoundingClientRect();
+      const dx=ev.clientX-or.left, dy=ev.clientY-or.top; const fw=or.width, fh=or.height;
+      const move=e=>{ const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx)); const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy)); outline.style.left=left+'px'; outline.style.top=top+'px'; };
+      const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); state.export.innerFrame={x:Math.round(parseFloat(outline.style.left)||0),y:Math.round(parseFloat(outline.style.top)||0),w:Math.round(fw),h:Math.round(fh)}; syncExportDefaults(false); renderExportPreviewCard(); };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  }
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.bound==='1') return; handle.dataset.bound='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const dir=handle.dataset.dir; const target=handle.dataset.frame;
+      if(target==='inner' && outline) v51SetActiveFrame(outline,'inner');
+      const startX=ev.clientX,startY=ev.clientY; const w0=Number(state.export.canvasWidth), h0=Number(state.export.canvasHeight); const f0={...exportMapFieldRect(w0,h0)};
+      const move=e=>{
+        const dx=e.clientX-startX, dy=e.clientY-startY;
+        if(target==='outer'){
+          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
+          state.export.canvasWidth=Math.max(minW,w0+dx);
+          state.export.canvasHeight=Math.max(minH,h0+dy);
+        }else{
+          state.export.autoFitField=false;
+          let nw=f0.w+(dir.includes('e')?dx:0); let nh=f0.h+(dir.includes('s')?dy:0);
+          state.export.innerFrame={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))};
+        }
+        syncExportDefaults(false); renderExportPreviewCard();
+      };
+      const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);};
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+}
+function positionFloatingExportLauncherV48(){
+  const btn=document.getElementById('floatingExportLauncher'); if(!btn) return;
+  const panel=document.getElementById('rightPanel'); const gap=20;
+  btn.classList.add('floating-export-launcher-v48');
+  btn.innerHTML='<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
+  if(panel){
+    const r=panel.getBoundingClientRect();
+    const targetLeft=Math.max(8, Math.min(window.innerWidth-btn.offsetWidth-8, r.left - btn.offsetWidth - gap));
+    const targetTop=Math.max(8, Math.min(window.innerHeight-btn.offsetHeight-8, r.top + gap));
+    btn.style.left=`${Math.round(targetLeft)}px`; btn.style.top=`${Math.round(targetTop)}px`;
+    btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none';
+  }else{ btn.style.right='18px'; btn.style.top='18px'; btn.style.left='auto'; btn.style.transform='none'; }
+}
+(function initV51Patch(){
+  const start=()=>{ bindParentFilterToolbar(); updateParentFilterToolbarState(); positionFloatingExportLauncherV48(); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start, {once:true}); else setTimeout(start, 50);
+  window.addEventListener('resize', ()=>{ positionFloatingExportLauncherV48(); if(state?.export?.open) v51NormalizeOverlayPositions(false); }, {passive:true});
+})();
