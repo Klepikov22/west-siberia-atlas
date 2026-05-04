@@ -1,4 +1,4 @@
-const APP_VERSION = '56';
+const APP_VERSION = '57';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5418,3 +5418,70 @@ function v56SelectionGuard(){
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
 })();
+
+/* v57: окончательный safe-override инициализации экспорта.
+   Причина: старый v51-wrapper перехватывал ensureExportFlags и иногда возвращал undefined,
+   из-за чего exportMapSize() падал на чтении canvasWidth. */
+function ensureExportFlags(){
+  if(!window.state && typeof state === 'undefined') return {};
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  const ex = state.export;
+  const finite = (v, fallback) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
+  const box = (obj, defaults) => {
+    const out = (obj && typeof obj === 'object') ? obj : {};
+    Object.keys(defaults).forEach(k=>{ if(!Number.isFinite(Number(out[k]))) out[k]=defaults[k]; });
+    return out;
+  };
+  if(typeof ex.open !== 'boolean') ex.open = false;
+  if(!ex.scope) ex.scope = 'currentLayer';
+  if(!ex.paper) ex.paper = 'a4Landscape';
+  if(!ex.template) ex.template = 'thesis';
+  if(!ex.projection) ex.projection = 'lambert';
+  if(!Number.isFinite(Number(ex.centralMeridian))) ex.centralMeridian = 75;
+  if(typeof ex.title !== 'string' || !ex.title) {
+    try { ex.title = (typeof defaultExportTitle === 'function') ? defaultExportTitle() : `Административно-территориальное деление (${state.year || ''} г.)`; }
+    catch(_) { ex.title = `Административно-территориальное деление (${state.year || ''} г.)`; }
+  }
+  if(typeof ex.subtitle !== 'string') ex.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{
+    if(typeof ex[k] !== 'boolean') ex[k] = true;
+  });
+  if(!ex.contextMode) ex.contextMode = 'auto';
+  if(typeof ex.contextText !== 'string') ex.contextText = '';
+  if(!ex.labelMode) ex.labelMode = 'balanced';
+  if(!Number.isFinite(Number(ex.minPopulation))) ex.minPopulation = 0;
+  if(!Number.isFinite(Number(ex.minArea))) ex.minArea = 0;
+  if(!Number.isFinite(Number(ex.graticuleLabelSize))) ex.graticuleLabelSize = 12;
+  ex.canvasWidth = Math.max(900, finite(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
+  ex.canvasHeight = Math.max(700, finite(ex.canvasHeight, ex.paper === 'a4Portrait' ? 1680 : ex.paper === 'screen' ? 1040 : 1040));
+  if(!Number.isFinite(Number(ex.titleFontSize))) ex.titleFontSize = 34;
+  if(!Number.isFinite(Number(ex.panelWidth))) ex.panelWidth = 300;
+  ex.extentBuffer = box(ex.extentBuffer, {top:200,right:200,bottom:200,left:200});
+  ex.pagePadding = box(ex.pagePadding, {top:0,right:0,bottom:0,left:0});
+  ex.fieldPadding = box(ex.fieldPadding, {top:110,right:42,bottom:54,left:42});
+  if(typeof ex.autoFitField !== 'boolean') ex.autoFitField = true;
+  ex.innerFrame = box(ex.innerFrame, {x:80,y:130,w:900,h:760});
+  if(!ex.overlayPositions || typeof ex.overlayPositions !== 'object') ex.overlayPositions = {};
+  ['title','stats','legend','context'].forEach(k=>{ if(!ex.overlayPositions[k] || typeof ex.overlayPositions[k] !== 'object') ex.overlayPositions[k] = {}; });
+  if(typeof ex.activeFrame !== 'string') ex.activeFrame = '';
+  if(typeof ex.selectedWidget !== 'string') ex.selectedWidget = '';
+  if(typeof ex.lastCanvasKey !== 'string') ex.lastCanvasKey = '';
+  if(!ex.statsFields || typeof ex.statsFields !== 'object') ex.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof ex.statsFields[k] !== 'boolean') ex.statsFields[k] = statDefaults[k]; });
+  return ex;
+}
+function exportMapSize(){
+  const ex = ensureExportFlags();
+  const finite = (v, fallback) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
+  return {w:Math.max(900, finite(ex.canvasWidth,1480)), h:Math.max(700, finite(ex.canvasHeight,1040))};
+}
+(function initV57Patch(){
+  const boot=()=>{
+    try{ ensureExportFlags(); }catch(e){ console.error('v57 export init failed', e); }
+    const status=document.getElementById('exportPreviewStatus');
+    if(status && /canvasWidth/.test(status.textContent||'')) status.textContent='Превью готово к обновлению.';
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
