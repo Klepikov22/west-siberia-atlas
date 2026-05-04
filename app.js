@@ -1,4 +1,4 @@
-const APP_VERSION = '51';
+const APP_VERSION = '52';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -773,6 +773,8 @@ async function refreshHydro(seq){
 function adminStyle(feature, vals){
   const p=feature.properties; let fill='#999';
   if(state.mode==='admin_parent') fill=catColor(p.admin_parent);
+  if(state.mode==='admin_intermediate') fill=catColor(p.admin_intermediate || p.admin_parent);
+  if(state.mode==='admin_superparent') fill=catColor(p.admin_superparent || p.admin_parent);
   if(state.mode==='unit_type') fill=catColor(p.unit_type);
   if(state.mode==='population') fill=valueColor(Number(p.population), vals);
   if(state.mode==='density') fill=valueColor(Number(p.density), vals);
@@ -1060,7 +1062,7 @@ function exportContextPresets(year){
   return base[y] || {short:'Исторический срез административно-территориального деления Западной Сибири.', long:'Исторический срез административно-территориального деления Западной Сибири. Карта предназначена для анализа пространственной трансформации АТЕ региона в рамках дипломного исследования.'};
 }
 function defaultExportTitle(){
-  const modeTitles={admin_parent:'Административно-территориальное деление', population:'Население административных единиц', density:'Плотность населения', urban_share:'Доля городского населения', rail_length:'Длина железных дорог в пределах АТЕ', rail_density:'Плотность железных дорог', unit_type:'Типы административных единиц'};
+  const modeTitles={admin_parent:'Административно-территориальное деление', admin_intermediate:'Промежуточный уровень АТД', admin_superparent:'Вышестоящие административные группировки', population:'Население административных единиц', density:'Плотность населения', urban_share:'Доля городского населения', rail_length:'Длина железных дорог в пределах АТЕ', rail_density:'Плотность железных дорог', unit_type:'Типы административных единиц'};
   return `${modeTitles[state.mode] || 'Карта Западной Сибири'} (${state.year} г.)`;
 }
 function defaultExportSubtitle(features){
@@ -1389,7 +1391,7 @@ function objectAttributesHtml(f){
 }
 function updateLegend(gj, vals){
   const box=$('legendBox'); if(!box || !gj) return; let html='<b>Легенда</b>';
-  if(state.mode==='admin_parent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
+  if(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
   else { activeValueRamp().forEach((c,i,arr)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`}); }
   html+=`<div class="legend-section">Гидрография</div><div class="legend-row"><span class="swatch water-swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>`;
   if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0)||[]; html+=`<div class="legend-section">Круги населения</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationSymbolSize(v, vals)); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`; }); const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale; html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`; }
@@ -2012,7 +2014,7 @@ function exportAdminPolygonsSvg(features, project, vals){
   const cfg=regionStyleConfig();
   return `<g class="export-admin-polygons">`+(features||[]).map(f=>{
     const p=f.properties||{};
-    const fill=(state.mode==='admin_parent'||state.mode==='unit_type') ? catColor(p[state.mode]) : valueColor(Number(p[valField()]), vals);
+    const fill=(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type') ? catColor(p[state.mode] || p.admin_parent) : valueColor(Number(p[valField()]), vals);
     const path=geomToSvgPath(f.geometry, project); if(!path) return '';
     return `<path d="${path}" fill="${fill}" fill-opacity="${cfg.fillOpacity}" stroke="${cfg.line}" stroke-opacity="${cfg.opacity}" stroke-width="${cfg.weight}"/>`;
   }).join('')+`</g>`;
@@ -4957,3 +4959,28 @@ function positionFloatingExportLauncherV48(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start, {once:true}); else setTimeout(start, 50);
   window.addEventListener('resize', ()=>{ positionFloatingExportLauncherV48(); if(state?.export?.open) v51NormalizeOverlayPositions(false); }, {passive:true});
 })();
+
+
+/* v52: added 1918/1923/1930 layers, categorical hierarchy modes and population-estimation metadata */
+function exportContextPresets(year){
+  const y=Number(year);
+  const base={
+    1897:{short:'Конец XIX века: дореволюционная система административно-территориального деления Западной Сибири.', long:'Конец XIX века: дореволюционная система административно-территориального деления Западной Сибири. На карте представлены губернии и области Степного края, внутри которых показаны уезды.'},
+    1914:{short:'Позднеимперский этап: сеть губерний, областей и уездов накануне революционных преобразований.', long:'Позднеимперский этап: сеть губерний, областей и уездов накануне революционных преобразований. Для Западной Сибири это финальная версия имперской сетки АТЕ перед советской перекройкой пространства.'},
+    1918:{short:'Революционно-переходный этап: ранняя перекройка губернской и уездной сетки после 1917 года.', long:'Революционно-переходный этап: карта фиксирует раннюю перекройку губернской и уездной сетки Западной Сибири после 1917 года. Население для этого слоя рассчитано оценочно методом ареально-временной интерполяции между слоями 1914 и 1926 годов.'},
+    1923:{short:'Переход к раннесоветской губернской сетке накануне окружно-районной реформы.', long:'Переходный срез 1923 года показывает позднюю губернско-уездную конфигурацию перед переходом к окружно-районной системе. Население рассчитано оценочно по площадному соответствию со слоями 1914 и 1926 годов.'},
+    1926:{short:'Раннесоветский переходный этап: окружно-районная система Сибирского края по материалам переписи 1926 года.', long:'Раннесоветский переходный этап: окружно-районная система Сибирского края по материалам переписи 1926 года.'},
+    1930:{short:'Поздний окружной этап перед ликвидацией округов и укрупнением краевой/областной системы.', long:'Срез 1930 года отражает поздний окружной этап административной трансформации перед ликвидацией округов и последующей перестройкой областной сети. Население рассчитано оценочно методом ареально-временной интерполяции между слоями 1926 и 1939 годов.'},
+    1939:{short:'Предвоенный советский этап: укрепление областной системы административно-территориального деления.', long:'Предвоенный советский этап: укрепление областной системы административно-территориального деления.'},
+    1959:{short:'Послевоенный этап: административная система Западной Сибири по переписи 1959 года.', long:'Послевоенный этап: административная система Западной Сибири по переписи 1959 года.'},
+    1970:{short:'Зрелый советский период: сеть районов и областей в условиях устойчивой административной структуры.', long:'Зрелый советский период: сеть районов и областей в условиях устойчивой административной структуры.'},
+    1979:{short:'Позднесоветский этап: пространственная структура АТЕ Западной Сибири в конце 1970-х годов.', long:'Позднесоветский этап: пространственная структура АТЕ Западной Сибири в конце 1970-х годов.'},
+    1989:{short:'Финальный советский этап: система АТЕ Западной Сибири по переписи 1989 года.', long:'Финальный советский этап: система АТЕ Западной Сибири по переписи 1989 года.'},
+    2021:{short:'Современный этап: актуальная система административно-территориального деления и населения.', long:'Современный этап: актуальная система административно-территориального деления и населения.'}
+  };
+  return base[y] || {short:'Исторический срез административно-территориального деления Западной Сибири.', long:'Исторический срез административно-территориального деления Западной Сибири.'};
+}
+function defaultExportTitle(){
+  const modeTitles={admin_parent:'Административно-территориальное деление', admin_intermediate:'Промежуточный уровень АТД', admin_superparent:'Вышестоящие административные группировки', population:'Население административных единиц', density:'Плотность населения', urban_share:'Доля городского населения', rail_length:'Длина железных дорог в пределах АТЕ', rail_density:'Плотность железных дорог', unit_type:'Типы административных единиц'};
+  return `${modeTitles[state.mode] || 'Карта Западной Сибири'} (${state.year} г.)`;
+}
