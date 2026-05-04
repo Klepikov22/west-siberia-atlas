@@ -1477,3 +1477,12 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 .export-stats-card-v41 .export-info-card b{font-size:13px;color:#263443}
 .export-preview-card{overflow:auto}
 @media(max-width:1200px){.export-modal-v41 .export-shell{grid-template-columns:1fr}.export-modal-v41 .export-controls{max-height:38vh}.export-form-grid4{grid-template-columns:repeat(2,1fr)}}
+
+/* v42 export controls/layout */
+.export-modal-v42 .export-shell{grid-template-columns:340px 1fr;inset:10px}
+.export-modal-v42 .export-controls{padding:16px 14px 20px;overflow:auto;background:var(--panel2)}
+.export-layer-grid-v42{grid-template-columns:1fr 1fr}
+.export-map-card-v42{cursor:grab}
+.export-map-card-v42:active{cursor:grabbing}
+.export-modal-v42 .export-context-box summary{font-weight:700}
+@media(max-width:1240px){.export-modal-v42 .export-shell{grid-template-columns:1fr}.export-modal-v42 .export-controls{max-height:40vh}}
