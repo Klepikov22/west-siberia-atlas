@@ -1,4 +1,4 @@
-const APP_VERSION = '49';
+const APP_VERSION = '50';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -4432,3 +4432,208 @@ function positionFloatingExportLauncherV48(){
   btn.innerHTML = '<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
   if(panel){ const r=panel.getBoundingClientRect(); btn.style.left=`${Math.round(Math.max(12, Math.min(window.innerWidth-btn.offsetWidth-12, r.left+margin)))}px`; btn.style.top=`${Math.round(Math.max(12, Math.min(window.innerHeight-btn.offsetHeight-12, r.top+margin)))}px`; btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none'; }
 }
+
+/* v50: robust export constructor - separate outer/inner frames, auto-fit by selected admin polygons, fixed launcher position */
+function v50Number(v, fallback){ const n=Number(v); return Number.isFinite(n) ? n : fallback; }
+function ensureExportFlags(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  if(typeof state.export.open !== 'boolean') state.export.open=false;
+  if(!state.export.scope) state.export.scope='currentLayer';
+  if(!state.export.paper) state.export.paper='a4Landscape';
+  if(!state.export.template) state.export.template='thesis';
+  if(!state.export.title) state.export.title=defaultExportTitle();
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{ if(typeof state.export[k] !== 'boolean') state.export[k]=true; });
+  if(!state.export.contextMode) state.export.contextMode='auto';
+  if(!state.export.contextText){ const p=exportContextPresets(state.year||''); state.export.contextText=p.short||p.long||''; }
+  if(!state.export.labelMode) state.export.labelMode='balanced';
+  if(!Number.isFinite(Number(state.export.graticuleLabelSize))) state.export.graticuleLabelSize=12;
+  if(!Number.isFinite(Number(state.export.canvasWidth))) state.export.canvasWidth = state.export.paper==='a4Portrait' ? 1240 : state.export.paper==='screen' ? 1760 : 1480;
+  if(!Number.isFinite(Number(state.export.canvasHeight))) state.export.canvasHeight = state.export.paper==='a4Portrait' ? 1680 : state.export.paper==='screen' ? 1040 : 1040;
+  if(!Number.isFinite(Number(state.export.titleFontSize))) state.export.titleFontSize = 34;
+  if(!Number.isFinite(Number(state.export.panelWidth))) state.export.panelWidth = 300;
+  if(!state.export.extentBuffer) state.export.extentBuffer={top:200,right:200,bottom:200,left:200};
+  ['top','right','bottom','left'].forEach(k=>{ if(!Number.isFinite(Number(state.export.extentBuffer[k]))) state.export.extentBuffer[k]=200; });
+  if(typeof state.export.autoFitField !== 'boolean') state.export.autoFitField=true;
+  if(!state.export.innerFrame || typeof state.export.innerFrame !== 'object') state.export.innerFrame={x:80,y:130,w:900,h:760};
+  ['x','y','w','h'].forEach(k=>{ if(!Number.isFinite(Number(state.export.innerFrame[k]))) state.export.innerFrame[k]=({x:80,y:130,w:900,h:760})[k]; });
+  if(!state.export.overlayPositions || typeof state.export.overlayPositions !== 'object') state.export.overlayPositions={};
+  if(!state.export.statsFields || typeof state.export.statsFields !== 'object') state.export.statsFields={};
+  const statDefaults={objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof state.export.statsFields[k] !== 'boolean') state.export.statsFields[k]=statDefaults[k]; });
+}
+function exportMapSize(){ ensureExportFlags(); return {w:Math.max(900, v50Number(state.export.canvasWidth,1480)), h:Math.max(700, v50Number(state.export.canvasHeight,1040))}; }
+function exportOuterFrameRect(w,h){ return {x:0,y:0,w:Math.max(900,w),h:Math.max(700,h)}; }
+function exportSelectionMetricAspect(features){
+  const source=(features&&features.length)?features:(state.currentGeoJSON?.features||state.rawGeoJSON?.features||[]);
+  const bbox=geoBBoxFromFeatures(source);
+  const [minLon,minLat,maxLon,maxLat]=bbox;
+  const midLat=(minLat+maxLat)/2;
+  const widthKm=Math.max(1,(maxLon-minLon)*111.32*Math.max(0.22,Math.cos(midLat*Math.PI/180)));
+  const heightKm=Math.max(1,(maxLat-minLat)*111.32);
+  return Math.max(0.18,Math.min(5.5,widthKm/heightKm));
+}
+function exportAutoFieldRect(w,h,features){
+  const outer=exportOuterFrameRect(w,h);
+  const minTB=100, minSide=28, maxSide=400;
+  const maxW=Math.max(260, outer.w-minSide*2);
+  const maxH=Math.max(260, outer.h-minTB*2);
+  const aspect=exportSelectionMetricAspect(features);
+  let fw=maxW, fh=fw/aspect;
+  if(fh>maxH){ fh=maxH; fw=fh*aspect; }
+  // Do not leave excessive side voids when selected shape is very vertical.
+  const minWByMaxSide=Math.max(260, outer.w-maxSide*2);
+  if(fw<minWByMaxSide){ fw=Math.min(maxW,minWByMaxSide); fh=Math.min(maxH,fw/aspect); }
+  // Keep at least 100 px top/bottom by construction, and center inside available belt.
+  fw=Math.round(Math.max(260,Math.min(maxW,fw)));
+  fh=Math.round(Math.max(260,Math.min(maxH,fh)));
+  let x=Math.round(outer.x+(outer.w-fw)/2);
+  let y=Math.round(outer.y+minTB+(maxH-fh)/2);
+  return {x,y,w:fw,h:fh,aspect};
+}
+function exportMapFieldRect(w,h){
+  ensureExportFlags();
+  if(state.export.autoFitField!==false){
+    const r=exportAutoFieldRect(w,h,exportScopeFeatures());
+    state.export.innerFrame={x:r.x,y:r.y,w:r.w,h:r.h};
+    return r;
+  }
+  const outer=exportOuterFrameRect(w,h);
+  const f=state.export.innerFrame||{};
+  let iw=Math.max(260,Math.min(outer.w, v50Number(f.w,900)));
+  let ih=Math.max(260,Math.min(outer.h, v50Number(f.h,760)));
+  let ix=Math.max(outer.x,Math.min(outer.x+outer.w-iw, v50Number(f.x,80)));
+  let iy=Math.max(outer.y,Math.min(outer.y+outer.h-ih, v50Number(f.y,130)));
+  state.export.innerFrame={x:Math.round(ix),y:Math.round(iy),w:Math.round(iw),h:Math.round(ih)};
+  return state.export.innerFrame;
+}
+function exportFieldStatusText(){
+  const {w,h}=exportMapSize(); const outer=exportOuterFrameRect(w,h); const f=exportMapFieldRect(w,h);
+  const left=Math.round(f.x-outer.x), right=Math.round(outer.x+outer.w-(f.x+f.w));
+  const top=Math.round(f.y-outer.y), bottom=Math.round(outer.y+outer.h-(f.y+f.h));
+  return `Внешняя рамка: ${w}×${h}px. Внутренняя рамка: ${f.w}×${f.h}px, X ${f.x}, Y ${f.y}. Поля: верх ${top}, низ ${bottom}, лево ${left}, право ${right}px.`;
+}
+function ensureExportModal(){
+  let old=$('exportMode'); if(old && !old.classList.contains('export-modal-v50')) old.remove();
+  let modal=$('exportMode'); if(modal) return modal;
+  ensureExportFlags();
+  modal=document.createElement('div'); modal.id='exportMode'; modal.className='export-modal export-modal-v50'; modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div>
+  <section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle">
+    <aside class="export-controls">
+      <div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div>
+      <label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text">
+      <div class="export-form-grid2"><div><label class="control-label" for="exportTitleFontSize">Размер заголовка, px</label><input id="exportTitleFontSize" class="export-text-input" type="number" min="24" max="60" step="1"></div><div><label class="control-label" for="exportPanelWidth">Ширина карточек, px</label><input id="exportPanelWidth" class="export-text-input" type="number" min="220" max="420" step="2"></div></div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select></div><div><label class="control-label" for="exportPaperSelect">Формат</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div></div>
+      <div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка PNG</div><div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина внешней рамки, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота внешней рамки, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div></div>
+      <div class="export-fieldset"><div class="export-fieldset-title">Внутренняя рамка карты</div><label class="export-checkline"><input type="checkbox" id="exportAutoFitField"> Автоматически подгонять по форме выбранного слоя / выборки</label><div class="export-form-grid4"><div><label class="control-label" for="exportInnerX">X</label><input id="exportInnerX" class="export-text-input" type="number" min="0" step="2"></div><div><label class="control-label" for="exportInnerY">Y</label><input id="exportInnerY" class="export-text-input" type="number" min="0" step="2"></div><div><label class="control-label" for="exportInnerWidth">Ширина</label><input id="exportInnerWidth" class="export-text-input" type="number" min="260" step="2"></div><div><label class="control-label" for="exportInnerHeight">Высота</label><input id="exportInnerHeight" class="export-text-input" type="number" min="260" step="2"></div></div><div id="exportAutoFieldStatus" class="mini-muted"></div><div class="mini-muted">Авто: верх/низ не меньше 100 px; боковые интервалы не больше 400 px. Ручной режим: рамку можно двигать и растягивать в превью.</div></div>
+      <div class="export-fieldset"><div class="export-fieldset-title">Буфер экстента от выбранных административных полигонов, км</div><div class="export-form-grid4">${['Top:Север','Right:Восток','Bottom:Юг','Left:Запад'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportBuffer${id}">${l}</label><input id="exportBuffer${id}" class="export-text-input" type="number" min="0" step="10"></div>`}).join('')}</div></div>
+      <div class="export-option-grid export-layer-grid export-layer-grid-v50">${[['Hydro','Гидрография и океан'],['Admin','Административный слой'],['Railways','Железные дороги'],['Population','Круги населения'],['Labels','Подписи АТЕ'],['Graticule','Градусная сетка'],['GraticuleLabels','Подписи сетки'],['Scale','Масштабная линейка'],['Legend','Легенда'],['Stats','Общая информация'],['Context','Контекст']].map(([id,l])=>`<label><input type="checkbox" id="exportShow${id}"> ${l}</label>`).join('')}</div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportLabelModeSelect">Подписи АТЕ</label><select id="exportLabelModeSelect"><option value="none">Не показывать</option><option value="major">Только крупнейшие</option><option value="balanced">Сбалансированно</option><option value="dense">Плотнее</option></select></div><div><label class="control-label" for="exportGraticuleLabelSizeInput">Подписи сетки, px</label><input id="exportGraticuleLabelSizeInput" class="export-text-input" type="number" min="8" max="24" step="1"></div></div>
+      <details id="exportContextDetails" class="export-context-box"><summary>Контекст</summary><label class="control-label" for="exportContextMode">Текст</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="4"></textarea></details>
+      <details class="export-context-box"><summary>Содержание блока информации</summary><div class="export-stats-fields" id="exportStatsFieldsBox"></div></details>
+      <div class="button-row export-buttons"><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button>
+    </aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div>
+  </section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.export-close').addEventListener('click', closeExportMode); modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
+  const bind=(id,event,fn)=>{ const el=$(id); if(el) el.addEventListener(event,fn); };
+  bind('exportTitleInput','input', e=>{ state.export.title=e.target.value; renderExportPreviewCard(); });
+  bind('exportTitleFontSize','input', e=>{ state.export.titleFontSize=Math.max(24,Math.min(60,Number(e.target.value)||34)); renderExportPreviewCard(); });
+  bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220,Math.min(420,Number(e.target.value)||300)); renderExportPreviewCard(); });
+  bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; if(e.target.value==='a4Portrait'){ state.export.canvasWidth=1240; state.export.canvasHeight=1680; } else if(e.target.value==='screen'){ state.export.canvasWidth=1760; state.export.canvasHeight=1040; } else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; } syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900,Number(e.target.value)||1480); clampInnerFrameToOuter(); renderExportPreviewCard(); });
+  bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700,Number(e.target.value)||1040); clampInnerFrameToOuter(); renderExportPreviewCard(); });
+  bind('exportAutoFitField','change', e=>{ state.export.autoFitField=!!e.target.checked; syncExportDefaults(false); renderExportPreviewCard(); });
+  [['InnerX','x'],['InnerY','y'],['InnerWidth','w'],['InnerHeight','h']].forEach(([id,key])=>bind(`export${id}`,'input', e=>{ state.export.autoFitField=false; state.export.innerFrame[key]=Math.max(key==='w'||key==='h'?260:0,Number(e.target.value)||0); clampInnerFrameToOuter(); syncExportDefaults(false); renderExportPreviewCard(); }));
+  [['BufferTop','top'],['BufferRight','right'],['BufferBottom','bottom'],['BufferLeft','left']].forEach(([id,key])=>bind(`export${id}`,'input', e=>{ state.export.extentBuffer[key]=Math.max(0,Number(e.target.value)||0); renderExportPreviewCard(); }));
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; renderExportPreviewCard(); }));
+  bind('exportLabelModeSelect','change', e=>{ state.export.labelMode=e.target.value; state.export.showLabels=e.target.value!=='none'; if($('exportShowLabels')) $('exportShowLabels').checked=state.export.showLabels; renderExportPreviewCard(); });
+  bind('exportGraticuleLabelSizeInput','input', e=>{ state.export.graticuleLabelSize=Math.max(8,Math.min(24,Number(e.target.value)||12)); renderExportPreviewCard(); });
+  bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
+  bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
+  bind('refreshExportPreview','click', ()=>refreshExportPreview(false)); bind('downloadExportPng','click', downloadExportPng);
+  return modal;
+}
+function clampInnerFrameToOuter(){
+  ensureExportFlags(); const {w,h}=exportMapSize(); const outer=exportOuterFrameRect(w,h); const f=state.export.innerFrame;
+  f.w=Math.max(260,Math.min(outer.w,Number(f.w)||900)); f.h=Math.max(260,Math.min(outer.h,Number(f.h)||760));
+  f.x=Math.max(outer.x,Math.min(outer.x+outer.w-f.w,Number(f.x)||0)); f.y=Math.max(outer.y,Math.min(outer.y+outer.h-f.h,Number(f.y)||0));
+}
+function syncExportDefaults(resetTitle=true){
+  ensureExportFlags(); if(resetTitle||!state.export.title) state.export.title=defaultExportTitle(); if(state.export.contextMode==='auto'||resetTitle||!state.export.contextText) syncExportContextText();
+  const f=exportMapFieldRect(...Object.values(exportMapSize())); const V=(id,val)=>{ if($(id)) $(id).value=val; }, C=(id,val)=>{ if($(id)) $(id).checked=!!val; };
+  V('exportTitleInput',state.export.title); V('exportTitleFontSize',state.export.titleFontSize); V('exportPanelWidth',state.export.panelWidth); V('exportScopeSelect',state.export.scope); V('exportPaperSelect',state.export.paper); V('exportCanvasWidth',state.export.canvasWidth); V('exportCanvasHeight',state.export.canvasHeight);
+  C('exportAutoFitField',state.export.autoFitField); V('exportInnerX',f.x); V('exportInnerY',f.y); V('exportInnerWidth',f.w); V('exportInnerHeight',f.h);
+  ['top','right','bottom','left'].forEach(k=>V('exportBuffer'+k.charAt(0).toUpperCase()+k.slice(1),state.export.extentBuffer[k]));
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>C(`exportShow${name}`,state.export[`show${name}`]));
+  V('exportLabelModeSelect',state.export.labelMode); V('exportGraticuleLabelSizeInput',state.export.graticuleLabelSize); V('exportContextMode',state.export.contextMode); V('exportContextText',state.export.contextText||'');
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none'; const note=$('exportAutoFieldStatus'); if(note) note.textContent=exportFieldStatusText(); renderExportStatsFieldsControls();
+}
+function exportDraggableBlock(key, body, extraClass=''){
+  const {w,h}=exportMapSize(); const panelW=Number(state.export.panelWidth)||300;
+  const defaults={title:{left:28,top:18,width:Math.min(1000,w-56)},context:{left:36,top:132,width:panelW},stats:{right:30,top:132,width:panelW},legend:{right:30,top:342,width:panelW}};
+  const raw={...(defaults[key]||{}),...(state.export.overlayPositions?.[key]||{})};
+  const approxH=key==='title'?90:key==='legend'?330:key==='stats'?220:110;
+  let left=raw.left!=null?Number(raw.left):(w-(Number(raw.right)||0)-(Number(raw.width)||panelW));
+  let top=raw.top!=null?Number(raw.top):(h-(Number(raw.bottom)||0)-approxH);
+  const width=Number(raw.width)||panelW;
+  left=Math.max(8,Math.min(w-width-8,left)); top=Math.max(8,Math.min(h-approxH-8,top));
+  return `<section class="export-map-card export-map-card-${key} export-map-card-v50 ${extraClass}" data-export-widget="${key}" style="left:${Math.round(left)}px;top:${Math.round(top)}px;width:${Math.round(width)}px"><div class="export-map-card-body">${body}</div></section>`;
+}
+function exportOverlayBlocksHtml(features){
+  const titleSize=Math.max(24,Math.min(60,Number(state.export.titleFontSize)||34)); const contextText=state.export.contextMode==='auto'?exportContextAutoText():(state.export.contextText||'');
+  const titleHtml=`<div class="export-title-block-v50"><h1 style="font-size:${titleSize}px">${escapeHtml(state.export.title||defaultExportTitle())}</h1></div>`;
+  const blocks=[exportDraggableBlock('title',titleHtml,'export-title-card-v50')];
+  if(state.export.showContext) blocks.push(exportDraggableBlock('context',`<div class="export-context-plain-v43">${escapeHtml(contextText)}</div>`,'export-context-card-v43'));
+  if(state.export.showStats) blocks.push(exportDraggableBlock('stats',`<div class="export-stats-plain-v43">${exportStatsHtml(features)}</div>`,'export-stats-card-v43'));
+  if(state.export.showLegend) blocks.push(exportDraggableBlock('legend',`<div class="export-legend-plain-v43">${exportLegendHtml()}</div>`,'export-legend-card-v43'));
+  return blocks.join('');
+}
+function renderExportPreviewCard(){
+  ensureExportFlags(); const wrap=$('exportPreviewCard'); if(!wrap) return; const features=exportScopeFeatures(); const {w,h}=exportMapSize(); const field=exportMapFieldRect(w,h);
+  wrap.innerHTML=`<article class="export-layout export-layout-v50" style="width:${w}px"><section class="export-main export-main-v43"><div class="export-map-frame export-map-frame-v50" style="width:${w}px;height:${h}px"><div id="exportSvgMap" class="export-svg-map"></div><div class="export-outer-outline-v50" title="Внешняя рамка PNG"><span class="export-resize-handle export-resize-se" data-frame="outer" data-dir="se"></span></div><div class="export-field-outline export-field-outline-v50" style="left:${field.x}px;top:${field.y}px;width:${field.w}px;height:${field.h}px" title="Внутренняя рамка карты: двигайте или растягивайте"><span class="export-resize-handle export-resize-se" data-frame="inner" data-dir="se"></span><span class="export-resize-handle export-resize-e" data-frame="inner" data-dir="e"></span><span class="export-resize-handle export-resize-s" data-frame="inner" data-dir="s"></span></div>${exportOverlayBlocksHtml(features)}</div></section></article>`;
+  updateExportLiveMap(); initExportOverlayDrag(); syncExportDefaults(false);
+}
+function initExportOverlayDrag(){
+  const frame=document.querySelector('.export-map-frame-v50'); if(!frame) return;
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBound==='1') return; card.dataset.dragBound='1';
+    card.addEventListener('pointerdown',ev=>{ if(ev.target.closest('input,textarea,select,button,a')) return; ev.preventDefault(); const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect(); const key=card.dataset.exportWidget; const dx=ev.clientX-cr.left, dy=ev.clientY-cr.top; const move=e=>{ const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx)); const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy)); card.style.left=left+'px'; card.style.top=top+'px'; state.export.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth}; }; const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);}; document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); },{passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline-v50');
+  if(outline && outline.dataset.dragBound!=='1'){
+    outline.dataset.dragBound='1';
+    outline.addEventListener('pointerdown',ev=>{
+      if(ev.target.classList.contains('export-resize-handle')) return; ev.preventDefault(); ev.stopPropagation(); state.export.autoFitField=false; const fr=frame.getBoundingClientRect(), or=outline.getBoundingClientRect(); const dx=ev.clientX-or.left, dy=ev.clientY-or.top; const fw=or.width, fh=or.height; const move=e=>{ const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx)); const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy)); outline.style.left=left+'px'; outline.style.top=top+'px'; }; const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); state.export.innerFrame={x:Math.round(parseFloat(outline.style.left)||0),y:Math.round(parseFloat(outline.style.top)||0),w:Math.round(fw),h:Math.round(fh)}; syncExportDefaults(false); renderExportPreviewCard(); }; document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); },{passive:false});
+  }
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.bound==='1') return; handle.dataset.bound='1';
+    handle.addEventListener('pointerdown',ev=>{ ev.preventDefault(); ev.stopPropagation(); const dir=handle.dataset.dir; const target=handle.dataset.frame; const startX=ev.clientX,startY=ev.clientY; const w0=Number(state.export.canvasWidth), h0=Number(state.export.canvasHeight); const f0={...exportMapFieldRect(w0,h0)}; const move=e=>{ const dx=e.clientX-startX, dy=e.clientY-startY; if(target==='outer'){ const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20); const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20); state.export.canvasWidth=Math.max(minW,w0+dx); state.export.canvasHeight=Math.max(minH,h0+dy); }else{ state.export.autoFitField=false; let nw=f0.w+(dir.includes('e')?dx:0); let nh=f0.h+(dir.includes('s')?dy:0); state.export.innerFrame={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))}; } syncExportDefaults(false); renderExportPreviewCard(); }; const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);}; document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); },{passive:false});
+  });
+}
+async function exportHydroSvg(project,bbox){
+  try{
+    const rivers=await loadJson(state.manifest.layers.hydro.rivers);
+    const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+    const vars=styleVars(); const showReservoirs=Number(state.year)>=1959;
+    let northCap=null; try{ northCap=await loadJson(state.manifest?.layers?.north_ocean_cap || 'data/reference/north_ocean_cap.geojson'); }catch(_){ }
+    const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
+    const waterPaths=(waterRaw.features||[]).filter(f=>(showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.90" stroke="${vars.waterLine}" stroke-width="0.65" stroke-opacity="0.72"/>`).join('');
+    const riverPaths=(rivers.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="none" stroke="${vars.river}" stroke-width="${riverNormalizedWeight(f,true).toFixed(2)}" stroke-opacity="0.62" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+    return `<g class="export-hydro"><g>${capPaths}${waterPaths}</g><g>${riverPaths}</g></g>`;
+  }catch(e){ console.warn('export hydro svg skipped',e); return ''; }
+}
+async function downloadExportPng(){
+  const node=document.querySelector('.export-map-frame-v50') || $('exportPreviewCard'); const status=$('exportPreviewStatus');
+  if(!node){ if(status) status.textContent='Не найден экспортный макет.'; return; }
+  if(typeof window.html2canvas!=='function'){ if(status) status.textContent='Не загружена библиотека html2canvas.'; alert('Не загружена библиотека html2canvas. Проверь CDN или интернет-соединение.'); return; }
+  try{ if(status) status.textContent='Сохраняем PNG…'; const canvas=await window.html2canvas(node,{backgroundColor:'#f7f5ef',useCORS:true,logging:false,scale:2}); const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=`west_siberia_export_${state.year}_${state.mode}_v${APP_VERSION}.png`; document.body.appendChild(a); a.click(); a.remove(); if(status) status.textContent='PNG сохранён в загрузки браузера.'; }
+  catch(e){ console.error('PNG export failed',e); if(status) status.textContent='Ошибка сохранения PNG.'; alert('Не удалось сохранить PNG: '+(e?.message||e)); }
+}
+function positionFloatingExportLauncherV48(){
+  const btn=document.getElementById('floatingExportLauncher'); if(!btn) return; const panel=document.getElementById('rightPanel'); const margin=20;
+  btn.classList.add('floating-export-launcher-v48'); btn.innerHTML='<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
+  if(panel){ const r=panel.getBoundingClientRect(); const targetLeft=Math.max(8,Math.min(window.innerWidth-btn.offsetWidth-8,r.left-btn.offsetWidth-margin)); const targetTop=Math.max(8,Math.min(window.innerHeight-btn.offsetHeight-8,r.top)); btn.style.left=`${Math.round(targetLeft)}px`; btn.style.top=`${Math.round(targetTop)}px`; btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none'; }else{ btn.style.right='18px'; btn.style.top='18px'; btn.style.left='auto'; btn.style.transform='none'; }
+}
+setTimeout(positionFloatingExportLauncherV48,100); setTimeout(positionFloatingExportLauncherV48,700);
