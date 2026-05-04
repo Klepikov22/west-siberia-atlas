@@ -1,4 +1,4 @@
-const APP_VERSION = '68';
+const APP_VERSION = '69';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8302,4 +8302,256 @@ updateLegend = function updateLegendV68(gj, vals){
   const visibleFeatures=selectedFeatures();
   if($('centersToggle')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
   box.innerHTML=html;
+};
+
+/* v69: export rail context margin, 50 km rail-length class rounding, faster export preview updates */
+function v69Clamp(n,min,max){
+  const v=Number(n);
+  return Math.max(min, Math.min(max, Number.isFinite(v)?v:min));
+}
+function v69ExpandBBoxKm(bbox, km){
+  if(!bbox || bbox.length<4) return bbox;
+  const [minLon,minLat,maxLon,maxLat]=bbox.map(Number);
+  const centerLat=(minLat+maxLat)/2;
+  const safeKm=Math.max(0, Number(km)||0);
+  const dx=kmToLonDeg(safeKm, centerLat);
+  const dy=kmToLatDeg(safeKm);
+  return [Math.max(-180,minLon-dx), Math.max(-84,minLat-dy), Math.min(180,maxLon+dx), Math.min(89,maxLat+dy)];
+}
+function v69RailContextBufferKm(bbox){
+  if(!bbox || bbox.length<4) return 120;
+  const [minLon,minLat,maxLon,maxLat]=bbox.map(Number);
+  const centerLat=(minLat+maxLat)/2;
+  const widthKm=Math.abs(maxLon-minLon)*111.32*Math.max(0.15, Math.cos(centerLat*Math.PI/180));
+  const heightKm=Math.abs(maxLat-minLat)*111.32;
+  // Небольшой служебный запас только для линейного контекста ЖД: он не меняет рамку карты,
+  // но не даёт дорогам преждевременно обрываться у края отбираемого охвата.
+  return v69Clamp(Math.max(85, Math.max(widthKm,heightKm)*0.035), 85, 260);
+}
+const v69RailFeatureCache = new Map();
+function v69RailFeatureCacheKey(bbox){
+  const b=(bbox||[]).map(v=>Math.round((Number(v)||0)*20)/20).join(',');
+  return `${APP_VERSION}|${state.year}|${b}`;
+}
+async function v69ActiveRailFeaturesForBBox(bbox){
+  const key=v69RailFeatureCacheKey(bbox);
+  if(v69RailFeatureCache.has(key)) return v69RailFeatureCache.get(key);
+  const rail=await loadJson(state.manifest.layers.railways.main);
+  const features=(rail.features||[]).filter(f=>{
+    const p=f.properties||{};
+    const open=Number(p.year_open);
+    const close=p.year_close==null ? null : Number(p.year_close);
+    return open<=state.year && (close==null || close>state.year) && featureIntersectsBBox(f,bbox);
+  });
+  if(v69RailFeatureCache.size>24){
+    const first=v69RailFeatureCache.keys().next().value;
+    v69RailFeatureCache.delete(first);
+  }
+  v69RailFeatureCache.set(key,features);
+  return features;
+}
+exportRailSvg = async function exportRailSvgV69(project,bbox){
+  try{
+    const vars=styleVars();
+    const railBBox=v69ExpandBBoxKm(bbox, v69RailContextBufferKm(bbox));
+    const features=await v69ActiveRailFeaturesForBBox(railBBox);
+    const paths=features.map(f=>{
+      const d=geomToSvgPath(f.geometry,project);
+      return d ? `<path d="${d}" fill="none" stroke="${vars.railway}" stroke-width="1.32" stroke-opacity="0.76" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    }).join('');
+    return `<g class="export-railways export-railways-v69">${paths}</g>`;
+  }catch(e){ console.warn('export rail svg skipped v69', e); return ''; }
+};
+
+function v69RoundRailBreak50(raw){
+  const n=Number(raw);
+  if(!Number.isFinite(n) || n<=0) return 0;
+  return Math.max(50, Math.round(n/50)*50);
+}
+const v69PriorV68RoundBreak = typeof v68RoundBreak === 'function' ? v68RoundBreak : null;
+v68RoundBreak = function v68RoundBreakV69(raw, mode=state.mode){
+  if(mode==='rail_length') return v69RoundRailBreak50(raw);
+  return v69PriorV68RoundBreak ? v69PriorV68RoundBreak(raw,mode) : Math.round(Number(raw)||0);
+};
+function v69PatchRailLegendText(){
+  if(state.mode!=='rail_length') return;
+  const box=$('legendBox');
+  if(!box) return;
+  const note=box.querySelector('.legend-scale-note-v67');
+  if(note) note.textContent=note.textContent.replace('10 км','50 км');
+}
+const v69PriorUpdateLegend = typeof updateLegend === 'function' ? updateLegend : null;
+updateLegend = function updateLegendV69(gj, vals){
+  if(v69PriorUpdateLegend) v69PriorUpdateLegend(gj, vals);
+  v69PatchRailLegendText();
+};
+const v69PriorSyncChoroplethScaleControl = typeof v67SyncChoroplethScaleControl === 'function' ? v67SyncChoroplethScaleControl : null;
+v67SyncChoroplethScaleControl = function v67SyncChoroplethScaleControlV69(){
+  if(v69PriorSyncChoroplethScaleControl) v69PriorSyncChoroplethScaleControl();
+  const select=$('choroplethScaleSelect');
+  const continuousOpt=select?.querySelector('option[value="continuous"]');
+  if(continuousOpt && state.mode==='rail_length') continuousOpt.textContent='Линейная, округление до 50 км';
+  v69PatchRailLegendText();
+};
+
+function v69ExportMapCacheKey(){
+  const ex=ensureExportFlags();
+  const {w,h}=exportMapSize();
+  const features=(typeof v66ExportSourceFeatures==='function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
+  let bbox='';
+  try{ bbox=geoBBoxFromFeatures(features).map(v=>Number(v).toFixed(5)).join(','); }catch(_){ bbox=''; }
+  const f=exportMapFieldRect(w,h);
+  const buf=['top','right','bottom','left'].map(k=>Math.round(Number(ex.extentBuffer?.[k])||0)).join(',');
+  const flags=['showHydro','showAdmin','showRailways','showPopulation','showLabels','showGraticule','showGraticuleLabels','showScale'].map(k=>ex[k]?'1':'0').join('');
+  const dimEnabled = (Number(ex.contextDimOpacity)||0) > 0.001 ? 'D1' : 'D0';
+  // Положение линейки и точная прозрачность приглушения применяются поверх SVG без полной пересборки.
+  // Но сам факт наличия/отсутствия маски оставляем в ключе, чтобы она создавалась при первом включении.
+  return [APP_VERSION,state.year,state.mode,state.basemapStyle,state.regionStyle,ex.scope,flags,dimEnabled,ex.labelMode,Math.round(Number(ex.graticuleLabelSize)||12),Number(ex.exportZoomDelta||0).toFixed(2),w,h,f.x,f.y,f.w,f.h,buf,bbox,v68ExportFeatureSignature(features)].join('§');
+}
+v68ExportMapCacheKey = v69ExportMapCacheKey;
+
+function v69ApplyDynamicExportMapState(el, key){
+  if(!el) return;
+  const ex=ensureExportFlags();
+  const svg=el.querySelector('svg.export-map-svg');
+  if(svg){
+    svg.dataset.v69CacheKey=key || '';
+    svg.querySelectorAll('.export-context-dim-v68 path').forEach(path=>{
+      path.setAttribute('fill-opacity', v68Clamp(ex.contextDimOpacity,0,0.85).toFixed(2));
+    });
+    const g=svg.querySelector('#exportScaleBar .export-scale-bar-draggable-v64, #exportScaleBar .export-scale-bar-draggable-v63');
+    if(g && ex.scaleBarPosition && Number.isFinite(Number(ex.scaleBarPosition.x)) && Number.isFinite(Number(ex.scaleBarPosition.y))){
+      const {w,h}=exportMapSize();
+      const width=Number(g.dataset.scaleWidth)||180;
+      const baseX=Number(g.dataset.baseX)||Number(ex.scaleBarPosition.x)||0;
+      const baseY=Number(g.dataset.baseY)||Number(ex.scaleBarPosition.y)||0;
+      const pos=typeof v63ClampScalePosition==='function' ? v63ClampScalePosition(ex.scaleBarPosition,width,w,h) : {x:Number(ex.scaleBarPosition.x)||baseX,y:Number(ex.scaleBarPosition.y)||baseY};
+      g.setAttribute('transform',`translate(${(pos.x-baseX).toFixed(1)} ${(pos.y-baseY).toFixed(1)})`);
+    }
+  }
+  v68SyncContextDimControls?.();
+  requestAnimationFrame(()=>{
+    try{ v68InstallScaleBarHitbox(); }catch(_){ }
+    try{ if(typeof v67SyncExportZoomControls==='function') v67SyncExportZoomControls(); }catch(_){ }
+  });
+}
+
+updateExportLiveMap = async function updateExportLiveMapV69(options={}){
+  const el=$('exportSvgMap'); if(!el) return;
+  if(!options.immediate){
+    return v68ScheduleExportPreviewUpdate(70);
+  }
+  const status=$('exportPreviewStatus');
+  const seq=++v68ExportRenderSeq;
+  try{
+    ensureExportFlags();
+    const key=v68ExportMapCacheKey();
+    if(el.dataset.v69CacheKey===key && el.querySelector('svg.export-map-svg')){
+      v69ApplyDynamicExportMapState(el,key);
+      if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+      return;
+    }
+    if(status) status.textContent='Строим SVG-карту…';
+    let svg=v68FullSvgCache.get(key);
+    if(!svg){
+      svg=await buildExportSvgMap();
+      if(v68FullSvgCache.size>8){
+        const first=v68FullSvgCache.keys().next().value;
+        v68FullSvgCache.delete(first);
+      }
+      v68FullSvgCache.set(key,svg);
+    }
+    if(seq!==v68ExportRenderSeq) return;
+    el.innerHTML=svg;
+    el.dataset.v69CacheKey=key;
+    v69ApplyDynamicExportMapState(el,key);
+    if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+  }catch(e){
+    console.error('SVG export map error v69', e);
+    if(seq!==v68ExportRenderSeq) return;
+    el.innerHTML=`<div class="export-map-placeholder">Не удалось построить карту: ${escapeHtml(e.message||String(e))}</div>`;
+    if(status) status.textContent='Ошибка построения карты.';
+  }
+};
+
+function v69ExportPreviewShellSignature(features,w,h){
+  const ex=ensureExportFlags();
+  const featureSig=(typeof v68ExportFeatureSignature==='function') ? v68ExportFeatureSignature(features||[]) : String((features||[]).length);
+  return [APP_VERSION,w,h,state.year,state.mode,ex.scope,featureSig,ex.showLegend?'L1':'L0',ex.showStats?'S1':'S0',ex.showContext?'C1':'C0',ex.title||'',ex.subtitle||'',ex.showContext?(ex.contextText||''):'',ex.template||'',ex.paper||''].join('§');
+}
+function v69RefreshExistingExportShell(w,h,field){
+  const wrap=$('exportPreviewCard');
+  const frame=wrap?.querySelector('.export-map-frame-v62,.export-map-frame-v51,.export-map-frame-v50');
+  if(!wrap || !frame) return false;
+  const article=wrap.querySelector('.export-layout-v62,.export-layout-v51,.export-layout-v50,.export-layout');
+  if(article) article.style.width=`${w}px`;
+  frame.style.width=`${w}px`;
+  frame.style.height=`${h}px`;
+  const inner=frame.querySelector('.export-field-outline-v51,.export-field-outline-v50');
+  if(inner){
+    inner.style.left=`${field.x}px`;
+    inner.style.top=`${field.y}px`;
+    inner.style.width=`${field.w}px`;
+    inner.style.height=`${field.h}px`;
+    const ex=ensureExportFlags();
+    const active=ex.activeFrame==='inner';
+    inner.classList.toggle('is-selected',active);
+    inner.classList.toggle('is-editing',active);
+  }
+  const outer=frame.querySelector('.export-outer-outline-v62,.export-outer-outline-v51,.export-outer-outline-v50');
+  if(outer){
+    const ex=ensureExportFlags();
+    const active=ex.activeFrame==='outer';
+    outer.classList.toggle('is-selected',active);
+    outer.classList.toggle('is-editing',active);
+    outer.classList.toggle('export-resize-muted',!active);
+  }
+  return true;
+}
+const v69PriorRenderExportPreviewCard = typeof renderExportPreviewCard === 'function' ? renderExportPreviewCard : null;
+renderExportPreviewCard = function renderExportPreviewCardV69(){
+  const wrap=$('exportPreviewCard');
+  if(!wrap || !v69PriorRenderExportPreviewCard){ return; }
+  const features=exportScopeFeatures();
+  const {w,h}=exportMapSize();
+  const field=exportMapFieldRect(w,h);
+  const sig=v69ExportPreviewShellSignature(features,w,h);
+  const hasShell=!!wrap.querySelector('.export-map-frame-v62,.export-map-frame-v51,.export-map-frame-v50');
+  if(hasShell && wrap.dataset.v69ShellSignature===sig && v69RefreshExistingExportShell(w,h,field)){
+    updateExportLiveMap();
+    initExportOverlayDrag?.();
+    syncExportDefaults(false);
+    return;
+  }
+  v69PriorRenderExportPreviewCard();
+  wrap.dataset.v69ShellSignature=sig;
+  v69RefreshExistingExportShell(w,h,field);
+};
+
+(function initV69Patch(){
+  const boot=()=>{
+    try{
+      ensureExportFlags();
+      if(typeof v67SyncChoroplethScaleControl==='function') v67SyncChoroplethScaleControl();
+      v69PatchRailLegendText();
+    }catch(e){ console.warn('v69 init skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+/* v69b: tiny SVG clip bleed for linework so railway strokes are not shaved at the map-frame edge */
+const v69PriorBuildExportSvgMap = typeof buildExportSvgMap === 'function' ? buildExportSvgMap : null;
+buildExportSvgMap = async function buildExportSvgMapV69(){
+  let svg = v69PriorBuildExportSvgMap ? await v69PriorBuildExportSvgMap() : '';
+  try{
+    const {w,h}=exportMapSize();
+    const field=exportMapFieldRect(w,h);
+    const bleed=6;
+    const softClip=`<clipPath id="exportMapClipSoft"><rect x="${(field.x-bleed).toFixed(1)}" y="${(field.y-bleed).toFixed(1)}" width="${(field.w+bleed*2).toFixed(1)}" height="${(field.h+bleed*2).toFixed(1)}" rx="12" ry="12"/></clipPath>`;
+    svg=svg.replace('</clipPath><filter id="labelShadow"', `</clipPath>${softClip}<filter id="labelShadow"`);
+    svg=svg.replace('<g clip-path="url(#exportMapClip)"><g id="exportMapBody"', '<g clip-path="url(#exportMapClipSoft)"><g id="exportMapBody"');
+    const fieldBorder=`<rect x="${field.x+0.5}" y="${field.y+0.5}" width="${Math.max(0,field.w-1)}" height="${Math.max(0,field.h-1)}" rx="10" fill="none" stroke="rgba(111,123,98,.68)" stroke-width="1.25" pointer-events="none"/>`;
+    svg=svg.replace('<rect x="0.5" y="0.5"', `${fieldBorder}<rect x="0.5" y="0.5"`);
+  }catch(e){ console.warn('v69 SVG clip-bleed postprocess skipped', e); }
+  return svg;
 };
