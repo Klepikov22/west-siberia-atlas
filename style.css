@@ -1435,3 +1435,45 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 .export-admin-label text{letter-spacing:0}
 .export-admin-label rect{shape-rendering:geometricPrecision}
 .export-modal-v38 .export-map-frame-v38{min-height:800px}
+
+/* v41 export restore */
+.export-modal-v41 .export-shell{grid-template-columns:320px 1fr;inset:12px}
+.export-modal-v41 .export-controls{padding:16px 14px 18px;overflow:auto;background:var(--panel2)}
+.export-modal-v41 .export-preview-area{overflow:auto;padding:14px 18px 18px;background:linear-gradient(180deg,#eef4ef,#e6ece7)}
+.export-form-grid2,.export-form-grid4{display:grid;gap:10px}
+.export-form-grid2{grid-template-columns:1fr 1fr}
+.export-form-grid4{grid-template-columns:repeat(4,1fr)}
+.export-fieldset{border:1px solid rgba(134,123,98,.24);border-radius:14px;padding:10px 10px 12px;margin:10px 0;background:rgba(255,255,255,.36)}
+.export-fieldset-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#7b7a74;margin-bottom:8px}
+.export-layer-grid-v41{grid-template-columns:1fr 1fr}
+.export-layout-v41{padding:0;background:transparent;border-radius:0}
+.export-layout-v41 .export-main{padding:0}
+.export-map-frame-v41{position:relative;overflow:hidden;border-radius:22px;box-shadow:0 12px 34px rgba(57,68,57,.10);background:#f7f5ef}
+.export-svg-map-v41,.export-map-svg-v41{display:block;width:100%;height:100%}
+.export-footer-v41{padding:10px 4px 0;font-size:12px;color:#6b7884;font-style:italic}
+.export-map-card-v41{position:absolute;z-index:8;border:1px solid rgba(134,123,98,.28);border-radius:16px;background:rgba(255,252,246,.94);box-shadow:0 8px 24px rgba(44,51,44,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#253241;overflow:visible;cursor:grab}
+.export-map-card-v41:active{cursor:grabbing}
+.export-map-card-v41 .export-map-card-body{padding:12px 14px;max-height:none!important;overflow:visible!important}
+.export-title-card-v41{border:none;background:transparent;box-shadow:none;min-width:760px;max-width:none}
+.export-title-card-v41 .export-map-card-body{padding:0}
+.export-title-block-v41{display:grid;grid-template-columns:1fr auto;column-gap:18px;align-items:start;padding-right:6px;border-bottom:1px solid rgba(150,140,118,.42);padding-bottom:8px}
+.export-title-block-v41 h1{grid-column:1 / 2;font-family:Georgia,'Times New Roman',serif;font-size:44px;line-height:1.02;margin:4px 0 6px;color:#2e3640}
+.export-title-block-v41 p{grid-column:1 / 2;margin:0;font-size:15px;color:#697584}
+.export-title-block-v41 .export-academic-kicker{grid-column:1 / 2;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#90897a;font-weight:700}
+.export-header-meta-v41{grid-column:2 / 3;grid-row:1 / span 3;display:grid;grid-template-columns:auto auto;gap:4px 12px;align-content:start;font-size:12px;color:#6f7983;padding-top:2px;min-width:170px}
+.export-header-meta-v41 b{color:#233142;font-weight:800}
+.export-context-card-v41{width:340px}
+.export-stats-card-v41{width:230px}
+.export-legend-card-v41{width:288px}
+.export-context-card-v41 .export-map-card-body,.export-stats-card-v41 .export-map-card-body,.export-legend-card-v41 .export-map-card-body{font-size:12.4px;line-height:1.45}
+.export-context-plain-v41{font-size:12.6px;line-height:1.5;color:#4e5d68}
+.export-legend-card-v41 .legend-section-title,.export-legend-card-v41 b:first-child{display:none!important}
+.export-legend-card-v41 .legend-section{margin-top:8px;padding-top:8px;border-top:1px solid rgba(132,124,110,.18)}
+.export-legend-card-v41 .legend-section:first-child{margin-top:0;padding-top:0;border-top:none}
+.export-legend-card-v41 .legend-row{font-size:12px;margin:5px 0}
+.export-stats-card-v41 .export-info-grid{display:grid;gap:8px}
+.export-stats-card-v41 .export-info-card{padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.72)}
+.export-stats-card-v41 .export-info-card span{font-size:11px;color:#70808c}
+.export-stats-card-v41 .export-info-card b{font-size:13px;color:#263443}
+.export-preview-card{overflow:auto}
+@media(max-width:1200px){.export-modal-v41 .export-shell{grid-template-columns:1fr}.export-modal-v41 .export-controls{max-height:38vh}.export-form-grid4{grid-template-columns:repeat(2,1fr)}}
