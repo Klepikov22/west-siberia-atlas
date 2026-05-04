@@ -1,4 +1,4 @@
-const APP_VERSION = '69';
+const APP_VERSION = '70';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8553,5 +8553,23 @@ buildExportSvgMap = async function buildExportSvgMapV69(){
     const fieldBorder=`<rect x="${field.x+0.5}" y="${field.y+0.5}" width="${Math.max(0,field.w-1)}" height="${Math.max(0,field.h-1)}" rx="10" fill="none" stroke="rgba(111,123,98,.68)" stroke-width="1.25" pointer-events="none"/>`;
     svg=svg.replace('<rect x="0.5" y="0.5"', `${fieldBorder}<rect x="0.5" y="0.5"`);
   }catch(e){ console.warn('v69 SVG clip-bleed postprocess skipped', e); }
+  return svg;
+};
+
+
+/* v70: strict clipping of export map layers to the inner cartographic frame.
+   Railways still use a widened feature-selection bbox from v69, but the SVG output
+   is clipped exactly by exportMapClip so no hydro/admin/rail/population layer can
+   draw outside the inner frame. */
+const v70PriorBuildExportSvgMap = typeof buildExportSvgMap === 'function' ? buildExportSvgMap : null;
+buildExportSvgMap = async function buildExportSvgMapV70(){
+  let svg = v70PriorBuildExportSvgMap ? await v70PriorBuildExportSvgMap() : '';
+  try{
+    // v69b enlarged the SVG clip by several pixels to avoid shaving line strokes.
+    // Visually it allowed map content to leak beyond the inner frame. Keep the
+    // v69 rail feature context, but restore the actual render clip to the frame.
+    svg = svg.replace(/<clipPath id="exportMapClipSoft">[\s\S]*?<\/clipPath>/g, '');
+    svg = svg.replace(/clip-path="url\(#exportMapClipSoft\)"/g, 'clip-path="url(#exportMapClip)"');
+  }catch(e){ console.warn('v70 strict export clip postprocess skipped', e); }
   return svg;
 };
