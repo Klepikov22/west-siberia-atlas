@@ -1961,3 +1961,42 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
 #metricFilters.metric-filters-scrollable-v61::-webkit-scrollbar-track{background:rgba(255,255,255,.18);border-radius:999px}
 #metricFilters.is-collapsed{overflow:hidden!important;padding-bottom:12px!important}
 #metricFilters.is-collapsed .metric-filter-grid{max-height:0!important;overflow:hidden!important;padding-bottom:0!important}
+
+
+/* v62: click-to-edit outer PNG frame, same model as inner map frame */
+.export-outer-outline-v62{
+  pointer-events:none!important;
+  border-style:solid!important;
+  border-color:rgba(130,143,121,.36)!important;
+  box-shadow:none!important;
+}
+.export-outer-outline-v62 .export-resize-handle{
+  opacity:0!important;
+  pointer-events:none!important;
+  transition:opacity .16s ease, transform .16s ease;
+}
+.export-outer-outline-v62.is-editing{
+  border-style:dashed!important;
+  border-color:rgba(180,107,64,.78)!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.52) inset!important;
+}
+.export-outer-outline-v62.is-editing .export-resize-handle{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+.export-outer-outline-v62 .export-resize-e,
+.export-field-outline-v51 .export-resize-e,
+.export-field-outline-v50 .export-resize-e{
+  position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:16px;height:44px;border-radius:999px;cursor:ew-resize;
+}
+.export-outer-outline-v62 .export-resize-s,
+.export-field-outline-v51 .export-resize-s,
+.export-field-outline-v50 .export-resize-s{
+  position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:44px;height:16px;border-radius:999px;cursor:ns-resize;
+}
+.export-outer-outline-v62.is-editing .export-resize-e,
+.export-outer-outline-v62.is-editing .export-resize-s{
+  background:#f7f5ef;border:2px solid rgba(107,128,98,.74);box-shadow:0 2px 6px rgba(0,0,0,.10);
+}
+.export-map-frame-v62{cursor:default}
+.export-map-frame-v62 .export-svg-map{pointer-events:none}

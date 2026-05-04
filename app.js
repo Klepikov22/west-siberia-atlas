@@ -1,4 +1,4 @@
-const APP_VERSION = '61';
+const APP_VERSION = '62';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -6231,4 +6231,259 @@ initExportOverlayDrag = function initExportOverlayDragV61(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
   window.addEventListener('resize',v61ApplyMetricFilterScroll,{passive:true});
   window.addEventListener('pointerup',()=>setTimeout(v61ApplyMetricFilterScroll,0),{passive:true});
+})();
+
+
+/* v62: outer PNG frame edit mode follows the same click-to-edit model as the inner map frame */
+function v62EnsureExportState(){
+  try{
+    const ex=ensureExportFlags();
+    if(ex) return ex;
+  }catch(_){ }
+  if(!state.export) state.export={};
+  return state.export;
+}
+function v62ClearOuterFrameEdit(){
+  const ex=v62EnsureExportState();
+  if(ex.activeFrame==='outer') ex.activeFrame='';
+  document.querySelectorAll('.export-outer-outline-v50,.export-outer-outline-v51,.export-outer-outline-v62').forEach(el=>{
+    el.classList.remove('is-selected','is-editing');
+    el.classList.add('export-resize-muted');
+  });
+}
+function v62ActivateOuterFrame(outer){
+  if(!outer) return;
+  const ex=v62EnsureExportState();
+  ex.activeFrame='outer';
+  if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+  if(typeof v61ClearTitleEdit==='function') v61ClearTitleEdit();
+  document.querySelectorAll('.export-outer-outline-v50,.export-outer-outline-v51,.export-outer-outline-v62').forEach(el=>{
+    const on=el===outer;
+    el.classList.toggle('is-selected',on);
+    el.classList.toggle('is-editing',on);
+    el.classList.toggle('export-resize-muted',!on);
+  });
+}
+function v62ClearAllExportEditing(){
+  v62ClearOuterFrameEdit();
+  if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+  if(typeof v61ClearTitleEdit==='function') v61ClearTitleEdit();
+}
+function v62OuterMinSize(){
+  const ex=v62EnsureExportState();
+  const inner=ex.innerFrame || {};
+  const minW=Math.max(900, Number(inner.x||0)+Number(inner.w||0)+24);
+  const minH=Math.max(700, Number(inner.y||0)+Number(inner.h||0)+24);
+  return {minW,minH};
+}
+renderExportPreviewCard = function renderExportPreviewCardV62(){
+  v62EnsureExportState();
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const {w,h}=exportMapSize();
+  if(typeof v51NormalizeOverlayPositions==='function') v51NormalizeOverlayPositions(false);
+  const field=exportMapFieldRect(w,h);
+  const ex=v62EnsureExportState();
+  const innerSelected = ex.activeFrame==='inner' ? ' is-selected is-editing' : '';
+  const outerSelected = ex.activeFrame==='outer' ? ' is-selected is-editing' : '';
+  wrap.innerHTML=`<article class="export-layout export-layout-v50 export-layout-v51 export-layout-v62" style="width:${w}px"><section class="export-main export-main-v43"><div class="export-map-frame export-map-frame-v50 export-map-frame-v51 export-map-frame-v62" style="width:${w}px;height:${h}px"><div id="exportSvgMap" class="export-svg-map"></div><div class="export-outer-outline-v50 export-outer-outline-v51 export-outer-outline-v62${outerSelected}" title="Внешняя рамка PNG"><span class="export-resize-handle export-resize-se" data-frame="outer" data-dir="se"></span><span class="export-resize-handle export-resize-e" data-frame="outer" data-dir="e"></span><span class="export-resize-handle export-resize-s" data-frame="outer" data-dir="s"></span></div><div class="export-field-outline export-field-outline-v50 export-field-outline-v51${innerSelected}" style="left:${field.x}px;top:${field.y}px;width:${field.w}px;height:${field.h}px" title="Внутренняя рамка карты"><span class="export-resize-handle export-resize-se" data-frame="inner" data-dir="se"></span><span class="export-resize-handle export-resize-e" data-frame="inner" data-dir="e"></span><span class="export-resize-handle export-resize-s" data-frame="inner" data-dir="s"></span></div>${exportOverlayBlocksHtml(features)}</div></section></article>`;
+  updateExportLiveMap();
+  initExportOverlayDrag();
+  syncExportDefaults(false);
+};
+initExportOverlayDrag = function initExportOverlayDragV62(){
+  const frame=document.querySelector('.export-map-frame-v62') || document.querySelector('.export-map-frame-v51') || document.querySelector('.export-map-frame-v50');
+  if(!frame) return;
+  if(!document.documentElement.dataset.v62ExportOutsideBound){
+    document.documentElement.dataset.v62ExportOutsideBound='1';
+    document.addEventListener('pointerdown',ev=>{
+      const modalOpen=document.getElementById('exportMode')?.classList.contains('open');
+      if(!modalOpen) return;
+      const inFrame=!!ev.target.closest('.export-map-frame-v62,.export-map-frame-v51,.export-map-frame-v50');
+      const inInner=!!ev.target.closest('.export-field-outline-v51,.export-field-outline-v50');
+      const inOuter=!!ev.target.closest('.export-outer-outline-v62,.export-outer-outline-v51,.export-outer-outline-v50');
+      const inOuterHandle=!!ev.target.closest('.export-outer-outline-v62 .export-resize-handle,.export-outer-outline-v51 .export-resize-handle,.export-outer-outline-v50 .export-resize-handle');
+      const inCard=!!ev.target.closest('.export-map-card-v50');
+      const ex=v62EnsureExportState();
+      if(ex.activeFrame==='outer' && (!inFrame || inInner || inCard || (!inOuter && !inOuterHandle))){
+        v62ClearOuterFrameEdit();
+      }
+      if(ex.activeFrame==='inner' && (!inFrame || (!inInner && !inCard))){
+        if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+      }
+      if(!inFrame) v62ClearAllExportEditing();
+    }, true);
+  }
+  const outer=frame.querySelector('.export-outer-outline-v62') || frame.querySelector('.export-outer-outline-v51') || frame.querySelector('.export-outer-outline-v50');
+  const inner=frame.querySelector('.export-field-outline-v51') || frame.querySelector('.export-field-outline-v50');
+
+  // Export cards/title: keep v59/v61 behavior, but binding namespace is v62 to avoid relying on older handlers.
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBoundV62==='1') return;
+    card.dataset.dragBoundV62='1';
+    card.addEventListener('pointerdown',ev=>{
+      if(ev.target.closest('.export-card-resize-handle')) return;
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault(); ev.stopPropagation();
+      v62ClearOuterFrameEdit();
+      if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+      if(typeof v61ActivateTitleCard==='function') v61ActivateTitleCard(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'card';
+      const dx=ev.clientX-cr.left, dy=ev.clientY-cr.top;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx));
+        const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy));
+        card.style.left=left+'px'; card.style.top=top+'px';
+        const ex=v62EnsureExportState();
+        if(!ex.overlayPositions) ex.overlayPositions={};
+        ex.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth};
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        if(moved && typeof v61ClearTitleEdit==='function'){ v61ClearTitleEdit(); syncExportDefaults(false); }
+      };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  frame.querySelectorAll('.export-card-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV62==='1') return;
+    handle.dataset.boundV62='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const card=handle.closest('.export-map-card'); if(!card) return;
+      v62ClearOuterFrameEdit();
+      if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+      if(typeof v61ActivateTitleCard==='function') v61ActivateTitleCard(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'title';
+      const startX=ev.clientX, startW=cr.width;
+      const move=e=>{
+        const nw=Math.max(320,Math.min(fr.width-(cr.left-fr.left)-8,startW+(e.clientX-startX)));
+        card.style.width=nw+'px';
+        const ex=v62EnsureExportState();
+        if(!ex.overlayPositions) ex.overlayPositions={};
+        const pos=ex.overlayPositions[key] || {left:Math.round(cr.left-fr.left),top:Math.round(cr.top-fr.top),width:startW};
+        pos.width=Math.round(nw); ex.overlayPositions[key]=pos;
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        if(typeof v61ClearTitleEdit==='function') v61ClearTitleEdit();
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+
+  // Inner frame: v61 model.
+  if(inner && inner.dataset.dragBoundV62!=='1'){
+    inner.dataset.dragBoundV62='1';
+    inner.addEventListener('pointerdown',ev=>{
+      const isHandle=!!ev.target.closest('.export-resize-handle');
+      const isEditing=inner.classList.contains('is-editing') || v62EnsureExportState().activeFrame==='inner';
+      if(isHandle) return;
+      ev.preventDefault(); ev.stopPropagation();
+      v62ClearOuterFrameEdit();
+      if(typeof v61ClearTitleEdit==='function') v61ClearTitleEdit();
+      if(isEditing){ if(typeof v61ActivateInnerFrame==='function') v61ActivateInnerFrame(inner); return; }
+      const fr=frame.getBoundingClientRect(), ir=inner.getBoundingClientRect();
+      const dx=ev.clientX-ir.left, dy=ev.clientY-ir.top, fw=ir.width, fh=ir.height;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx));
+        const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy));
+        inner.style.left=left+'px'; inner.style.top=top+'px';
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        const ex=v62EnsureExportState(); ex.autoFitField=false;
+        if(moved){
+          ex.innerFrame={x:Math.round(parseFloat(inner.style.left)||0),y:Math.round(parseFloat(inner.style.top)||0),w:Math.round(fw),h:Math.round(fh)};
+          if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+          renderExportPreviewCard();
+        }else{
+          if(typeof v61ActivateInnerFrame==='function') v61ActivateInnerFrame(inner);
+        }
+      };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  }
+
+  // Outer frame: click = edit mode, edit mode = resize only, outside click = normal mode.
+  frame.addEventListener('pointerdown',ev=>{
+    if(ev.target.closest('.export-map-card-v50,.export-field-outline-v51,.export-field-outline-v50,.export-resize-handle,.export-card-resize-handle,input,textarea,select,button,a')) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if(typeof v61ClearInnerFrameEdit==='function') v61ClearInnerFrameEdit();
+    if(typeof v61ClearTitleEdit==='function') v61ClearTitleEdit();
+    v62ActivateOuterFrame(outer);
+  },{passive:false});
+
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV62==='1') return;
+    handle.dataset.boundV62='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const target=handle.dataset.frame;
+      const dir=handle.dataset.dir||'se';
+      const ex=v62EnsureExportState();
+      if(target==='outer'){
+        if(!outer || !(outer.classList.contains('is-editing') || ex.activeFrame==='outer')) return;
+        v62ActivateOuterFrame(outer);
+      }
+      if(target==='inner'){
+        if(!inner || !(inner.classList.contains('is-editing') || ex.activeFrame==='inner')) return;
+        if(typeof v61ActivateInnerFrame==='function') v61ActivateInnerFrame(inner);
+      }
+      const startX=ev.clientX, startY=ev.clientY;
+      const size0=exportMapSize();
+      const w0=Number(size0.w), h0=Number(size0.h);
+      const f0={...exportMapFieldRect(w0,h0)};
+      const move=e=>{
+        const dx=e.clientX-startX, dy=e.clientY-startY;
+        const exNow=v62EnsureExportState();
+        if(target==='outer'){
+          const {minW,minH}=v62OuterMinSize();
+          const nextW=Math.max(minW, w0 + (dir.includes('e')?dx:0));
+          const nextH=Math.max(minH, h0 + (dir.includes('s')?dy:0));
+          exNow.canvasWidth=Math.round(nextW);
+          exNow.canvasHeight=Math.round(nextH);
+          frame.style.width=nextW+'px';
+          frame.style.height=nextH+'px';
+          const layout=frame.closest('.export-layout'); if(layout) layout.style.width=nextW+'px';
+          if($('exportCanvasWidth')) $('exportCanvasWidth').value=Math.round(nextW);
+          if($('exportCanvasHeight')) $('exportCanvasHeight').value=Math.round(nextH);
+        }else{
+          exNow.autoFitField=false;
+          const nw=f0.w+(dir.includes('e')?dx:0);
+          const nh=f0.h+(dir.includes('s')?dy:0);
+          const next={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))};
+          exNow.innerFrame=next;
+          if(inner){ inner.style.width=next.w+'px'; inner.style.height=next.h+'px'; }
+          if($('exportInnerWidth')) $('exportInnerWidth').value=Math.round(next.w);
+          if($('exportInnerHeight')) $('exportInnerHeight').value=Math.round(next.h);
+        }
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        if(target==='outer'){
+          renderExportPreviewCard();
+          setTimeout(()=>{ const o=document.querySelector('.export-outer-outline-v62,.export-outer-outline-v51,.export-outer-outline-v50'); v62ActivateOuterFrame(o); },0);
+        }else{
+          renderExportPreviewCard();
+          setTimeout(()=>{ const i=document.querySelector('.export-field-outline-v51,.export-field-outline-v50'); if(i && typeof v61ActivateInnerFrame==='function') v61ActivateInnerFrame(i); },0);
+        }
+      };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+};
+(function initV62Patch(){
+  const boot=()=>{
+    if(typeof v61ApplyMetricFilterScroll==='function') v61ApplyMetricFilterScroll();
+    v62ClearAllExportEditing();
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
