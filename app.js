@@ -1,4 +1,4 @@
-const APP_VERSION = '44';
+const APP_VERSION = '46';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -3840,3 +3840,88 @@ async function openExportMode(){
   modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
   await refreshExportPreview(false);
 }
+
+/* v45 hotfix: export modal recursion fix + independent floating export launcher */
+function syncExportContextText(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  if(!state.export.contextMode) state.export.contextMode = 'auto';
+  const preset = exportContextPresets(state.year || '');
+  if(state.export.contextMode === 'short'){
+    state.export.contextText = preset.short || '';
+  }else if(state.export.contextMode === 'long'){
+    state.export.contextText = preset.long || preset.short || '';
+  }else{
+    const source = (preset.long || preset.short || '').replace(/\s+/g,' ').trim();
+    const sentences = source.match(/[^.!?]+[.!?]?/g) || [source];
+    let out = '';
+    for(const sent of sentences){
+      const candidate = (out ? out + ' ' : '') + sent.trim();
+      if(candidate.length > 220 && out) break;
+      out = candidate;
+      if(out.length >= 150 && /[.!?]$/.test(out)) break;
+    }
+    state.export.contextText = (out || source).slice(0, 230).replace(/[,:;\-–—]\s*$/,'').trim();
+  }
+  const textarea = $('exportContextText');
+  if(textarea) textarea.value = state.export.contextText || '';
+}
+function ensureExportFlags(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  if(typeof state.export.open !== 'boolean') state.export.open = false;
+  if(!state.export.scope) state.export.scope = 'currentLayer';
+  if(!state.export.paper) state.export.paper = 'a4Landscape';
+  if(!state.export.template) state.export.template = 'thesis';
+  if(!state.export.title) state.export.title = defaultExportTitle();
+  if(typeof state.export.subtitle !== 'string') state.export.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{
+    if(typeof state.export[k] !== 'boolean') state.export[k] = true;
+  });
+  if(!state.export.contextMode) state.export.contextMode = 'auto';
+  if(!state.export.contextText){
+    const preset = exportContextPresets(state.year || '');
+    state.export.contextText = state.export.contextMode === 'long' ? (preset.long || preset.short || '') : (preset.short || preset.long || '');
+  }
+  if(!state.export.labelMode) state.export.labelMode = 'balanced';
+  if(!Number.isFinite(Number(state.export.graticuleLabelSize))) state.export.graticuleLabelSize = 12;
+  if(!Number.isFinite(Number(state.export.canvasWidth))) state.export.canvasWidth = state.export.paper === 'a4Portrait' ? 1240 : state.export.paper === 'screen' ? 1760 : 1480;
+  if(!Number.isFinite(Number(state.export.canvasHeight))) state.export.canvasHeight = state.export.paper === 'a4Portrait' ? 1680 : state.export.paper === 'screen' ? 1040 : 1040;
+  if(!state.export.extentBuffer) state.export.extentBuffer = {top:200,right:200,bottom:200,left:200};
+  if(!state.export.pagePadding) state.export.pagePadding = {top:16,right:16,bottom:16,left:16};
+  if(!state.export.fieldPadding) state.export.fieldPadding = {top:110,right:42,bottom:54,left:42};
+  ['top','right','bottom','left'].forEach(k=>{
+    if(!Number.isFinite(Number(state.export.extentBuffer[k]))) state.export.extentBuffer[k] = 200;
+    if(!Number.isFinite(Number(state.export.pagePadding[k]))) state.export.pagePadding[k] = 16;
+    if(!Number.isFinite(Number(state.export.fieldPadding[k]))) state.export.fieldPadding[k] = (k==='top'?110:(k==='bottom'?54:42));
+  });
+  if(!state.export.overlayPositions || typeof state.export.overlayPositions !== 'object') state.export.overlayPositions = {};
+  if(!Number.isFinite(Number(state.export.titleFontSize))) state.export.titleFontSize = state.export.template === 'presentation' ? 56 : 44;
+  if(!Number.isFinite(Number(state.export.panelWidth))) state.export.panelWidth = 300;
+  if(!state.export.statsFields || typeof state.export.statsFields !== 'object') state.export.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof state.export.statsFields[k] !== 'boolean') state.export.statsFields[k] = statDefaults[k]; });
+}
+function installExportLauncher(){
+  if(document.getElementById('floatingExportLauncher')) return;
+  const btn = document.createElement('button');
+  btn.id = 'floatingExportLauncher';
+  btn.className = 'floating-export-launcher';
+  btn.type = 'button';
+  btn.title = 'Режим экспорта карты';
+  btn.setAttribute('aria-label','Открыть режим экспорта карты');
+  btn.innerHTML = '<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
+  btn.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    try{
+      await openExportMode();
+    }catch(err){
+      console.error('Export mode failed to open', err);
+      alert('Не удалось открыть режим экспорта карты: ' + (err?.message || err));
+    }
+  });
+  document.body.appendChild(btn);
+}
+function ensureExportLauncherInstalled(){
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installExportLauncher, {once:true});
+  else installExportLauncher();
+}
+ensureExportLauncherInstalled();
