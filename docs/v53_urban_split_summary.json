@@ -1,0 +1,52 @@
+[
+  {
+    "year": 1918,
+    "features_total": 52,
+    "urban_polygons": 19,
+    "total_pop": 6702487,
+    "urban_pop": 587300,
+    "strict_city_pop": 587300,
+    "worker_settlement_pop": 0,
+    "broader_urban_pop": 587300
+  },
+  {
+    "year": 1923,
+    "features_total": 49,
+    "urban_polygons": 19,
+    "total_pop": 6935730,
+    "urban_pop": 605700,
+    "strict_city_pop": 591700,
+    "worker_settlement_pop": 0,
+    "broader_urban_pop": 605700
+  },
+  {
+    "year": 1926,
+    "features_total": 288,
+    "urban_polygons": 22,
+    "total_pop": 8951942,
+    "urban_pop": 735900,
+    "strict_city_pop": 735900,
+    "worker_settlement_pop": 0,
+    "broader_urban_pop": 735900
+  },
+  {
+    "year": 1930,
+    "features_total": 219,
+    "urban_polygons": 27,
+    "total_pop": 7644725,
+    "urban_pop": 1023000,
+    "strict_city_pop": 927200,
+    "worker_settlement_pop": 95800,
+    "broader_urban_pop": 1023000
+  },
+  {
+    "year": 1939,
+    "features_total": 241,
+    "urban_polygons": 40,
+    "total_pop": 8919779,
+    "urban_pop": 2334554,
+    "strict_city_pop": 2262700,
+    "worker_settlement_pop": 71854,
+    "broader_urban_pop": 2334554
+  }
+]

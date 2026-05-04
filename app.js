@@ -1,4 +1,4 @@
-const APP_VERSION = '52';
+const APP_VERSION = '53';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -4983,4 +4983,46 @@ function exportContextPresets(year){
 function defaultExportTitle(){
   const modeTitles={admin_parent:'Административно-территориальное деление', admin_intermediate:'Промежуточный уровень АТД', admin_superparent:'Вышестоящие административные группировки', population:'Население административных единиц', density:'Плотность населения', urban_share:'Доля городского населения', rail_length:'Длина железных дорог в пределах АТЕ', rail_density:'Плотность железных дорог', unit_type:'Типы административных единиц'};
   return `${modeTitles[state.mode] || 'Карта Западной Сибири'} (${state.year} г.)`;
+}
+
+
+/* v53: городское население через отдельные городские/рабоче-поселковые полигоны */
+function urbanBreakdown(features){
+  const total=sum(features.map(f=>Number(f.properties?.population)||0));
+  const strictCity=sum(features.map(f=>Number(f.properties?.strict_city_pop)||0));
+  const worker=sum(features.map(f=>Number(f.properties?.worker_settlement_pop)||0));
+  const broader=sum(features.map(f=>Number(f.properties?.broader_urban_pop)||Number(f.properties?.urban_pop)||0));
+  const urbanTotal=broader;
+  const ruralTotal=Math.max(0,total-urbanTotal);
+  const available=features.some(f=>hasFiniteNumber(f.properties?.urban_pop) || hasFiniteNumber(f.properties?.strict_city_pop) || hasFiniteNumber(f.properties?.worker_settlement_pop) || hasFiniteNumber(f.properties?.broader_urban_pop));
+  return {available, urbanTotal, ruralTotal, urbanShare:total?urbanTotal/total:null, strictCityTotal:strictCity, workerSettlementTotal:worker, broaderUrbanTotal:broader};
+}
+function updateStats(features){
+  const all=features.length===0; if(all) features=state.currentGeoJSON.features;
+  const total=sum(features.map(f=>Number(f.properties.population)||0));
+  const area=sum(features.map(f=>Number(f.properties.area_km2)||0));
+  const density=area?total/area:null;
+  const parts=urbanBreakdown(features);
+  const urbanTotal=parts.urbanTotal; const ruralTotal=parts.ruralTotal; const urbanShare=parts.urbanShare;
+  const rails=features.map(f=>Number(f.properties.rail_length_km)||0); const railD=features.map(f=>Number(f.properties.rail_density_km_1000)||0);
+  const railwayCount=sum(features.map(f=>Number(f.properties.rail_segments_count)||0));
+  const baseAte=features.filter(f=>(Number(f.properties.area_km2)||0)>=700);
+  const avgArea=baseAte.length?sum(baseAte.map(f=>Number(f.properties.area_km2)||0))/baseAte.length:0;
+  const avgPop=baseAte.length?sum(baseAte.map(f=>Number(f.properties.population)||0))/baseAte.length:0;
+  const avgDensity=baseAte.length?sum(baseAte.map(f=>Number(f.properties.density)||0))/baseAte.length:0;
+  const avgRail=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_length_km)||0))/baseAte.length:0;
+  const avgRailD=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_density_km_1000)||0))/baseAte.length:0;
+  const extraUrban=(parts.strictCityTotal||parts.workerSettlementTotal)?`<div class="metric-line"><span>собственно города</span><b>${num(parts.strictCityTotal)}</b></div><div class="metric-line"><span>рабочие посёлки / ПГТ</span><b>${num(parts.workerSettlementTotal)}</b></div>`:'';
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
+  $('statsBox').innerHTML=html;
+  updateCharts(features);
+}
+function showFeature(f){
+  const p=f.properties||{}; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect');
+  if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id;
+  $('featureInfo').classList.remove('muted');
+  const intermediate=String(p.admin_intermediate || '').trim(); const superparent=String(p.admin_superparent || '').trim();
+  const urbanExtra=(hasFiniteNumber(p.strict_city_pop)||hasFiniteNumber(p.worker_settlement_pop)||hasFiniteNumber(p.broader_urban_pop))?`<div class="info-row"><span>Собственно города</span><b>${num(p.strict_city_pop)}</b></div><div class="info-row"><span>Рабочие посёлки / ПГТ</span><b>${num(p.worker_settlement_pop)}</b></div><div class="info-row"><span>Города + РП/ПГТ</span><b>${num(p.broader_urban_pop||p.urban_pop)}</b></div>`:'';
+  const urbanMethod=p.urban_pop_method?`<div class="info-row"><span>Метод урбанизации</span><b>${escapeHtml(p.urban_pop_method)}</b></div>`:'';
+  $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div>${intermediate && intermediate!==String(p.admin_parent||'').trim()?`<div class="info-row"><span>Промежуточный уровень</span><b>${escapeHtml(intermediate)}</b></div>`:''}${superparent?`<div class="info-row"><span>Вышестоящая группа</span><b>${escapeHtml(superparent)}</b></div>`:''}<div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское / несельское</span><b>${num(p.urban_pop)}</b></div>${urbanExtra}<div class="info-row"><span>Сельское / прочее</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div>${urbanMethod}<div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`;
 }
