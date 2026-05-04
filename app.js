@@ -1,4 +1,4 @@
-const APP_VERSION = '59';
+const APP_VERSION = '60';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5763,5 +5763,208 @@ initExportOverlayDrag = function initExportOverlayDragV59(){
       if(mf){ mf.classList.add('metric-filters-scrollable-v59'); }
     }catch(e){ console.warn('v59 UI patch init failed', e); }
   };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+/* v60: export frame edit mode by click; move only in normal mode; filter panel full scrolling */
+function clearExportEditingAffordancesV60(){
+  try{
+    ensureExportFlags();
+    state.export.activeFrame='';
+    state.export.selectedWidget='';
+  }catch(_){ }
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(el=>{
+    el.classList.remove('is-selected','is-editing');
+    el.classList.add('export-resize-muted');
+  });
+  document.querySelectorAll('.export-map-card-v50').forEach(el=>{
+    el.classList.remove('is-selected','is-editing');
+    el.classList.add('export-resize-muted');
+  });
+}
+function activateExportInnerFrameV60(el){
+  if(!el) return;
+  try{ ensureExportFlags(); state.export.activeFrame='inner'; }catch(_){ }
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(node=>{
+    const on=node===el;
+    node.classList.toggle('is-selected', on);
+    node.classList.toggle('is-editing', on);
+    if(on) node.classList.remove('export-resize-muted'); else node.classList.add('export-resize-muted');
+  });
+  document.querySelectorAll('.export-map-card-v50').forEach(node=>node.classList.add('export-resize-muted'));
+}
+function activateExportWidgetV60(card){
+  if(!card) return;
+  const key=card.dataset.exportWidget||'';
+  try{ ensureExportFlags(); state.export.selectedWidget=key; }catch(_){ }
+  document.querySelectorAll('.export-map-card-v50').forEach(node=>{
+    const on=node===card;
+    node.classList.toggle('is-selected', on);
+    node.classList.toggle('is-editing', on);
+    if(on) node.classList.remove('export-resize-muted'); else node.classList.add('export-resize-muted');
+  });
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(node=>node.classList.add('export-resize-muted'));
+}
+function applyMetricFilterScrollV60(){
+  const panel=document.getElementById('metricFilters');
+  if(!panel) return;
+  panel.classList.add('metric-filters-scrollable-v60');
+  const grid=panel.querySelector('.metric-filter-grid');
+  if(grid) grid.classList.add('metric-filter-grid-scroll-v60');
+}
+initExportOverlayDrag = function initExportOverlayDragV60(){
+  const frame=document.querySelector('.export-map-frame-v51') || document.querySelector('.export-map-frame-v50');
+  if(!frame) return;
+  if(frame.dataset.v60OuterBound!=='1'){
+    frame.dataset.v60OuterBound='1';
+    frame.addEventListener('pointerdown',ev=>{
+      if(!ev.target.closest('.export-field-outline-v51,.export-field-outline-v50,.export-map-card-v50,.export-resize-handle,.export-card-resize-handle')){
+        clearExportEditingAffordancesV60();
+      }
+    }, {passive:true});
+  }
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBoundV60==='1') return;
+    card.dataset.dragBoundV60='1';
+    card.addEventListener('pointerdown',ev=>{
+      if(ev.target.closest('.export-card-resize-handle')) return;
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault(); ev.stopPropagation();
+      activateExportWidgetV60(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'card';
+      const dx=ev.clientX-cr.left, dy=ev.clientY-cr.top;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx));
+        const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy));
+        card.style.left=left+'px'; card.style.top=top+'px';
+        ensureExportFlags();
+        state.export.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth};
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        // Для заголовка и прочих карточек ручки скрываются сразу после отпускания.
+        clearExportEditingAffordancesV60();
+        if(moved) syncExportDefaults(false);
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  frame.querySelectorAll('.export-card-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV60==='1') return;
+    handle.dataset.boundV60='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const card=handle.closest('.export-map-card'); if(!card) return;
+      const key=card.dataset.exportWidget||'title';
+      activateExportWidgetV60(card);
+      const fr=frame.getBoundingClientRect(), cr=card.getBoundingClientRect();
+      const startX=ev.clientX, startW=cr.width;
+      const move=e=>{
+        const nw=Math.max(320, Math.min(fr.width-(cr.left-fr.left)-8, startW + (e.clientX-startX)));
+        card.style.width=nw+'px';
+        ensureExportFlags();
+        const pos=state.export.overlayPositions[key] || {left:Math.round(cr.left-fr.left), top:Math.round(cr.top-fr.top), width:startW};
+        pos.width=Math.round(nw); state.export.overlayPositions[key]=pos;
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        clearExportEditingAffordancesV60();
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline-v51') || frame.querySelector('.export-field-outline-v50');
+  if(outline && outline.dataset.dragBoundV60!=='1'){
+    outline.dataset.dragBoundV60='1';
+    outline.addEventListener('pointerdown',ev=>{
+      const isHandle=!!ev.target.closest('.export-resize-handle');
+      const isEditing=outline.classList.contains('is-editing') || (state?.export?.activeFrame==='inner');
+      // В режиме редактирования внутренняя рамка НЕ двигается, работают только ручки.
+      if(isEditing && !isHandle){ ev.preventDefault(); ev.stopPropagation(); activateExportInnerFrameV60(outline); return; }
+      if(isHandle) return;
+      ev.preventDefault(); ev.stopPropagation();
+      ensureExportFlags();
+      state.export.autoFitField=false;
+      const fr=frame.getBoundingClientRect(), or=outline.getBoundingClientRect();
+      const dx=ev.clientX-or.left, dy=ev.clientY-or.top; const fw=or.width, fh=or.height;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx));
+        const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy));
+        outline.style.left=left+'px'; outline.style.top=top+'px';
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        if(moved){
+          state.export.innerFrame={x:Math.round(parseFloat(outline.style.left)||0),y:Math.round(parseFloat(outline.style.top)||0),w:Math.round(fw),h:Math.round(fh)};
+          clearExportEditingAffordancesV60();
+          renderExportPreviewCard();
+        }else{
+          // Одиночный клик включает режим редактирования: показываем направляющие и запрещаем движение рамки.
+          activateExportInnerFrameV60(outline);
+        }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  }
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV60==='1') return;
+    handle.dataset.boundV60='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      ensureExportFlags();
+      const dir=handle.dataset.dir; const target=handle.dataset.frame;
+      if(target==='inner' && outline) activateExportInnerFrameV60(outline);
+      const startX=ev.clientX,startY=ev.clientY;
+      const size0=exportMapSize();
+      const w0=Number(size0.w), h0=Number(size0.h);
+      const f0={...exportMapFieldRect(w0,h0)};
+      const move=e=>{
+        const dx=e.clientX-startX, dy=e.clientY-startY;
+        if(target==='outer'){
+          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
+          state.export.canvasWidth=Math.max(minW,w0+dx);
+          state.export.canvasHeight=Math.max(minH,h0+dy);
+        }else{
+          state.export.autoFitField=false;
+          const nw=f0.w+(dir.includes('e')?dx:0);
+          const nh=f0.h+(dir.includes('s')?dy:0);
+          const next={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))};
+          state.export.innerFrame=next;
+          if(outline){ outline.style.width=next.w+'px'; outline.style.height=next.h+'px'; }
+        }
+        syncExportDefaults(false);
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        if(target==='inner' && outline){
+          // После растягивания остаёмся в режиме редактирования до клика вне поля.
+          activateExportInnerFrameV60(outline);
+          renderExportPreviewCard();
+        }else{
+          clearExportEditingAffordancesV60();
+          renderExportPreviewCard();
+        }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+};
+(function initV60Patch(){
+  const boot=()=>{ applyMetricFilterScrollV60(); clearExportEditingAffordancesV60(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
