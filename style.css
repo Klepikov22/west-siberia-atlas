@@ -2065,3 +2065,60 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
   .metric-line{padding:4px 0;}
   #timelineBar{bottom:10px;padding:7px 10px 9px;}
 }
+
+/* v65: stronger Full HD compact mode and reliable scale bar hit area */
+#exportScaleBar{pointer-events:all!important;}
+#exportScaleBar .export-scale-bar-draggable-v64,
+#exportScaleBar .export-scale-bar-draggable-v63{pointer-events:all!important;cursor:move!important;touch-action:none!important;}
+#exportScaleBar .export-scale-bar-draggable-v64 rect,
+#exportScaleBar .export-scale-bar-draggable-v63 rect{pointer-events:all!important;cursor:move!important;}
+@media (max-width:1920px), (max-height:1100px){
+  :root{--left-panel-w:300px!important;--right-panel-w:320px!important;--panel-gap:8px!important;}
+  .floating-panel{width:300px!important;top:8px!important;bottom:8px!important;padding:10px!important;border-radius:16px!important;font-size:12.5px!important;}
+  #leftPanel{left:8px!important;width:300px!important;}
+  #rightPanel{right:8px!important;width:320px!important;}
+  h1{font-size:17px!important;line-height:1.12!important;margin:4px 0 8px!important;}
+  h2{font-size:16px!important;margin-bottom:8px!important;}
+  .eyebrow{font-size:9.5px!important;letter-spacing:.12em!important;}
+  .control-label{font-size:11.5px!important;margin:8px 0 4px!important;}
+  select,button,input{font-size:12.5px!important;}
+  select,button{padding:8px 9px!important;border-radius:10px!important;}
+  .year-card{padding:8px!important;margin:7px 0 8px!important;border-radius:12px!important;}
+  .year-card b{font-size:19px!important;}
+  .toggles{padding:9px!important;margin-top:9px!important;border-radius:12px!important;}
+  .toggles label{font-size:12px!important;line-height:1.12!important;min-height:22px!important;margin:4px 0!important;}
+  .stats,.legend,.feature-info{padding:8px!important;margin-top:8px!important;border-radius:12px!important;}
+  .stat-grid{gap:7px!important;}
+  .stat{padding:6px!important;min-height:48px!important;}
+  .stat .k{font-size:10.5px!important;}
+  .stat .v{font-size:14px!important;}
+  .metric-line{padding:4px 0!important;font-size:12px!important;}
+  .legend-row{font-size:11.5px!important;margin:4px 0!important;}
+  .layer-toggle-panel,.toggles,.symbol-panel{font-size:12px!important;}
+  #timelineBar{bottom:10px!important;width:min(620px,calc(100vw - 660px))!important;min-width:320px!important;padding:7px 10px 9px!important;border-radius:14px!important;}
+  .timeline-head{font-size:9.5px!important;margin-bottom:4px!important;}
+  .timeline-track{gap:3px!important;padding-top:5px!important;}
+  .timeline-year{font-size:9.5px!important;min-width:26px!important;gap:4px!important;}
+  .timeline-year .dot{width:12px!important;height:12px!important;}
+  #metricFilters{width:min(350px,calc(100vw - 660px))!important;min-width:290px!important;max-height:calc(100vh - 420px)!important;overflow-y:auto!important;padding:10px!important;}
+  #parentFilterBar{width:280px!important;max-height:calc(100vh - 120px)!important;overflow-y:auto!important;padding:10px!important;}
+  .floating-export-launcher-v48{transform:scale(.86)!important;transform-origin:right top!important;}
+  .left-panel-toggle{left:318px!important;transform:scale(.9)!important;transform-origin:left center!important;}
+  .right-panel-toggle{right:336px!important;transform:scale(.9)!important;transform-origin:right center!important;}
+}
+@media (max-width:1920px) and (max-height:1100px){
+  .floating-panel,#timelineBar,#metricFilters,#parentFilterBar{zoom:.90;}
+}
+@media (max-width:1680px), (max-height:950px){
+  .floating-panel,#timelineBar,#metricFilters,#parentFilterBar{zoom:.82;}
+  #timelineBar{width:min(580px,calc(100vw - 610px))!important;}
+}
+
+/* v65 class-based fallback when browser reports scaled CSS pixels strangely */
+html.compact-1080-v65 .floating-panel{width:300px!important;top:8px!important;bottom:8px!important;padding:10px!important;font-size:12.5px!important;}
+html.compact-1080-v65 #leftPanel{left:8px!important;width:300px!important;}
+html.compact-1080-v65 #rightPanel{right:8px!important;width:320px!important;}
+html.compact-1080-v65 #timelineBar{bottom:10px!important;width:min(620px,calc(100vw - 660px))!important;min-width:320px!important;padding:7px 10px 9px!important;}
+html.compact-1080-v65 #metricFilters{width:min(350px,calc(100vw - 660px))!important;min-width:290px!important;max-height:calc(100vh - 420px)!important;overflow-y:auto!important;padding:10px!important;}
+html.compact-1080-v65 #parentFilterBar{width:280px!important;max-height:calc(100vh - 120px)!important;overflow-y:auto!important;padding:10px!important;}
+@supports (zoom: .9){html.compact-1080-v65 .floating-panel,html.compact-1080-v65 #timelineBar,html.compact-1080-v65 #metricFilters,html.compact-1080-v65 #parentFilterBar{zoom:.9;}}

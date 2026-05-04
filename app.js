@@ -1,4 +1,4 @@
-const APP_VERSION = '64';
+const APP_VERSION = '65';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -6768,4 +6768,148 @@ applyExportViewportTransformOnly = function applyExportViewportTransformOnlyV64(
 (function initV64Patch(){
   const boot=()=>{ try{ ensureExportFlags(); initExportScaleBarDragV64(); }catch(e){ console.warn('v64 init skipped',e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+/* v65: export crash hotfix, field-centered viewport, reliable draggable scale bar, compact 1080p activation */
+const v65PriorEnsureExportFlags = ensureExportFlags;
+ensureExportFlags = function ensureExportFlagsV65(){
+  const ex = v65PriorEnsureExportFlags ? v65PriorEnsureExportFlags() : (state.export || (state.export = {}));
+  if(!ex.mapViewport || typeof ex.mapViewport !== 'object') ex.mapViewport = {x:0,y:0,zoom:1};
+  if(!Number.isFinite(Number(ex.mapViewport.x))) ex.mapViewport.x = 0;
+  if(!Number.isFinite(Number(ex.mapViewport.y))) ex.mapViewport.y = 0;
+  if(!Number.isFinite(Number(ex.mapViewport.zoom))) ex.mapViewport.zoom = 1;
+  ex.mapViewport.zoom = Math.max(1, Math.min(2.8, Number(ex.mapViewport.zoom)||1));
+  if(!ex.scaleBarPosition || typeof ex.scaleBarPosition !== 'object') ex.scaleBarPosition = null;
+  if(!ex.extentBuffer || typeof ex.extentBuffer !== 'object') ex.extentBuffer = {top:0,right:0,bottom:0,left:0};
+  ['top','right','bottom','left'].forEach(k=>{ if(!Number.isFinite(Number(ex.extentBuffer[k]))) ex.extentBuffer[k]=0; });
+  if(!Number.isFinite(Number(ex.minLayerPaddingPx))) ex.minLayerPaddingPx = 10;
+  return ex;
+};
+const v65PriorExportMapBodyTransform = typeof exportMapBodyTransform === 'function' ? exportMapBodyTransform : null;
+exportMapBodyTransform = function exportMapBodyTransformV65(w,h){
+  const ex = ensureExportFlags();
+  const field = (typeof exportMapFieldRect === 'function') ? exportMapFieldRect(w,h) : {x:0,y:0,w,h};
+  const vp = exportViewportClamp(field.w, field.h, ex.mapViewport.zoom, ex.mapViewport.x, ex.mapViewport.y);
+  ex.mapViewport = vp;
+  // Важно: масштабируем вокруг центра внутренней рамки карты, а не вокруг всего PNG-листа.
+  // Иначе при правой колонке легенды возникает визуальный перекос запад/восток.
+  const cx = field.x + field.w/2;
+  const cy = field.y + field.h/2;
+  return `translate(${vp.x.toFixed(1)} ${vp.y.toFixed(1)}) translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${vp.zoom.toFixed(4)}) translate(${-cx.toFixed(1)} ${-cy.toFixed(1)})`;
+};
+function v65ResetManualViewportForAutoFit(){
+  try{
+    const ex = ensureExportFlags();
+    if(ex.autoFitField !== false && ex.mapViewport && !ex.v65ViewportResetOnce){
+      ex.mapViewport = {x:0,y:0,zoom:1};
+      ex.v65ViewportResetOnce = true;
+    }
+  }catch(_){ }
+}
+function v65ScaleBarPointerPoint(svg, evt){
+  if(typeof v63SvgPoint === 'function') return v63SvgPoint(svg, evt);
+  const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function v65BindScaleBarDrag(){
+  const svg = document.querySelector('#exportSvgMap svg.export-map-svg');
+  if(!svg || svg.dataset.v65ScaleBound === '1') return;
+  svg.dataset.v65ScaleBound = '1';
+  svg.addEventListener('pointerdown', ev=>{
+    const g = ev.target && ev.target.closest ? ev.target.closest('#exportScaleBar .export-scale-bar-draggable-v64, #exportScaleBar .export-scale-bar-draggable-v63') : null;
+    if(!g || !svg.contains(g)) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if(typeof v62ClearAllExportEditing === 'function') v62ClearAllExportEditing();
+    const ex = ensureExportFlags();
+    const size = exportMapSize();
+    const px = Number(g.dataset.scaleWidth) || 180;
+    const baseX = Number(g.dataset.baseX) || 28;
+    const baseY = Number(g.dataset.baseY) || Math.max(42, size.h - 28);
+    const current = v63ClampScalePosition(ex.scaleBarPosition || {x:baseX,y:baseY}, px, size.w, size.h);
+    const start = v65ScaleBarPointerPoint(svg, ev);
+    const offset = {x:start.x-current.x, y:start.y-current.y};
+    g.classList.add('is-dragging');
+    try{ svg.setPointerCapture(ev.pointerId); }catch(_){ }
+    const move=e=>{
+      const p = v65ScaleBarPointerPoint(svg,e);
+      const next = v63ClampScalePosition({x:p.x-offset.x, y:p.y-offset.y}, px, size.w, size.h);
+      ex.scaleBarPosition = {x:Math.round(next.x), y:Math.round(next.y)};
+      g.setAttribute('transform',`translate(${(next.x-baseX).toFixed(1)} ${(next.y-baseY).toFixed(1)})`);
+    };
+    const up=()=>{
+      document.removeEventListener('pointermove',move);
+      document.removeEventListener('pointerup',up);
+      g.classList.remove('is-dragging');
+      syncExportDefaults(false);
+      if(typeof updateExportLiveMap === 'function') updateExportLiveMap();
+    };
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  },{passive:false});
+}
+const v65PriorBuildExportSvgMap = buildExportSvgMap;
+buildExportSvgMap = function buildExportSvgMapV65(){
+  v65ResetManualViewportForAutoFit();
+  const ex = ensureExportFlags();
+  try{
+    const {w,h}=exportMapSize();
+    const fieldRect=exportMapFieldRect(w,h);
+    const features=exportScopeFeatures();
+    const bbox=exportExpandedGeoBBox(features);
+    const baseProjection=v64MakeFeatureFitProjection(features,bbox,fieldRect.w,fieldRect.h,Number(ex.minLayerPaddingPx)||10);
+    const projection=(lon,lat)=>{ const p=baseProjection(lon,lat); return {x:p.x+fieldRect.x, y:p.y+fieldRect.y}; };
+    const centerLat=(bbox[1]+bbox[3])/2, centerLon=(bbox[0]+bbox[2])/2;
+    const p1=projection(centerLon, centerLat), p2=projection(centerLon+1, centerLat);
+    const pxPerDeg=Math.max(1, Math.hypot(p2.x-p1.x,p2.y-p1.y));
+    const kmPerDeg=111.32*Math.cos(centerLat*Math.PI/180);
+    const kmPerPx=kmPerDeg/pxPerDeg;
+    const field=valField();
+    const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>!Number.isNaN(v)) : [];
+    const bodyTransform=exportMapBodyTransform(w,h);
+    const zoom=Number(ex.mapViewport && ex.mapViewport.zoom) || 1;
+    const parts=[];
+    parts.push(`<svg class="export-map-svg" data-map-w="${w}" data-map-h="${h}" data-base-km-per-px="${kmPerPx}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" ry="10"/></clipPath><filter id="labelShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1" stdDeviation="1.25" flood-color="#ffffff" flood-opacity="0.94"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="#eef3ef"/><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" fill="${exportBasemapFill()}" stroke="rgba(111,123,98,.55)" stroke-width="1.2"/><g clip-path="url(#exportMapClip)"><g id="exportMapBody" class="export-map-body" transform="${bodyTransform}">`);
+    if(ex.showGraticule) parts.push(exportGraticuleSvg(projection,w,h,bbox,fieldRect));
+    if(ex.showHydro) parts.push(exportHydroSvg(projection,bbox));
+    if(ex.showAdmin) parts.push(exportAdminPolygonsSvg(features, projection, vals));
+    if(ex.showRailways) parts.push(exportRailSvg(projection,bbox));
+    if(ex.showPopulation) parts.push(exportPopulationCirclesSvg(features, projection));
+    if(ex.showLabels && ex.labelMode!=='none') parts.push(exportAdminLabelsSvg(features, projection, w, h));
+    parts.push(`</g></g>`);
+    if(ex.showGraticule && ex.showGraticuleLabels) parts.push(exportGraticuleLabelsSvg(projection,w,h,bbox,fieldRect));
+    if(ex.showScale) parts.push(`<g id="exportScaleBar">${v64ScaleBarSvg(kmPerPx/zoom,w,h,fieldRect)}</g>`);
+    parts.push(`<rect x="0.5" y="0.5" width="${w-1}" height="${h-1}" rx="18" fill="none" stroke="rgba(52,67,75,.16)" stroke-width="1"/></svg>`);
+    return parts.join('');
+  }catch(err){
+    console.error('v65 buildExportSvgMap failed',err);
+    throw err;
+  }
+};
+const v65PriorUpdateExportLiveMap = updateExportLiveMap;
+updateExportLiveMap = async function updateExportLiveMapV65(){
+  const el=$('exportSvgMap'); if(!el) return;
+  const status=$('exportPreviewStatus');
+  try{
+    ensureExportFlags();
+    if(status) status.textContent='Строим SVG-карту…';
+    el.innerHTML = await buildExportSvgMap();
+    v65BindScaleBarDrag();
+    if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+  }catch(e){
+    console.error('SVG export map error v65',e);
+    el.innerHTML=`<div class="export-map-placeholder">Не удалось построить карту: ${escapeHtml(e.message||String(e))}</div>`;
+    if(status) status.textContent='Ошибка построения карты.';
+  }
+};
+function v65UpdateCompactClass(){
+  try{
+    const compact = window.innerWidth <= 1920 || window.innerHeight <= 1100 || (window.devicePixelRatio >= 1.25 && window.innerWidth <= 2200);
+    document.documentElement.classList.toggle('compact-1080-v65', compact);
+    document.body.classList.toggle('compact-1080-v65', compact);
+  }catch(_){ }
+}
+(function initV65Patch(){
+  const boot=()=>{ try{ ensureExportFlags(); v65UpdateCompactClass(); v65BindScaleBarDrag(); }catch(e){ console.warn('v65 init skipped',e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+  window.addEventListener('resize',v65UpdateCompactClass,{passive:true});
 })();
