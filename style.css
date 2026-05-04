@@ -2122,3 +2122,93 @@ html.compact-1080-v65 #timelineBar{bottom:10px!important;width:min(620px,calc(10
 html.compact-1080-v65 #metricFilters{width:min(350px,calc(100vw - 660px))!important;min-width:290px!important;max-height:calc(100vh - 420px)!important;overflow-y:auto!important;padding:10px!important;}
 html.compact-1080-v65 #parentFilterBar{width:280px!important;max-height:calc(100vh - 120px)!important;overflow-y:auto!important;padding:10px!important;}
 @supports (zoom: .9){html.compact-1080-v65 .floating-panel,html.compact-1080-v65 #timelineBar,html.compact-1080-v65 #metricFilters,html.compact-1080-v65 #parentFilterBar{zoom:.9;}}
+
+/* v66: Full HD positioning, one-line collapsed parent selector, export north-up safety */
+#parentFilterBar.is-collapsed{
+  width:max-content!important;
+  min-width:0!important;
+  max-width:calc(100vw - 24px)!important;
+  overflow:visible!important;
+  padding:10px 12px!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-title{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:10px!important;
+  row-gap:0!important;
+  margin:0!important;
+  white-space:nowrap!important;
+  min-height:34px!important;
+}
+#parentFilterBar.is-collapsed .drag-grip,
+#parentFilterBar.is-collapsed .parent-filter-title > span:not(.parent-filter-actions){
+  flex:0 0 auto!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-actions{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin-left:12px!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-actions .mini-action{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  height:32px!important;
+  min-height:32px!important;
+  padding:0 12px!important;
+  margin:0!important;
+  border-radius:10px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar.is-collapsed .parent-checkboxes{
+  display:none!important;
+  max-height:0!important;
+  padding:0!important;
+  margin:0!important;
+}
+#metricFilters:not(.is-collapsed),
+#parentFilterBar:not(.is-collapsed){
+  max-height:calc(100vh - 28px)!important;
+}
+#metricFilters.is-collapsed,
+#parentFilterBar.is-collapsed{
+  max-height:none!important;
+}
+.export-map-svg-v66,
+.export-map-svg-v66 .export-map-body{
+  transform-box:fill-box;
+}
+
+@media (max-width:1920px), (max-height:1100px){
+  #metricFilters:not(.is-collapsed),
+  #parentFilterBar:not(.is-collapsed){max-height:calc(100vh - 24px)!important;}
+  body:not(.left-panel-hidden) .left-panel-toggle{left:316px!important;}
+  body:not(.right-panel-hidden) .right-panel-toggle{right:336px!important;}
+  body.left-panel-hidden .left-panel-toggle{left:8px!important;}
+  body.right-panel-hidden .right-panel-toggle{right:8px!important;}
+  #parentFilterBar.is-collapsed{width:max-content!important;max-width:calc(100vw - 24px)!important;}
+}
+@supports (zoom:.9){
+  @media (max-width:1920px), (max-height:1100px){
+    body:not(.left-panel-hidden) .left-panel-toggle{left:286px!important;}
+    body:not(.right-panel-hidden) .right-panel-toggle{right:304px!important;}
+    body.left-panel-hidden .left-panel-toggle{left:8px!important;}
+    body.right-panel-hidden .right-panel-toggle{right:8px!important;}
+  }
+}
+html.compact-1080-v65 body.left-panel-hidden .left-panel-toggle,
+html.compact-1080-v66 body.left-panel-hidden .left-panel-toggle{left:8px!important;}
+html.compact-1080-v65 body.right-panel-hidden .right-panel-toggle,
+html.compact-1080-v66 body.right-panel-hidden .right-panel-toggle{right:8px!important;}
+html.compact-1080-v65 #metricFilters:not(.is-collapsed),
+html.compact-1080-v66 #metricFilters:not(.is-collapsed),
+html.compact-1080-v65 #parentFilterBar:not(.is-collapsed),
+html.compact-1080-v66 #parentFilterBar:not(.is-collapsed){max-height:calc(100vh - 24px)!important;}
+html.compact-1080-v65 #parentFilterBar.is-collapsed,
+html.compact-1080-v66 #parentFilterBar.is-collapsed{width:max-content!important;max-width:calc(100vw - 24px)!important;}

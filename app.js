@@ -1,4 +1,4 @@
-const APP_VERSION = '65';
+const APP_VERSION = '66';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -6912,4 +6912,316 @@ function v65UpdateCompactClass(){
   const boot=()=>{ try{ ensureExportFlags(); v65UpdateCompactClass(); v65BindScaleBarDrag(); }catch(e){ console.warn('v65 init skipped',e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
   window.addEventListener('resize',v65UpdateCompactClass,{passive:true});
+})();
+
+/* v66: Full HD widget ergonomics + north-up Lambert export with 10 px projected padding */
+const v66PriorEnsureExportFlags = ensureExportFlags;
+ensureExportFlags = function ensureExportFlagsV66(){
+  const ex = v66PriorEnsureExportFlags ? v66PriorEnsureExportFlags() : (state.export || (state.export = {}));
+  if(!ex.extentBuffer || typeof ex.extentBuffer !== 'object') ex.extentBuffer = {top:0,right:0,bottom:0,left:0};
+  ['top','right','bottom','left'].forEach(k=>{ if(!Number.isFinite(Number(ex.extentBuffer[k]))) ex.extentBuffer[k]=0; });
+  if(!Number.isFinite(Number(ex.minLayerPaddingPx))) ex.minLayerPaddingPx = 10;
+  ex.minLayerPaddingPx = Math.max(10, Number(ex.minLayerPaddingPx)||10);
+  if(!ex.mapViewport || typeof ex.mapViewport !== 'object') ex.mapViewport = {x:0,y:0,zoom:1};
+  if(!Number.isFinite(Number(ex.mapViewport.x))) ex.mapViewport.x = 0;
+  if(!Number.isFinite(Number(ex.mapViewport.y))) ex.mapViewport.y = 0;
+  if(!Number.isFinite(Number(ex.mapViewport.zoom))) ex.mapViewport.zoom = 1;
+  ex.mapViewport.zoom = Math.max(1, Math.min(2.8, Number(ex.mapViewport.zoom)||1));
+  return ex;
+};
+
+function v66TimelineBottomGap(){
+  const timeline = $('timelineBar');
+  if(!timeline) return 10;
+  const rect = timeline.getBoundingClientRect();
+  const gap = Math.round(window.innerHeight - rect.bottom);
+  return Math.max(8, Number.isFinite(gap) ? gap : 10);
+}
+
+function initDraggableWidget(panelId, handleId, dragStateKey){
+  const panel=$(panelId); const handle=$(handleId) || panel?.querySelector('.drag-handle');
+  if(!panel || !handle || panel.dataset.dragReady==='1') return;
+  panel.dataset.dragReady='1';
+  const bottomGap=()=>v66TimelineBottomGap();
+  const clampLeft=(left, rect)=>clamp(left, 8, Math.max(8, window.innerWidth - rect.width - 8));
+  const clampTop=(top, rect)=>clamp(top, 8, Math.max(8, window.innerHeight - rect.height - bottomGap()));
+  const startDrag=(ev)=>{
+    if(ev.target.closest('button,input,select,label,a')) return;
+    const point=ev.touches?.[0] || ev;
+    const rect=panel.getBoundingClientRect();
+    state[dragStateKey]={active:true, dx:point.clientX-rect.left, dy:point.clientY-rect.top};
+    panel.classList.add('is-dragging');
+    panel.dataset.userDragged='1';
+    panel.style.left=`${rect.left}px`;
+    panel.style.top=`${rect.top}px`;
+    panel.style.right='auto';
+    panel.style.bottom='auto';
+    panel.style.width=`${rect.width}px`;
+    ev.preventDefault();
+  };
+  const moveDrag=(ev)=>{
+    if(!state[dragStateKey]?.active) return;
+    const point=ev.touches?.[0] || ev;
+    const rect=panel.getBoundingClientRect();
+    const left=clampLeft(point.clientX-state[dragStateKey].dx, rect);
+    const top=clampTop(point.clientY-state[dragStateKey].dy, rect);
+    panel.style.left=`${left}px`;
+    panel.style.top=`${top}px`;
+    panel.style.right='auto';
+    panel.style.bottom='auto';
+    panel.style.transform='none';
+    ev.preventDefault();
+  };
+  const endDrag=()=>{
+    if(!state[dragStateKey]?.active) return;
+    state[dragStateKey].active=false;
+    panel.classList.remove('is-dragging');
+  };
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, {passive:false});
+  window.addEventListener('mousemove', moveDrag, {passive:false});
+  window.addEventListener('touchmove', moveDrag, {passive:false});
+  window.addEventListener('mouseup', endDrag);
+  window.addEventListener('touchend', endDrag);
+  window.addEventListener('resize', ()=>{
+    const rect=panel.getBoundingClientRect();
+    if(panel.style.top){
+      panel.style.left=`${clampLeft(rect.left, rect)}px`;
+      panel.style.top=`${clampTop(rect.top, rect)}px`;
+    }
+  });
+}
+
+function positionBottomWidgets(force=false){
+  const timeline=$('timelineBar');
+  const metric=$('metricFilters');
+  const parent=$('parentFilterBar');
+  if(!timeline || !metric || !parent) return;
+  const gap=10;
+  const t=timeline.getBoundingClientRect();
+  const mRect=metric.getBoundingClientRect();
+  const pRect=parent.getBoundingClientRect();
+  const bottom=v66TimelineBottomGap();
+  const maxLeft=(elRect)=>Math.max(8, window.innerWidth - elRect.width - 8);
+  if(force || metric.dataset.userDragged!=='1'){
+    const left=clamp(t.left - mRect.width - gap, 8, maxLeft(mRect));
+    metric.style.left=`${left}px`;
+    metric.style.right='auto';
+    metric.style.top='auto';
+    metric.style.bottom=`${bottom}px`;
+    metric.style.transform='none';
+  }
+  if(force || parent.dataset.userDragged!=='1'){
+    const left=clamp(t.right + gap, 8, maxLeft(pRect));
+    parent.style.left=`${left}px`;
+    parent.style.right='auto';
+    parent.style.top='auto';
+    parent.style.bottom=`${bottom}px`;
+    parent.style.transform='none';
+  }
+}
+
+function initCollapsiblePanel(panelId, buttonId){
+  const panel=$(panelId); const button=$(buttonId);
+  if(!panel || !button || button.dataset.collapseReady==='1') return;
+  button.dataset.collapseReady='1';
+  const apply=()=>{
+    const collapsed=panel.classList.contains('is-collapsed');
+    button.setAttribute('aria-expanded', String(!collapsed));
+    button.textContent = collapsed ? 'Развернуть' : 'Свернуть';
+  };
+  button.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    panel.classList.toggle('is-collapsed');
+    apply();
+    requestAnimationFrame(()=>positionBottomWidgets(false));
+  });
+  apply();
+}
+
+function v66ExportSourceFeatures(features){
+  const source = (features && features.length) ? features : (state.currentGeoJSON?.features || state.rawGeoJSON?.features || []);
+  return source && source.length ? source : [];
+}
+function v66LambertRawProject(features, bbox){
+  const ex=ensureExportFlags();
+  const b = bbox || geoBBoxFromFeatures(v66ExportSourceFeatures(features));
+  const centerLon = Number(ex.centralMeridian) || 75;
+  const centerLat = Math.max(52, Math.min(72, (b[1]+b[3])/2));
+  return lambertForwardFactory({lon0:centerLon, lat0:centerLat, phi1:52, phi2:66});
+}
+function v66CollectRawProjectedBounds(features, rawProject){
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  v66ExportSourceFeatures(features).forEach(f=>{
+    walkCoords(f.geometry, ([lon,lat])=>{
+      if(!Number.isFinite(lon)||!Number.isFinite(lat)) return;
+      const p=rawProject(lon,lat);
+      const x=p?.[0], y=p?.[1];
+      if(Number.isFinite(x)&&Number.isFinite(y)){
+        minX=Math.min(minX,x); maxX=Math.max(maxX,x);
+        minY=Math.min(minY,y); maxY=Math.max(maxY,y);
+      }
+    });
+  });
+  return Number.isFinite(minX) ? {minX,minY,maxX,maxY} : null;
+}
+function v66FallbackRawBoundsFromBBox(bbox, rawProject){
+  const [minLon,minLat,maxLon,maxLat]=bbox;
+  const steps=36;
+  const bounds={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    [[minLon+(maxLon-minLon)*t,minLat],[minLon+(maxLon-minLon)*t,maxLat],[minLon,minLat+(maxLat-minLat)*t],[maxLon,minLat+(maxLat-minLat)*t]].forEach(([lon,lat])=>{
+      const [x,y]=rawProject(lon,lat);
+      bounds.minX=Math.min(bounds.minX,x); bounds.maxX=Math.max(bounds.maxX,x);
+      bounds.minY=Math.min(bounds.minY,y); bounds.maxY=Math.max(bounds.maxY,y);
+    });
+  }
+  return bounds;
+}
+function v66BufferedRawBounds(features, bbox, rawProject){
+  const ex=ensureExportFlags();
+  const source=v66ExportSourceFeatures(features);
+  const sourceBBox = bbox || geoBBoxFromFeatures(source);
+  let bounds=v66CollectRawProjectedBounds(source, rawProject) || v66FallbackRawBoundsFromBBox(sourceBBox, rawProject);
+  const [minLon,minLat,maxLon,maxLat]=sourceBBox;
+  const centerLon=(minLon+maxLon)/2;
+  const centerLat=(minLat+maxLat)/2;
+  const c=rawProject(centerLon,centerLat);
+  const b=ex.extentBuffer || {top:0,right:0,bottom:0,left:0};
+  const west=rawProject(centerLon-kmToLonDeg(Math.max(0,Number(b.left)||0),centerLat),centerLat);
+  const east=rawProject(centerLon+kmToLonDeg(Math.max(0,Number(b.right)||0),centerLat),centerLat);
+  const south=rawProject(centerLon,centerLat-kmToLatDeg(Math.max(0,Number(b.bottom)||0)));
+  const north=rawProject(centerLon,centerLat+kmToLatDeg(Math.max(0,Number(b.top)||0)));
+  const dxW=Math.abs((west?.[0]??c[0])-c[0]);
+  const dxE=Math.abs((east?.[0]??c[0])-c[0]);
+  const dyS=Math.abs((south?.[1]??c[1])-c[1]);
+  const dyN=Math.abs((north?.[1]??c[1])-c[1]);
+  return {minX:bounds.minX-dxW, maxX:bounds.maxX+dxE, minY:bounds.minY-dyS, maxY:bounds.maxY+dyN};
+}
+function v66ProjectedAspect(features){
+  const source=v66ExportSourceFeatures(features);
+  const bbox=geoBBoxFromFeatures(source);
+  const raw=v66LambertRawProject(source,bbox);
+  const b=v66BufferedRawBounds(source,bbox,raw);
+  const bw=Math.max(1e-9,b.maxX-b.minX);
+  const bh=Math.max(1e-9,b.maxY-b.minY);
+  return Math.max(0.18, Math.min(5.5, bw/bh));
+}
+exportSelectionMetricAspect = function exportSelectionMetricAspectV66(features){
+  try{ return v66ProjectedAspect(features); }
+  catch(err){ console.warn('v66 projected aspect fallback', err); return 1.2; }
+};
+exportAutoFieldRect = function exportAutoFieldRectV66(w,h,features){
+  const outer = exportOuterFrameRect(w,h);
+  const topMin = Math.max(82, Math.round(h*0.085));
+  const bottomMin = Math.max(44, Math.round(h*0.045));
+  const sideMin = Math.max(20, Math.round(w*0.018));
+  const sideMax = Math.max(260, Math.round(w*0.23));
+  const maxW = Math.max(260, outer.w - sideMin*2);
+  const maxH = Math.max(260, outer.h - topMin - bottomMin);
+  const aspect = exportSelectionMetricAspect(features);
+  let fieldW=maxW;
+  let fieldH=fieldW/aspect;
+  if(fieldH>maxH){ fieldH=maxH; fieldW=fieldH*aspect; }
+  const minWBySideLimit = Math.max(260, outer.w - sideMax*2);
+  if(fieldW < minWBySideLimit){
+    fieldW = Math.min(maxW, minWBySideLimit);
+    fieldH = Math.min(maxH, fieldW/aspect);
+  }
+  fieldW=Math.max(260, Math.min(maxW, fieldW));
+  fieldH=Math.max(260, Math.min(maxH, fieldH));
+  const x=outer.x + (outer.w-fieldW)/2;
+  const y=outer.y + topMin + (maxH-fieldH)/2;
+  return {x:Math.round(x), y:Math.round(y), w:Math.round(fieldW), h:Math.round(fieldH), aspect};
+};
+function v66MakeFeatureFitProjection(features,bbox,w,h,pad=10){
+  const source=v66ExportSourceFeatures(features);
+  const sourceBBox=bbox || geoBBoxFromFeatures(source);
+  const raw=v66LambertRawProject(source,sourceBBox);
+  const bounds=v66BufferedRawBounds(source,sourceBBox,raw);
+  const safePad=Math.max(10, Number(pad)||10);
+  const bw=Math.max(1e-9,bounds.maxX-bounds.minX);
+  const bh=Math.max(1e-9,bounds.maxY-bounds.minY);
+  const s=Math.min((w-safePad*2)/bw, (h-safePad*2)/bh);
+  const drawW=bw*s;
+  const drawH=bh*s;
+  const ox=(w-drawW)/2;
+  const oy=(h-drawH)/2;
+  const fn=(lon,lat)=>{
+    const [x,y]=raw(lon,lat);
+    return {x:ox+(x-bounds.minX)*s, y:oy+(bounds.maxY-y)*s};
+  };
+  fn.scale=s; fn.bbox=sourceBBox; fn.w=w; fn.h=h; fn.pad=safePad; fn.kind='lambert'; fn.raw=raw; fn.v66Bounds=bounds;
+  return fn;
+}
+function v66GeoBBoxWithKmBuffer(features){
+  const ex=ensureExportFlags();
+  const source=v66ExportSourceFeatures(features);
+  const bbox=geoBBoxFromFeatures(source);
+  const [minX,minY,maxX,maxY]=bbox;
+  const centerLat=(minY+maxY)/2;
+  const b=ex.extentBuffer || {top:0,right:0,bottom:0,left:0};
+  return [
+    Math.max(-180, minX-kmToLonDeg(Math.max(0,Number(b.left)||0), centerLat)),
+    Math.max(-84, minY-kmToLatDeg(Math.max(0,Number(b.bottom)||0))),
+    Math.min(180, maxX+kmToLonDeg(Math.max(0,Number(b.right)||0), centerLat)),
+    Math.min(89, maxY+kmToLatDeg(Math.max(0,Number(b.top)||0)))
+  ];
+}
+buildExportSvgMap = async function buildExportSvgMapV66(){
+  if(typeof v65ResetManualViewportForAutoFit === 'function') v65ResetManualViewportForAutoFit();
+  const ex=ensureExportFlags();
+  const {w,h}=exportMapSize();
+  const fieldRect=exportMapFieldRect(w,h);
+  const features=v66ExportSourceFeatures(exportScopeFeatures());
+  const sourceBBox=geoBBoxFromFeatures(features);
+  const gridBBox=v66GeoBBoxWithKmBuffer(features);
+  const baseProjection=v66MakeFeatureFitProjection(features,sourceBBox,fieldRect.w,fieldRect.h,Number(ex.minLayerPaddingPx)||10);
+  const projection=(lon,lat)=>{ const p=baseProjection(lon,lat); return {x:p.x+fieldRect.x, y:p.y+fieldRect.y}; };
+  const centerLat=(sourceBBox[1]+sourceBBox[3])/2;
+  const centerLon=(sourceBBox[0]+sourceBBox[2])/2;
+  const p1=projection(centerLon,centerLat), p2=projection(centerLon+1,centerLat);
+  const pxPerDeg=Math.max(1, Math.hypot(p2.x-p1.x,p2.y-p1.y));
+  const kmPerDeg=111.32*Math.max(0.12, Math.cos(centerLat*Math.PI/180));
+  const kmPerPx=kmPerDeg/pxPerDeg;
+  const field=valField();
+  const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>!Number.isNaN(v)) : [];
+  const bodyTransform=exportMapBodyTransform(w,h);
+  const zoom=Number(ex.mapViewport && ex.mapViewport.zoom) || 1;
+  const parts=[];
+  parts.push(`<svg class="export-map-svg export-map-svg-v66" data-map-w="${w}" data-map-h="${h}" data-base-km-per-px="${kmPerPx}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" ry="10"/></clipPath><filter id="labelShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1" stdDeviation="1.25" flood-color="#ffffff" flood-opacity="0.94"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="#eef3ef"/><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" fill="${exportBasemapFill()}" stroke="rgba(111,123,98,.55)" stroke-width="1.2"/><g clip-path="url(#exportMapClip)"><g id="exportMapBody" class="export-map-body" transform="${bodyTransform}">`);
+  if(ex.showGraticule) parts.push(await exportGraticuleSvg(projection,w,h,gridBBox,fieldRect));
+  if(ex.showHydro) parts.push(await exportHydroSvg(projection,gridBBox));
+  if(ex.showAdmin) parts.push(exportAdminPolygonsSvg(features,projection,vals));
+  if(ex.showRailways) parts.push(await exportRailSvg(projection,gridBBox));
+  if(ex.showPopulation) parts.push(exportPopulationCirclesSvg(features,projection));
+  if(ex.showLabels && ex.labelMode!=='none') parts.push(exportAdminLabelsSvg(features,projection,w,h));
+  parts.push(`</g></g>`);
+  if(ex.showGraticule && ex.showGraticuleLabels) parts.push(exportGraticuleLabelsSvg(projection,w,h,gridBBox,fieldRect));
+  if(ex.showScale) parts.push(`<g id="exportScaleBar">${v64ScaleBarSvg(kmPerPx/zoom,w,h,fieldRect)}</g>`);
+  parts.push(`<rect x="0.5" y="0.5" width="${w-1}" height="${h-1}" rx="18" fill="none" stroke="rgba(52,67,75,.16)" stroke-width="1"/></svg>`);
+  return parts.join('');
+};
+
+const v66PriorUpdateCompactClass = typeof v65UpdateCompactClass === 'function' ? v65UpdateCompactClass : null;
+function v66UpdateCompactClass(){
+  if(v66PriorUpdateCompactClass) v66PriorUpdateCompactClass();
+  try{
+    const compact = window.innerWidth <= 1920 || window.innerHeight <= 1100 || (window.devicePixelRatio >= 1.25 && window.innerWidth <= 2200);
+    document.documentElement.classList.toggle('compact-1080-v66', compact);
+    document.body.classList.toggle('compact-1080-v66', compact);
+  }catch(_){ }
+}
+(function initV66Patch(){
+  const boot=()=>{
+    try{
+      ensureExportFlags();
+      v66UpdateCompactClass();
+      positionBottomWidgets(false);
+      if(typeof v65BindScaleBarDrag === 'function') v65BindScaleBarDrag();
+    }catch(e){ console.warn('v66 init skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+  window.addEventListener('resize',()=>{ v66UpdateCompactClass(); setTimeout(()=>positionBottomWidgets(false),80); },{passive:true});
 })();
