@@ -1,4 +1,4 @@
-const APP_VERSION = '53';
+const APP_VERSION = '56';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5027,3 +5027,394 @@ function showFeature(f){
   const urbanMethod=p.urban_pop_method?`<div class="info-row"><span>Метод урбанизации</span><b>${escapeHtml(p.urban_pop_method)}</b></div>`:'';
   $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div>${intermediate && intermediate!==String(p.admin_parent||'').trim()?`<div class="info-row"><span>Промежуточный уровень</span><b>${escapeHtml(intermediate)}</b></div>`:''}${superparent?`<div class="info-row"><span>Вышестоящая группа</span><b>${escapeHtml(superparent)}</b></div>`:''}<div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское / несельское</span><b>${num(p.urban_pop)}</b></div>${urbanExtra}<div class="info-row"><span>Сельское / прочее</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div>${urbanMethod}<div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`;
 }
+
+
+/* v55 hotfix: robust export state initialization after v51/v53 overrides */
+function v55Finite(v, fallback){
+  const n=Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+function v55EnsureBox(obj, defaults){
+  const out = (obj && typeof obj === 'object') ? obj : {};
+  Object.keys(defaults).forEach(k=>{
+    if(!Number.isFinite(Number(out[k]))) out[k] = defaults[k];
+  });
+  return out;
+}
+function ensureExportFlags(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  const ex = state.export;
+  if(typeof ex.open !== 'boolean') ex.open = false;
+  if(!ex.scope) ex.scope = 'currentLayer';
+  if(!ex.paper) ex.paper = 'a4Landscape';
+  if(!ex.template) ex.template = 'thesis';
+  if(!ex.title) ex.title = (typeof defaultExportTitle === 'function' ? defaultExportTitle() : `Карта (${state.year || ''} г.)`);
+  if(typeof ex.subtitle !== 'string') ex.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{
+    if(typeof ex[k] !== 'boolean') ex[k] = true;
+  });
+  if(!ex.contextMode) ex.contextMode = 'auto';
+  if(!ex.contextText){
+    const preset = (typeof exportContextPresets === 'function') ? exportContextPresets(state.year || '') : {short:''};
+    ex.contextText = preset.short || preset.long || '';
+  }
+  if(!ex.labelMode) ex.labelMode = 'balanced';
+  if(!Number.isFinite(Number(ex.graticuleLabelSize))) ex.graticuleLabelSize = 12;
+  if(!Number.isFinite(Number(ex.canvasWidth))) ex.canvasWidth = ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480;
+  if(!Number.isFinite(Number(ex.canvasHeight))) ex.canvasHeight = ex.paper === 'a4Portrait' ? 1680 : ex.paper === 'screen' ? 1040 : 1040;
+  if(!Number.isFinite(Number(ex.titleFontSize))) ex.titleFontSize = 34;
+  if(!Number.isFinite(Number(ex.panelWidth))) ex.panelWidth = 300;
+  ex.extentBuffer = v55EnsureBox(ex.extentBuffer, {top:200,right:200,bottom:200,left:200});
+  ex.pagePadding = v55EnsureBox(ex.pagePadding, {top:0,right:0,bottom:0,left:0});
+  ex.fieldPadding = v55EnsureBox(ex.fieldPadding, {top:110,right:42,bottom:54,left:42});
+  if(typeof ex.autoFitField !== 'boolean') ex.autoFitField = true;
+  ex.innerFrame = v55EnsureBox(ex.innerFrame, {x:80,y:130,w:900,h:760});
+  if(!ex.overlayPositions || typeof ex.overlayPositions !== 'object') ex.overlayPositions = {};
+  if(typeof ex.activeFrame !== 'string') ex.activeFrame = '';
+  if(typeof ex.selectedWidget !== 'string') ex.selectedWidget = '';
+  if(!ex.statsFields || typeof ex.statsFields !== 'object') ex.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof ex.statsFields[k] !== 'boolean') ex.statsFields[k] = statDefaults[k]; });
+  return ex;
+}
+function syncExportContextText(){
+  const ex = ensureExportFlags();
+  const preset = (typeof exportContextPresets === 'function') ? exportContextPresets(state.year || '') : {short:'', long:''};
+  if(ex.contextMode === 'short') ex.contextText = preset.short || '';
+  else if(ex.contextMode === 'long') ex.contextText = preset.long || preset.short || '';
+  else {
+    const source = String(preset.long || preset.short || '').replace(/\s+/g,' ').trim();
+    const sentences = source.match(/[^.!?]+[.!?]?/g) || [source];
+    let out = '';
+    for(const sent of sentences){
+      const candidate = (out ? out + ' ' : '') + sent.trim();
+      if(candidate.length > 220 && out) break;
+      out = candidate;
+      if(out.length >= 150 && /[.!?]$/.test(out)) break;
+    }
+    ex.contextText = (out || source).slice(0, 230).replace(/[,:;\-–—]\s*$/,'').trim();
+  }
+  const t = $('exportContextText');
+  if(t) t.value = ex.contextText || '';
+}
+function exportMapSize(){
+  const ex = ensureExportFlags();
+  return {w:Math.max(900, v55Finite(ex.canvasWidth,1480)), h:Math.max(700, v55Finite(ex.canvasHeight,1040))};
+}
+function exportOuterFrameRect(w,h){
+  return {x:0, y:0, w:Math.max(900, v55Finite(w,1480)), h:Math.max(700, v55Finite(h,1040))};
+}
+function exportMapFieldRect(w,h){
+  const ex = ensureExportFlags();
+  w = Math.max(900, v55Finite(w,1480));
+  h = Math.max(700, v55Finite(h,1040));
+  if(ex.autoFitField !== false && typeof exportAutoFieldRect === 'function'){
+    try{
+      const r = exportAutoFieldRect(w,h, typeof exportScopeFeatures === 'function' ? exportScopeFeatures() : []);
+      ex.innerFrame = {x:v55Finite(r.x,80), y:v55Finite(r.y,130), w:v55Finite(r.w,900), h:v55Finite(r.h,760)};
+      return {...ex.innerFrame, aspect:r.aspect};
+    }catch(err){ console.warn('exportAutoFieldRect failed, using manual inner frame', err); }
+  }
+  const outer = exportOuterFrameRect(w,h);
+  let iw = Math.max(260, Math.min(outer.w, v55Finite(ex.innerFrame.w,900)));
+  let ih = Math.max(260, Math.min(outer.h, v55Finite(ex.innerFrame.h,760)));
+  let ix = Math.max(outer.x, Math.min(outer.x+outer.w-iw, v55Finite(ex.innerFrame.x,80)));
+  let iy = Math.max(outer.y, Math.min(outer.y+outer.h-ih, v55Finite(ex.innerFrame.y,130)));
+  ex.innerFrame = {x:Math.round(ix), y:Math.round(iy), w:Math.round(iw), h:Math.round(ih)};
+  return ex.innerFrame;
+}
+function syncExportDefaults(resetTitle=true){
+  const ex = ensureExportFlags();
+  const features = (typeof exportScopeFeatures === 'function') ? exportScopeFeatures() : [];
+  if(resetTitle || !ex.title) ex.title = (typeof defaultExportTitle === 'function') ? defaultExportTitle() : `Карта (${state.year || ''} г.)`;
+  if(ex.contextMode === 'auto' || resetTitle || !ex.contextText) syncExportContextText();
+  if(typeof v51NormalizeOverlayPositions === 'function'){
+    try{ v51NormalizeOverlayPositions(false); }catch(err){ console.warn('overlay normalize skipped', err); }
+  }
+  const size = exportMapSize();
+  const f = exportMapFieldRect(size.w, size.h);
+  const V=(id,val)=>{ const el=$(id); if(el) el.value=val; };
+  const C=(id,val)=>{ const el=$(id); if(el) el.checked=!!val; };
+  V('exportTitleInput',ex.title); V('exportTitleFontSize',ex.titleFontSize); V('exportPanelWidth',ex.panelWidth);
+  V('exportScopeSelect',ex.scope); V('exportPaperSelect',ex.paper); V('exportCanvasWidth',size.w); V('exportCanvasHeight',size.h);
+  C('exportAutoFitField',ex.autoFitField); V('exportInnerX',f.x); V('exportInnerY',f.y); V('exportInnerWidth',f.w); V('exportInnerHeight',f.h);
+  ['top','right','bottom','left'].forEach(k=>{
+    V('exportBuffer'+k.charAt(0).toUpperCase()+k.slice(1), ex.extentBuffer[k]);
+    V('exportPagePad'+k.charAt(0).toUpperCase()+k.slice(1), ex.pagePadding[k]);
+    V('exportFieldPad'+k.charAt(0).toUpperCase()+k.slice(1), ex.fieldPadding[k]);
+  });
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>C(`exportShow${name}`,ex[`show${name}`]));
+  V('exportLabelModeSelect',ex.labelMode); V('exportGraticuleLabelSizeInput',ex.graticuleLabelSize); V('exportContextMode',ex.contextMode); V('exportContextText',ex.contextText||'');
+  const details=$('exportContextDetails'); if(details) details.style.display=ex.showContext?'block':'none';
+  const note=$('exportAutoFieldStatus'); if(note && typeof exportFieldStatusText === 'function') note.textContent=exportFieldStatusText();
+  if(typeof renderExportStatsFieldsControls === 'function') renderExportStatsFieldsControls();
+}
+async function openExportMode(){
+  const modal = ensureExportModal();
+  ensureExportFlags();
+  state.export.open = true;
+  try{ syncExportDefaults(true); }
+  catch(err){ console.error('export defaults failed', err); }
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden','false');
+  try{ await refreshExportPreview(false); }
+  catch(err){
+    console.error('export preview failed', err);
+    const status=$('exportPreviewStatus'); if(status) status.textContent='Ошибка построения превью экспорта: '+(err?.message||err);
+  }
+}
+function updateCharts(features){
+  if(typeof updateGroupAnalytics === 'function') return updateGroupAnalytics(features || []);
+}
+
+/* v56: спорные территории, исправление верхнеуровневого фильтра, ручные диапазоны и доля городского населения */
+function v56MetricFields(){ return ['population','area_km2','density','urban_share']; }
+function v56EnsureFilterState(){
+  if(!state.filters) state.filters={};
+  v56MetricFields().forEach(field=>{
+    if(!state.filters[field]) state.filters[field]={minFraction:0,maxFraction:1,min:0,max:0,minThreshold:null,maxThreshold:null};
+    const f=state.filters[field];
+    if(!Number.isFinite(Number(f.minFraction))) f.minFraction=0;
+    if(!Number.isFinite(Number(f.maxFraction))) f.maxFraction=1;
+  });
+}
+function v56UrbanShareValue(feature){
+  const p=feature?.properties||{};
+  let v=Number(p.urban_share);
+  if(Number.isFinite(v)) return v>1 ? v/100 : v;
+  const pop=Number(p.population)||0;
+  const urban=Number(p.broader_urban_pop ?? p.urban_pop ?? p.strict_city_pop ?? 0);
+  return pop>0 ? urban/pop : 0;
+}
+function v56MetricValue(feature, field){
+  if(field==='urban_share') return v56UrbanShareValue(feature);
+  return Number(feature?.properties?.[field]);
+}
+function v56MetricLabel(field, value){
+  if(value==null || !Number.isFinite(Number(value))) return '—';
+  if(field==='urban_share') return `${(Number(value)*100).toFixed(1).replace('.',',')}%`;
+  return field==='density' ? num1(value) : num(value);
+}
+function v56MetricInputValue(field, value){
+  if(!Number.isFinite(Number(value))) return '';
+  return field==='urban_share' ? (Number(value)*100).toFixed(1).replace(/\.0$/,'') : String(Math.round(Number(value)*100)/100);
+}
+function v56InputToMetricValue(field, raw){
+  const n=Number(String(raw).replace(',','.'));
+  if(!Number.isFinite(n)) return null;
+  return field==='urban_share' ? n/100 : n;
+}
+function v56EnsureUrbanFilterCard(){
+  const grid=document.querySelector('#metricFilters .metric-filter-grid');
+  if(!grid || document.querySelector('[data-filter-field="urban_share"]')) return;
+  const card=document.createElement('div');
+  card.className='metric-filter-item';
+  card.dataset.filterField='urban_share';
+  card.innerHTML=`<label>Доля городского населения</label>
+    <div class="dual-range" data-filter-field="urban_share">
+      <div class="dual-range-track"><span id="filter_urban_share_fill"></span></div>
+      <input id="filter_urban_share_minRange" class="dual-range-input min" type="range" min="0" max="100" step="1" value="0" aria-label="Минимальная доля городского населения">
+      <input id="filter_urban_share_maxRange" class="dual-range-input max" type="range" min="0" max="100" step="1" value="100" aria-label="Максимальная доля городского населения">
+    </div>
+    <div class="filter-manual-row"><label>от <input id="filter_urban_share_minInput" type="number" step="0.1" min="0" max="100" inputmode="decimal"></label><label>до <input id="filter_urban_share_maxInput" type="number" step="0.1" min="0" max="100" inputmode="decimal"></label></div>
+    <div class="filter-meta"><span id="filter_urban_share_rangeLabel">диапазон слоя</span><b id="filter_urban_share_summary">все</b></div>`;
+  grid.appendChild(card);
+}
+function v56EnsureManualInputs(){
+  v56EnsureUrbanFilterCard();
+  const labels={population:['1','1'],area_km2:['1','1'],density:['0.1','0.1'],urban_share:['0.1','0.1']};
+  v56MetricFields().forEach(field=>{
+    const item=document.querySelector(`.metric-filter-item[data-filter-field="${field}"]`);
+    if(!item || item.querySelector('.filter-manual-row')) return;
+    const meta=item.querySelector('.filter-meta');
+    const [step]=labels[field]||['1'];
+    const row=document.createElement('div');
+    row.className='filter-manual-row';
+    row.innerHTML=`<label>от <input id="filter_${field}_minInput" type="number" step="${step}" inputmode="decimal"></label><label>до <input id="filter_${field}_maxInput" type="number" step="${step}" inputmode="decimal"></label>`;
+    if(meta) item.insertBefore(row, meta); else item.appendChild(row);
+  });
+}
+function normalizeFilterFractions(field){
+  v56EnsureFilterState();
+  const filter=state.filters[field];
+  filter.minFraction=Math.max(0, Math.min(1, filter.minFraction ?? 0));
+  filter.maxFraction=Math.max(0, Math.min(1, filter.maxFraction ?? 1));
+  if(filter.minFraction > filter.maxFraction){ const t=filter.minFraction; filter.minFraction=filter.maxFraction; filter.maxFraction=t; }
+  filter.minThreshold = metricThreshold(filter,'min');
+  filter.maxThreshold = metricThreshold(filter,'max');
+}
+function metricValueLabel(field, value){ return v56MetricLabel(field,value); }
+function updateDualRangeVisual(field){
+  v56EnsureFilterState();
+  const filter=state.filters[field];
+  const minPct=Math.round((filter.minFraction||0)*100);
+  const maxPct=Math.round((filter.maxFraction??1)*100);
+  const fill=$(`filter_${field}_fill`), minRange=$(`filter_${field}_minRange`), maxRange=$(`filter_${field}_maxRange`);
+  if(fill){ fill.style.left=`${minPct}%`; fill.style.width=`${Math.max(0,maxPct-minPct)}%`; }
+  if(minRange) minRange.style.setProperty('--thumb-pos', `${minPct}%`);
+  if(maxRange) maxRange.style.setProperty('--thumb-pos', `${maxPct}%`);
+}
+function updateMetricFilterControls(){
+  v56EnsureFilterState();
+  v56EnsureManualInputs();
+  v56MetricFields().forEach(field=>{
+    const filter=state.filters[field]; normalizeFilterFractions(field);
+    const minRange=$(`filter_${field}_minRange`), maxRange=$(`filter_${field}_maxRange`);
+    const minInput=$(`filter_${field}_minInput`), maxInput=$(`filter_${field}_maxInput`);
+    const label=$(`filter_${field}_rangeLabel`), summary=$(`filter_${field}_summary`);
+    const hasRange=filter.max>filter.min;
+    if(minRange){ minRange.value=String(Math.round((filter.minFraction||0)*100)); minRange.disabled=!hasRange; }
+    if(maxRange){ maxRange.value=String(Math.round((filter.maxFraction??1)*100)); maxRange.disabled=!hasRange; }
+    updateDualRangeVisual(field);
+    if(minInput){ minInput.disabled=!hasRange; minInput.value=hasRange ? v56MetricInputValue(field, filter.minThreshold) : ''; }
+    if(maxInput){ maxInput.disabled=!hasRange; maxInput.value=hasRange ? v56MetricInputValue(field, filter.maxThreshold) : ''; }
+    if(label){ label.textContent=!hasRange ? 'недостаточно данных' : `диапазон слоя: ${v56MetricLabel(field, filter.min)} — ${v56MetricLabel(field, filter.max)}`; }
+    if(summary){
+      const isFull=(filter.minFraction<=0.0001 && filter.maxFraction>=0.9999);
+      summary.textContent=isFull || !hasRange ? 'все' : `${v56MetricLabel(field, filter.minThreshold)} — ${v56MetricLabel(field, filter.maxThreshold)}`;
+    }
+  });
+}
+function syncFilterRanges(features){
+  v56EnsureFilterState();
+  v56MetricFields().forEach(field=>{
+    const vals=(features||[]).map(f=>v56MetricValue(f,field)).filter(v=>Number.isFinite(v));
+    const filter=state.filters[field];
+    filter.min=vals.length ? Math.min(...vals) : 0;
+    filter.max=vals.length ? Math.max(...vals) : 0;
+    normalizeFilterFractions(field);
+  });
+  updateMetricFilterControls();
+}
+function v56SetFilterByRange(field, kind, value, commit=false){
+  v56EnsureFilterState();
+  const filter=state.filters[field];
+  const fraction=Math.max(0, Math.min(1, (Number(value)||0)/100));
+  if(kind==='min') filter.minFraction=Math.min(fraction, filter.maxFraction ?? 1);
+  else filter.maxFraction=Math.max(fraction, filter.minFraction ?? 0);
+  syncFilterRanges(state.rawGeoJSON?.features||[]);
+  if(commit) rerenderFilteredLayers();
+}
+function v56SetFilterByInput(field, kind, raw){
+  v56EnsureFilterState();
+  const filter=state.filters[field];
+  const val=v56InputToMetricValue(field, raw);
+  if(val==null || !(filter.max>filter.min)) return updateMetricFilterControls();
+  const frac=Math.max(0, Math.min(1, (val-filter.min)/(filter.max-filter.min)));
+  if(kind==='min') filter.minFraction=Math.min(frac, filter.maxFraction ?? 1);
+  else filter.maxFraction=Math.max(frac, filter.minFraction ?? 0);
+  syncFilterRanges(state.rawGeoJSON?.features||[]);
+  rerenderFilteredLayers();
+}
+function v56BindFilterEvents(){
+  v56EnsureFilterState(); v56EnsureManualInputs();
+  v56MetricFields().forEach(field=>{
+    const minR=$(`filter_${field}_minRange`), maxR=$(`filter_${field}_maxRange`), minI=$(`filter_${field}_minInput`), maxI=$(`filter_${field}_maxInput`);
+    if(minR && minR.dataset.v56Bound!=='1'){ minR.dataset.v56Bound='1'; minR.addEventListener('input',e=>v56SetFilterByRange(field,'min',e.target.value,false)); minR.addEventListener('change',e=>v56SetFilterByRange(field,'min',e.target.value,true)); }
+    if(maxR && maxR.dataset.v56Bound!=='1'){ maxR.dataset.v56Bound='1'; maxR.addEventListener('input',e=>v56SetFilterByRange(field,'max',e.target.value,false)); maxR.addEventListener('change',e=>v56SetFilterByRange(field,'max',e.target.value,true)); }
+    if(minI && minI.dataset.v56Bound!=='1'){ minI.dataset.v56Bound='1'; minI.addEventListener('change',e=>v56SetFilterByInput(field,'min',e.target.value)); minI.addEventListener('keydown',e=>{ if(e.key==='Enter') v56SetFilterByInput(field,'min',e.target.value); }); }
+    if(maxI && maxI.dataset.v56Bound!=='1'){ maxI.dataset.v56Bound='1'; maxI.addEventListener('change',e=>v56SetFilterByInput(field,'max',e.target.value)); maxI.addEventListener('keydown',e=>{ if(e.key==='Enter') v56SetFilterByInput(field,'max',e.target.value); }); }
+  });
+  const reset=$('resetMetricFilters');
+  if(reset && reset.dataset.v56Bound!=='1'){
+    reset.dataset.v56Bound='1';
+    reset.addEventListener('click',()=>{
+      v56MetricFields().forEach(field=>{ if(state.filters[field]) Object.assign(state.filters[field],{minFraction:0,maxFraction:1,minThreshold:null,maxThreshold:null}); });
+      syncFilterRanges(state.rawGeoJSON?.features||[]);
+      rerenderFilteredLayers();
+    });
+  }
+}
+function featurePassesFilters(f){
+  const parent=parentNameFromFeature(f);
+  const totalParents=state.parentCounts?.size || 0;
+  if(totalParents){
+    if(!parent) return false;
+    if(state.visibleParents.size===0) return false;
+    if(!state.visibleParents.has(parent)) return false;
+  }
+  return v56MetricFields().every(field=>{
+    const filter=state.filters[field];
+    if(!filter) return true;
+    const isFull=(filter.minFraction<=0.0001 && filter.maxFraction>=0.9999);
+    if(isFull) return true;
+    const value=v56MetricValue(f,field); if(!Number.isFinite(value)) return false;
+    if(filter.minThreshold!=null && value < filter.minThreshold) return false;
+    if(filter.maxThreshold!=null && value > filter.maxThreshold) return false;
+    return true;
+  });
+}
+function syncVisibleParents(gj){
+  gj = typeof enrichHierarchyProps==='function' ? enrichHierarchyProps(gj) : gj;
+  const parents=[...new Set((gj?.features||[]).map(parentNameFromFeature).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  state.parentCounts = new Map(parents.map(name=>[name,(gj?.features||[]).filter(f=>parentNameFromFeature(f)===name).length]));
+  if(state.parentFilterYear !== state.year){
+    state.visibleParents = new Set(parents);
+    state.parentFilterYear = state.year;
+    state.parentsManuallyCleared=false;
+  } else if(state.parentsManuallyCleared){
+    state.visibleParents = new Set();
+  } else {
+    const keep=new Set(parents.filter(name=>state.visibleParents.has(name)));
+    state.visibleParents = keep;
+  }
+  renderParentCheckboxes(parents);
+  updateParentFilterToolbarState();
+}
+function setAllParentsVisible(flag){
+  const parents=[...state.parentCounts.keys()];
+  state.parentsManuallyCleared = !flag;
+  state.visibleParents = flag ? new Set(parents) : new Set();
+  renderParentCheckboxes(parents);
+  updateParentFilterToolbarState();
+  rerenderFilteredLayers();
+}
+function updateParentFilterToolbarState(){
+  const total=(state.parentCounts && state.parentCounts.size) || 0;
+  const visible=(state.visibleParents && state.visibleParents.size) || 0;
+  const clearBtn=$('clearAllParentsBtn'), showBtn=$('showAllParentsBtn');
+  if(clearBtn) clearBtn.disabled = total===0;
+  if(showBtn) showBtn.disabled = total===0 || visible===total;
+}
+function renderParentCheckboxes(parents){
+  const box=$('parentCheckboxes'); if(!box) return;
+  box.innerHTML='';
+  parents.forEach(name=>{
+    const id=`parent_${name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]+/g,'_')}`;
+    const label=document.createElement('label'); label.className='parent-check';
+    label.innerHTML=`<input type="checkbox" id="${id}" ${state.visibleParents.has(name)?'checked':''} data-parent-name="${escapeHtml(name)}"><span title="${escapeHtml(name)}">${escapeHtml(name)}</span><b>${num(state.parentCounts.get(name)||0)}</b>`;
+    const input=label.querySelector('input');
+    input.addEventListener('change',()=>{
+      if(input.checked){ state.parentsManuallyCleared=false; state.visibleParents.add(name); }
+      else state.visibleParents.delete(name);
+      if(state.visibleParents.size===0) state.parentsManuallyCleared=true;
+      updateParentFilterToolbarState(); rerenderFilteredLayers();
+    });
+    box.appendChild(label);
+  });
+  updateParentFilterToolbarState();
+}
+function v56SelectionGuard(){
+  const clearRect=()=>{ if(state.tool==='rectangle' && state.dragStart){ clearSelectionDrawing(false); state.dragStart=null; } };
+  document.addEventListener('mouseup',()=>window.setTimeout(clearRect,0),{passive:true});
+  document.addEventListener('pointerup',()=>window.setTimeout(clearRect,0),{passive:true});
+  document.addEventListener('mousemove',ev=>{ if(state.tool==='rectangle' && state.dragStart && ev.buttons===0) clearRect(); },{passive:true});
+  if(state.map && state.map.getContainer){
+    const c=state.map.getContainer();
+    if(c && c.dataset.v56SelectionGuard!=='1'){
+      c.dataset.v56SelectionGuard='1';
+      c.addEventListener('mouseleave',ev=>{ if(state.tool==='rectangle' && state.dragStart && ev.buttons===0) clearRect(); },{passive:true});
+    }
+  }
+}
+(function initV56Patch(){
+  const boot=()=>{
+    v56EnsureFilterState();
+    v56EnsureManualInputs();
+    v56BindFilterEvents();
+    v56SelectionGuard();
+    updateMetricFilterControls();
+    updateParentFilterToolbarState();
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
+})();
