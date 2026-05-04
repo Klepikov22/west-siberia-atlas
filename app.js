@@ -1,4 +1,4 @@
-const APP_VERSION = '66';
+const APP_VERSION = '67';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -7224,4 +7224,605 @@ function v66UpdateCompactClass(){
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
   window.addEventListener('resize',()=>{ v66UpdateCompactClass(); setTimeout(()=>positionBottomWidgets(false),80); },{passive:true});
+})();
+
+/* v67: export auto-fit recentering, independent zoom slider, scale-bar hit priority, classed choropleths, Full HD widget fixes */
+function v67Clamp(n, min, max){
+  const v = Number(n);
+  if(!Number.isFinite(v)) return min;
+  return Math.max(min, Math.min(max, v));
+}
+function v67ExportZoomFactor(delta){
+  return Math.pow(2, v67Clamp(delta, -1.5, 1.5));
+}
+function v67ExportZoomDeltaFromFactor(factor){
+  const z = Math.max(0.1, Number(factor) || 1);
+  return v67Clamp(Math.log2(z), -1.5, 1.5);
+}
+const v67PriorEnsureExportFlags = typeof ensureExportFlags === 'function' ? ensureExportFlags : null;
+ensureExportFlags = function ensureExportFlagsV67(){
+  const ex = v67PriorEnsureExportFlags ? v67PriorEnsureExportFlags() : (state.export || (state.export = {}));
+  if(!ex.mapViewport || typeof ex.mapViewport !== 'object') ex.mapViewport = {x:0,y:0,zoom:1};
+  if(!Number.isFinite(Number(ex.exportZoomDelta))){
+    const priorZoom = Number(ex.mapViewport.zoom);
+    ex.exportZoomDelta = Number.isFinite(priorZoom) ? v67ExportZoomDeltaFromFactor(priorZoom) : 0;
+  }
+  ex.exportZoomDelta = v67Clamp(ex.exportZoomDelta, -1.5, 1.5);
+  if(ex.autoFitField !== false && !ex.manualMapViewport){
+    ex.mapViewport.x = 0;
+    ex.mapViewport.y = 0;
+  }else{
+    if(!Number.isFinite(Number(ex.mapViewport.x))) ex.mapViewport.x = 0;
+    if(!Number.isFinite(Number(ex.mapViewport.y))) ex.mapViewport.y = 0;
+  }
+  ex.mapViewport.zoom = v67ExportZoomFactor(ex.exportZoomDelta);
+  if(!Number.isFinite(Number(ex.minLayerPaddingPx))) ex.minLayerPaddingPx = 10;
+  ex.minLayerPaddingPx = Math.max(10, Number(ex.minLayerPaddingPx) || 10);
+  if(!ex.extentBuffer || typeof ex.extentBuffer !== 'object') ex.extentBuffer = {top:0,right:0,bottom:0,left:0};
+  ['top','right','bottom','left'].forEach(k=>{ if(!Number.isFinite(Number(ex.extentBuffer[k]))) ex.extentBuffer[k] = 0; });
+  return ex;
+};
+
+const v67PriorExportViewportClamp = typeof exportViewportClamp === 'function' ? exportViewportClamp : null;
+exportViewportClamp = function exportViewportClampV67(w,h,zoom,x,y){
+  const z = v67Clamp(zoom, v67ExportZoomFactor(-1.5), v67ExportZoomFactor(1.5));
+  let limX = Math.max(24, (Math.max(1, z) - 1) * Math.max(1, w) / 2 + 80);
+  let limY = Math.max(24, (Math.max(1, z) - 1) * Math.max(1, h) / 2 + 80);
+  if(z < 1){
+    // При отдалении карта становится меньше рамки; оставляем только небольшой ручной ход,
+    // чтобы пользователь мог визуально сдвинуть композицию, но не потерять слой из рамки.
+    limX = Math.max(24, Math.max(1, w) * (1 - z) / 2 + 36);
+    limY = Math.max(24, Math.max(1, h) * (1 - z) / 2 + 36);
+  }
+  return {x:v67Clamp(x || 0, -limX, limX), y:v67Clamp(y || 0, -limY, limY), zoom:z};
+};
+
+exportMapBodyTransform = function exportMapBodyTransformV67(w,h){
+  const ex = ensureExportFlags();
+  const field = (typeof exportMapFieldRect === 'function') ? exportMapFieldRect(w,h) : {x:0,y:0,w,h};
+  const baseZoom = v67ExportZoomFactor(ex.exportZoomDelta);
+  const startX = (ex.autoFitField !== false && !ex.manualMapViewport) ? 0 : Number(ex.mapViewport?.x) || 0;
+  const startY = (ex.autoFitField !== false && !ex.manualMapViewport) ? 0 : Number(ex.mapViewport?.y) || 0;
+  const vp = exportViewportClamp(field.w, field.h, baseZoom, startX, startY);
+  ex.mapViewport = vp;
+  const cx = field.x + field.w/2;
+  const cy = field.y + field.h/2;
+  return `translate(${vp.x.toFixed(1)} ${vp.y.toFixed(1)}) translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${vp.zoom.toFixed(4)}) translate(${-cx.toFixed(1)} ${-cy.toFixed(1)})`;
+};
+
+function v67ResetExportViewportAndFit(){
+  const ex = ensureExportFlags();
+  ex.manualMapViewport = false;
+  ex.mapViewport = {x:0, y:0, zoom:v67ExportZoomFactor(ex.exportZoomDelta)};
+  ex.v65ViewportResetOnce = false;
+}
+function v67SyncExportZoomControls(){
+  try{
+    const ex = ensureExportFlags();
+    const slider = $('exportMapZoomDelta');
+    const label = $('exportMapZoomDeltaLabel');
+    const value = v67Clamp(ex.exportZoomDelta, -1.5, 1.5);
+    if(slider && Math.abs(Number(slider.value) - value) > 0.001) slider.value = value.toFixed(2);
+    if(label){
+      const pct = Math.round(v67ExportZoomFactor(value) * 100);
+      const sign = value > 0 ? '+' : '';
+      label.textContent = `${sign}${value.toFixed(2).replace('.',',')} · ${pct}%`;
+    }
+  }catch(_){ }
+}
+
+const v67PriorApplyExportViewportTransformOnly = typeof applyExportViewportTransformOnly === 'function' ? applyExportViewportTransformOnly : null;
+applyExportViewportTransformOnly = function applyExportViewportTransformOnlyV67(){
+  const ex = ensureExportFlags();
+  const svg = document.querySelector('#exportSvgMap svg.export-map-svg');
+  if(svg){
+    const w = Number(svg.dataset.mapW) || Number(svg.getAttribute('viewBox')?.split(' ')[2]) || exportMapSize().w;
+    const h = Number(svg.dataset.mapH) || Number(svg.getAttribute('viewBox')?.split(' ')[3]) || exportMapSize().h;
+    const body = svg.querySelector('#exportMapBody');
+    if(body) body.setAttribute('transform', exportMapBodyTransform(w,h));
+    const scaleWrap = svg.querySelector('#exportScaleBar');
+    const baseKm = Number(svg.dataset.baseKmPerPx);
+    if(scaleWrap && Number.isFinite(baseKm) && typeof v64ScaleBarSvg === 'function'){
+      scaleWrap.innerHTML = v64ScaleBarSvg(baseKm / (Number(ex.mapViewport?.zoom) || 1), w, h, exportMapFieldRect(w,h));
+    }
+  }else if(v67PriorApplyExportViewportTransformOnly){
+    v67PriorApplyExportViewportTransformOnly();
+  }
+  v67SyncExportZoomControls();
+  requestAnimationFrame(v67InstallScaleBarHitbox);
+};
+
+function v67InstallExportZoomControls(modal){
+  if(!modal || modal.dataset.v67ZoomControls === '1'){
+    v67SyncExportZoomControls();
+    return;
+  }
+  const autoStatus = $('exportAutoFieldStatus');
+  const anchor = autoStatus?.closest('.export-fieldset') || document.querySelector('#exportInnerWidth')?.closest('.export-fieldset') || document.querySelector('.export-controls .button-row');
+  if(anchor){
+    anchor.insertAdjacentHTML('afterend', `
+      <div class="export-fieldset export-zoom-fieldset-v67">
+        <div class="export-fieldset-title">Масштаб карты внутри рамки</div>
+        <label class="control-label" for="exportMapZoomDelta">Дополнительный масштаб к автоохвату</label>
+        <div class="export-zoom-row-v67"><input id="exportMapZoomDelta" type="range" min="-1.5" max="1.5" step="0.05" value="0"><b id="exportMapZoomDeltaLabel">0,00 · 100%</b></div>
+        <div class="button-row export-fit-row-v67"><button id="exportFitScopeNow" type="button">Подогнать слой / выборку сейчас</button><button id="exportResetPanNow" type="button">Сбросить сдвиг</button></div>
+        <div class="mini-muted">Автоподгонка центрирует экстент слоя/выборки и вписывает его в рамку с базовым зазором 10 px. Этот ползунок меняет только масштаб содержимого, не растягивая внутреннюю рамку.</div>
+      </div>`);
+  }
+  modal.dataset.v67ZoomControls = '1';
+  const slider = $('exportMapZoomDelta');
+  if(slider){
+    slider.addEventListener('input', e=>{
+      const ex = ensureExportFlags();
+      ex.exportZoomDelta = v67Clamp(e.target.value, -1.5, 1.5);
+      ex.mapViewport.zoom = v67ExportZoomFactor(ex.exportZoomDelta);
+      v67SyncExportZoomControls();
+      applyExportViewportTransformOnly();
+    });
+    slider.addEventListener('change', ()=>applyExportViewportTransformOnly());
+  }
+  const fitBtn = $('exportFitScopeNow');
+  if(fitBtn) fitBtn.addEventListener('click', ()=>{
+    const ex = ensureExportFlags();
+    ex.autoFitField = true;
+    if($('exportAutoFitField')) $('exportAutoFitField').checked = true;
+    v67ResetExportViewportAndFit();
+    renderExportPreviewCard();
+  });
+  const resetPan = $('exportResetPanNow');
+  if(resetPan) resetPan.addEventListener('click', ()=>{
+    const ex = ensureExportFlags();
+    ex.manualMapViewport = false;
+    ex.mapViewport.x = 0;
+    ex.mapViewport.y = 0;
+    applyExportViewportTransformOnly();
+  });
+  const auto = $('exportAutoFitField');
+  if(auto && auto.dataset.v67Bound !== '1'){
+    auto.dataset.v67Bound = '1';
+    auto.addEventListener('change', e=>{
+      const ex = ensureExportFlags();
+      ex.autoFitField = !!e.target.checked;
+      if(ex.autoFitField) v67ResetExportViewportAndFit();
+    }, true);
+  }
+  v67SyncExportZoomControls();
+}
+
+const v67PriorEnsureExportModal = typeof ensureExportModal === 'function' ? ensureExportModal : null;
+ensureExportModal = function ensureExportModalV67(){
+  const modal = v67PriorEnsureExportModal ? v67PriorEnsureExportModal() : null;
+  v67InstallExportZoomControls(modal);
+  return modal;
+};
+
+const v67PriorSyncExportDefaults = typeof syncExportDefaults === 'function' ? syncExportDefaults : null;
+syncExportDefaults = function syncExportDefaultsV67(resetTitle){
+  if(v67PriorSyncExportDefaults) v67PriorSyncExportDefaults(resetTitle);
+  v67SyncExportZoomControls();
+};
+
+buildExportSvgMap = async function buildExportSvgMapV67(){
+  const ex = ensureExportFlags();
+  if(ex.autoFitField !== false && !ex.manualMapViewport){
+    ex.mapViewport.x = 0;
+    ex.mapViewport.y = 0;
+  }
+  ex.mapViewport.zoom = v67ExportZoomFactor(ex.exportZoomDelta);
+  const {w,h} = exportMapSize();
+  const fieldRect = exportMapFieldRect(w,h);
+  const features = v66ExportSourceFeatures(exportScopeFeatures());
+  const sourceBBox = geoBBoxFromFeatures(features);
+  const gridBBox = (typeof v66GeoBBoxWithKmBuffer === 'function') ? v66GeoBBoxWithKmBuffer(features) : sourceBBox;
+  const baseProjection = (typeof v66MakeFeatureFitProjection === 'function')
+    ? v66MakeFeatureFitProjection(features, sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx) || 10)
+    : makeExportProjection(sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx) || 10);
+  const projection = (lon,lat)=>{ const p = baseProjection(lon,lat); return {x:p.x + fieldRect.x, y:p.y + fieldRect.y}; };
+  const centerLat = (sourceBBox[1] + sourceBBox[3]) / 2;
+  const centerLon = (sourceBBox[0] + sourceBBox[2]) / 2;
+  const p1 = projection(centerLon, centerLat), p2 = projection(centerLon + 1, centerLat);
+  const pxPerDeg = Math.max(1, Math.hypot(p2.x - p1.x, p2.y - p1.y));
+  const kmPerDeg = 111.32 * Math.max(0.12, Math.cos(centerLat * Math.PI / 180));
+  const kmPerPx = kmPerDeg / pxPerDeg;
+  const field = valField();
+  const vals = field ? features.map(f=>Number(f.properties?.[field])).filter(v=>Number.isFinite(v)) : [];
+  const bodyTransform = exportMapBodyTransform(w,h);
+  const zoom = Number(ex.mapViewport?.zoom) || 1;
+  const parts=[];
+  parts.push(`<svg class="export-map-svg export-map-svg-v66 export-map-svg-v67" data-map-w="${w}" data-map-h="${h}" data-base-km-per-px="${kmPerPx}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" ry="10"/></clipPath><filter id="labelShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1" stdDeviation="1.25" flood-color="#ffffff" flood-opacity="0.94"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="#eef3ef"/><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" fill="${exportBasemapFill()}" stroke="rgba(111,123,98,.55)" stroke-width="1.2"/><g clip-path="url(#exportMapClip)"><g id="exportMapBody" class="export-map-body" transform="${bodyTransform}">`);
+  if(ex.showGraticule) parts.push(await exportGraticuleSvg(projection,w,h,gridBBox,fieldRect));
+  if(ex.showHydro) parts.push(await exportHydroSvg(projection,gridBBox));
+  if(ex.showAdmin) parts.push(exportAdminPolygonsSvg(features,projection,vals));
+  if(ex.showRailways) parts.push(await exportRailSvg(projection,gridBBox));
+  if(ex.showPopulation) parts.push(exportPopulationCirclesSvg(features,projection));
+  if(ex.showLabels && ex.labelMode !== 'none') parts.push(exportAdminLabelsSvg(features,projection,w,h));
+  parts.push(`</g></g>`);
+  if(ex.showGraticule && ex.showGraticuleLabels) parts.push(exportGraticuleLabelsSvg(projection,w,h,gridBBox,fieldRect));
+  if(ex.showScale) parts.push(`<g id="exportScaleBar">${v64ScaleBarSvg(kmPerPx / zoom, w, h, fieldRect)}</g>`);
+  parts.push(`<rect x="0.5" y="0.5" width="${w-1}" height="${h-1}" rx="18" fill="none" stroke="rgba(52,67,75,.16)" stroke-width="1"/></svg>`);
+  return parts.join('');
+};
+
+let v67ExportRenderSeq = 0;
+updateExportLiveMap = async function updateExportLiveMapV67(){
+  const el = $('exportSvgMap'); if(!el) return;
+  const status = $('exportPreviewStatus');
+  const seq = ++v67ExportRenderSeq;
+  try{
+    ensureExportFlags();
+    if(status) status.textContent = 'Строим SVG-карту…';
+    const svg = await buildExportSvgMap();
+    if(seq !== v67ExportRenderSeq) return;
+    el.innerHTML = svg;
+    if(typeof v65BindScaleBarDrag === 'function') v65BindScaleBarDrag();
+    requestAnimationFrame(v67InstallScaleBarHitbox);
+    v67SyncExportZoomControls();
+    if(status) status.textContent = 'Превью обновлено. Можно сохранить PNG.';
+  }catch(e){
+    console.error('SVG export map error v67', e);
+    if(seq !== v67ExportRenderSeq) return;
+    el.innerHTML = `<div class="export-map-placeholder">Не удалось построить карту: ${escapeHtml(e.message || String(e))}</div>`;
+    if(status) status.textContent = 'Ошибка построения карты.';
+  }
+};
+
+function v67InstallScaleBarHitbox(){
+  const frame = document.querySelector('.export-map-frame-v62, .export-map-frame-v51, .export-map-frame-v50');
+  if(!frame) return;
+  frame.querySelectorAll('.export-scale-hitbox-v67').forEach(el=>el.remove());
+  const group = frame.querySelector('#exportScaleBar .export-scale-bar-draggable-v64, #exportScaleBar .export-scale-bar-draggable-v63');
+  if(!group) return;
+  const ex = ensureExportFlags();
+  const width = Number(group.dataset.scaleWidth) || 180;
+  const baseX = Number(group.dataset.baseX) || 0;
+  const baseY = Number(group.dataset.baseY) || 0;
+  const pos = ex.scaleBarPosition && Number.isFinite(Number(ex.scaleBarPosition.x)) && Number.isFinite(Number(ex.scaleBarPosition.y))
+    ? {x:Number(ex.scaleBarPosition.x), y:Number(ex.scaleBarPosition.y)}
+    : {x:baseX, y:baseY};
+  const hit = document.createElement('div');
+  hit.className = 'export-scale-hitbox-v67';
+  hit.title = 'Перетащить масштабную линейку';
+  const apply = (p)=>{
+    hit.style.left = `${Math.round(p.x - 24)}px`;
+    hit.style.top = `${Math.round(p.y - 44)}px`;
+    hit.style.width = `${Math.round(width + 48)}px`;
+    hit.style.height = '74px';
+    group.setAttribute('transform', `translate(${(p.x-baseX).toFixed(1)} ${(p.y-baseY).toFixed(1)})`);
+  };
+  apply(pos);
+  hit.addEventListener('mouseenter', ()=>group.classList.add('is-hover-priority'));
+  hit.addEventListener('mouseleave', ()=>group.classList.remove('is-hover-priority'));
+  hit.addEventListener('pointerdown', ev=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    frame.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50,.export-outer-outline-v62').forEach(el=>el.classList.remove('is-editing'));
+    hit.classList.add('is-dragging');
+    group.classList.add('is-dragging','is-hover-priority');
+    hit.setPointerCapture?.(ev.pointerId);
+    const r = frame.getBoundingClientRect();
+    const start = {x:pos.x, y:pos.y, clientX:ev.clientX, clientY:ev.clientY};
+    const clampFn = (typeof v63ClampScalePosition === 'function') ? v63ClampScalePosition : function(p){
+      return {x:v67Clamp(p.x, 48, r.width - width - 24), y:v67Clamp(p.y, 56, r.height - 24)};
+    };
+    const move = e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const next = clampFn({x:start.x + (e.clientX - start.clientX), y:start.y + (e.clientY - start.clientY)}, r.width, r.height, width);
+      ex.scaleBarPosition = {x:next.x, y:next.y};
+      apply(next);
+    };
+    const up = e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      hit.classList.remove('is-dragging');
+      group.classList.remove('is-dragging');
+      hit.releasePointerCapture?.(ev.pointerId);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+    };
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+  }, true);
+  frame.appendChild(hit);
+}
+
+const v67SequentialModes = new Set(['population','density','urban_share','rail_length','rail_density']);
+const v67FixedModes = new Set(['density','urban_share','rail_density']);
+const v67PriorValueColor = typeof valueColor === 'function' ? valueColor : null;
+const v67PriorUpdateLegend = typeof updateLegend === 'function' ? updateLegend : null;
+function v67MetricDisplayValue(v, mode=state.mode){
+  const n = Number(v);
+  if(!Number.isFinite(n)) return null;
+  return mode === 'urban_share' ? n * 100 : n;
+}
+function v67ModeUnit(mode=state.mode){ return mode === 'urban_share' ? '%' : ''; }
+function v67FixedBreaks(mode=state.mode){
+  if(mode === 'density' || mode === 'rail_density'){
+    return {thresholds:[0.1,1,2.5,5,10,20], labels:['до 0,1','0,1–1','1–2,5','2,5–5','5–10','10–20','более 20']};
+  }
+  if(mode === 'urban_share'){
+    return {thresholds:[5,10,25,50,70,80], labels:['до 5%','5–10%','10–25%','25–50%','50–70%','70–80%','более 80%']};
+  }
+  return null;
+}
+function v67RoundBreak(raw, mode=state.mode){
+  const n = Number(raw);
+  if(!Number.isFinite(n)) return null;
+  if(mode === 'urban_share') return Math.max(0, Math.min(100, Math.round(n / 5) * 5));
+  const abs = Math.abs(n);
+  let step = 5;
+  if(abs < 1) step = 0.1;
+  else if(abs < 5) step = 0.5;
+  return Math.max(0, Math.round(n / step) * step);
+}
+function v67FmtBreak(v, mode=state.mode){
+  const n = Number(v);
+  if(!Number.isFinite(n)) return '—';
+  const hasFrac = Math.abs(n - Math.round(n)) > 0.001;
+  const s = (hasFrac ? n.toFixed(n < 1 ? 1 : 1) : String(Math.round(n))).replace('.',',');
+  return s + v67ModeUnit(mode);
+}
+function v67ClassIndexByThresholds(displayValue, thresholds){
+  if(!thresholds || !thresholds.length) return 0;
+  for(let i=0;i<thresholds.length;i++) if(displayValue < thresholds[i] || Math.abs(displayValue - thresholds[i]) < 1e-9) return i;
+  return thresholds.length;
+}
+function v67Quantile(values, q){
+  const sorted = values.filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!sorted.length) return null;
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if(lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+function v67UniqueIncreasingBreaks(raw, mode=state.mode){
+  const out=[];
+  raw.forEach(v=>{
+    const r = v67RoundBreak(v, mode);
+    if(r === null) return;
+    const last = out[out.length-1];
+    if(last === undefined || r > last) out.push(r);
+  });
+  return out.slice(0,6);
+}
+function v67DynamicBreaks(values, mode=state.mode, method='quantile'){
+  const displayVals = (values || []).map(v=>v67MetricDisplayValue(v, mode)).filter(v=>Number.isFinite(v));
+  if(!displayVals.length) return null;
+  const min = Math.min(...displayVals), max = Math.max(...displayVals);
+  if(max <= min) return null;
+  const k = Math.min(7, Math.max(3, Math.ceil(Math.sqrt(displayVals.length))));
+  let thresholds=[];
+  if(method === 'geometric'){
+    const positives = displayVals.filter(v=>v>0).sort((a,b)=>a-b);
+    const minPos = positives[0] || Math.max(0.1, max/1000);
+    const maxPos = positives[positives.length-1] || max;
+    const ratio = Math.pow(maxPos / minPos, 1 / k);
+    for(let i=1;i<k;i++) thresholds.push(minPos * Math.pow(ratio, i));
+  }else{
+    for(let i=1;i<k;i++) thresholds.push(v67Quantile(displayVals, i/k));
+  }
+  thresholds = v67UniqueIncreasingBreaks(thresholds, mode).filter(v=>v > min && v < max);
+  if(!thresholds.length) return null;
+  const labels=[];
+  for(let i=0;i<=thresholds.length;i++){
+    if(i===0) labels.push(`до ${v67FmtBreak(thresholds[0], mode)}`);
+    else if(i===thresholds.length) labels.push(`более ${v67FmtBreak(thresholds[i-1], mode)}`);
+    else labels.push(`${v67FmtBreak(thresholds[i-1], mode)}–${v67FmtBreak(thresholds[i], mode)}`);
+  }
+  return {thresholds, labels};
+}
+function v67ScaleMode(){
+  const saved = state.choroplethScale || storageGet('wsAtlasChoroplethScale') || '';
+  if(saved && ['continuous','fixed','quantile','geometric'].includes(saved)) return saved;
+  if(v67FixedModes.has(state.mode)) return 'fixed';
+  return 'continuous';
+}
+function v67ClassDescriptor(values, mode=state.mode){
+  const method = v67ScaleMode();
+  if(method === 'fixed' && v67FixedModes.has(mode)) return {...v67FixedBreaks(mode), method:'fixed'};
+  if(method === 'quantile' || method === 'geometric'){
+    const dyn = v67DynamicBreaks(values, mode, method);
+    if(dyn) return {...dyn, method};
+  }
+  return null;
+}
+function v67ColorFromClass(idx, count){
+  const rr = activeValueRamp();
+  if(!rr.length) return '#808080';
+  if(count <= 1) return rr[rr.length-1];
+  return rr[v67Clamp(Math.round(idx * (rr.length - 1) / (count - 1)), 0, rr.length - 1)];
+}
+valueColor = function valueColorV67(v, values){
+  const display = v67MetricDisplayValue(v);
+  if(display === null) return '#a7adb8';
+  const desc = v67ClassDescriptor(values || [], state.mode);
+  if(desc){
+    const idx = v67ClassIndexByThresholds(display, desc.thresholds);
+    return v67ColorFromClass(idx, desc.thresholds.length + 1);
+  }
+  return v67PriorValueColor ? v67PriorValueColor(v, values || []) : '#808080';
+};
+function v67ChoroplethTitle(){
+  const opt = $('modeSelect')?.selectedOptions?.[0]?.textContent?.trim();
+  return opt || 'Значение показателя';
+}
+updateLegend = function updateLegendV67(gj, vals){
+  const box = $('legendBox'); if(!box || !gj) return;
+  let html = '<b>Легенда</b>';
+  if(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type'){
+    const field = state.mode;
+    const cats = [...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14);
+    cats.forEach(c=>{ html += `<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${escapeHtml(c)}</div>`; });
+  }else{
+    const desc = v67ClassDescriptor(vals || [], state.mode);
+    html += `<div class="legend-subtitle-v67">${escapeHtml(v67ChoroplethTitle())}</div>`;
+    if(desc){
+      const count = desc.thresholds.length + 1;
+      desc.labels.forEach((label,i)=>{
+        html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`;
+      });
+      const modeLabel = desc.method === 'fixed' ? 'фиксированные классы' : (desc.method === 'quantile' ? 'квантили, округлены' : 'геометрическая шкала, округлена');
+      html += `<div class="mini-muted legend-scale-note-v67">${modeLabel}</div>`;
+    }else{
+      activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+    }
+  }
+  if(state.layers.hydro && $('hydroToggle')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
+  if(state.layers.rail && $('railToggle')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
+  const visibleFeatures = selectedFeatures();
+  if($('centersToggle')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
+  box.innerHTML = html;
+};
+
+function v67InstallChoroplethScaleControl(){
+  const modeSelect = $('modeSelect');
+  if(!modeSelect || $('choroplethScaleSelect')) return;
+  const label = document.createElement('label');
+  label.className = 'control-label choropleth-scale-control-v67';
+  label.htmlFor = 'choroplethScaleSelect';
+  label.textContent = 'Шкала заливки';
+  const select = document.createElement('select');
+  select.id = 'choroplethScaleSelect';
+  select.className = 'choropleth-scale-control-v67';
+  select.innerHTML = `
+    <option value="continuous">Непрерывная по рангу</option>
+    <option value="fixed">Фиксированные классы</option>
+    <option value="quantile">Квантили, округлённые</option>
+    <option value="geometric">Геометрическая, округлённая</option>`;
+  modeSelect.parentNode.insertBefore(label, modeSelect.nextSibling);
+  modeSelect.parentNode.insertBefore(select, label.nextSibling);
+  if(modeSelect.dataset.v67ChoroplethBound !== '1'){
+    modeSelect.dataset.v67ChoroplethBound = '1';
+    modeSelect.addEventListener('change', ()=>setTimeout(v67SyncChoroplethScaleControl, 0));
+  }
+  select.addEventListener('change', e=>{
+    state.choroplethScale = e.target.value;
+    storageSet('wsAtlasChoroplethScale', state.choroplethScale);
+    v67SyncChoroplethScaleControl();
+    if(typeof refreshVectorStyles === 'function') refreshVectorStyles();
+    updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
+  });
+  v67SyncChoroplethScaleControl();
+}
+function v67SyncChoroplethScaleControl(){
+  const select = $('choroplethScaleSelect');
+  const controls = document.querySelectorAll('.choropleth-scale-control-v67');
+  const show = v67SequentialModes.has(state.mode);
+  controls.forEach(el=>{ el.style.display = show ? '' : 'none'; });
+  if(!select) return;
+  const fixedOpt = select.querySelector('option[value="fixed"]');
+  if(fixedOpt) fixedOpt.disabled = !v67FixedModes.has(state.mode);
+  let val = v67ScaleMode();
+  if(val === 'fixed' && !v67FixedModes.has(state.mode)) val = 'continuous';
+  select.value = val;
+}
+const v67PriorRefreshVectorStyles = typeof refreshVectorStyles === 'function' ? refreshVectorStyles : null;
+refreshVectorStyles = function refreshVectorStylesV67(){
+  v67SyncChoroplethScaleControl();
+  if(v67PriorRefreshVectorStyles) return v67PriorRefreshVectorStyles();
+};
+
+function v67TimelineBottomGap(){
+  const timeline = $('timelineBar');
+  if(!timeline) return 10;
+  const rect = timeline.getBoundingClientRect();
+  const gap = Math.round(window.innerHeight - rect.bottom);
+  return Math.max(8, Number.isFinite(gap) ? gap : 10);
+}
+function v67ClampWidgetToViewport(panel){
+  if(!panel) return;
+  const rect = panel.getBoundingClientRect();
+  const bottomGap = v67TimelineBottomGap();
+  const left = v67Clamp(rect.left, 8, Math.max(8, window.innerWidth - rect.width - 8));
+  const top = v67Clamp(rect.top, 8, Math.max(8, window.innerHeight - bottomGap - rect.height));
+  if(panel.dataset.userDragged === '1'){
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.transform = 'none';
+  }
+}
+function v67BindLooseBottomDrag(panelId, handleId, stateKey){
+  const panel = $(panelId); const handle = $(handleId) || panel?.querySelector('.drag-handle');
+  if(!panel || !handle || handle.dataset.v67LooseDrag === '1') return;
+  handle.dataset.v67LooseDrag = '1';
+  handle.style.touchAction = 'none';
+  const start = ev=>{
+    if(ev.target.closest('button,input,select,label,a')) return;
+    ev.preventDefault(); ev.stopPropagation();
+    if(typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+    const rect = panel.getBoundingClientRect();
+    const sx = ev.clientX, sy = ev.clientY;
+    const st = {left:rect.left, top:rect.top, dx:sx - rect.left, dy:sy - rect.top, width:rect.width};
+    state[stateKey] = {active:true, dx:st.dx, dy:st.dy};
+    panel.classList.add('is-dragging');
+    panel.dataset.userDragged = '1';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    panel.style.width = `${rect.width}px`;
+    panel.style.transform = 'none';
+    handle.setPointerCapture?.(ev.pointerId);
+    const move = e=>{
+      e.preventDefault(); e.stopPropagation();
+      const r = panel.getBoundingClientRect();
+      const bottomGap = v67TimelineBottomGap();
+      const left = v67Clamp(e.clientX - st.dx, 8, Math.max(8, window.innerWidth - r.width - 8));
+      const top = v67Clamp(e.clientY - st.dy, 8, Math.max(8, window.innerHeight - bottomGap - r.height));
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.transform = 'none';
+    };
+    const up = e=>{
+      e.preventDefault(); e.stopPropagation();
+      panel.classList.remove('is-dragging');
+      if(state[stateKey]) state[stateKey].active = false;
+      handle.releasePointerCapture?.(ev.pointerId);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      v67ClampWidgetToViewport(panel);
+    };
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+  };
+  handle.addEventListener('pointerdown', start, true);
+}
+const v67PriorPositionBottomWidgets = typeof positionBottomWidgets === 'function' ? positionBottomWidgets : null;
+positionBottomWidgets = function positionBottomWidgetsV67(force=false){
+  if(v67PriorPositionBottomWidgets) v67PriorPositionBottomWidgets(force);
+  ['metricFilters','parentFilterBar'].forEach(id=>v67ClampWidgetToViewport($(id)));
+};
+function v67UpdateCompactClass(){
+  if(typeof v66UpdateCompactClass === 'function') v66UpdateCompactClass();
+  try{
+    const compact = window.innerWidth <= 1920 || window.innerHeight <= 1100 || (window.devicePixelRatio >= 1.25 && window.innerWidth <= 2200);
+    document.documentElement.classList.toggle('compact-1080-v67', compact);
+    document.body.classList.toggle('compact-1080-v67', compact);
+  }catch(_){ }
+}
+
+(function initV67Patch(){
+  const boot = ()=>{
+    try{
+      ensureExportFlags();
+      v67UpdateCompactClass();
+      v67InstallChoroplethScaleControl();
+      v67BindLooseBottomDrag('metricFilters','metricFiltersHandle','metricFilterDrag');
+      v67BindLooseBottomDrag('parentFilterBar','parentFilterHandle','parentFilterDrag');
+      positionBottomWidgets(false);
+      v67SyncChoroplethScaleControl();
+      requestAnimationFrame(()=>{ v67InstallScaleBarHitbox(); v67SyncExportZoomControls(); });
+    }catch(e){ console.warn('v67 init skipped', e); }
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+  window.addEventListener('resize', ()=>{ v67UpdateCompactClass(); setTimeout(()=>positionBottomWidgets(false),80); }, {passive:true});
 })();

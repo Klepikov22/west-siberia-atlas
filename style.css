@@ -2212,3 +2212,193 @@ html.compact-1080-v65 #parentFilterBar:not(.is-collapsed),
 html.compact-1080-v66 #parentFilterBar:not(.is-collapsed){max-height:calc(100vh - 24px)!important;}
 html.compact-1080-v65 #parentFilterBar.is-collapsed,
 html.compact-1080-v66 #parentFilterBar.is-collapsed{width:max-content!important;max-width:calc(100vw - 24px)!important;}
+
+/* v67: final Full HD widgets, export zoom/hit priority, classed legends and compact pies */
+.export-zoom-fieldset-v67{
+  border:1px solid rgba(196,185,164,.78)!important;
+  border-radius:14px!important;
+  background:rgba(255,253,248,.76)!important;
+  padding:10px 12px!important;
+  margin:10px 0!important;
+}
+.export-zoom-row-v67{
+  display:grid!important;
+  grid-template-columns:minmax(160px,1fr) auto!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+.export-zoom-row-v67 input[type="range"]{width:100%!important;}
+.export-zoom-row-v67 b{
+  min-width:92px!important;
+  text-align:right!important;
+  font-size:12px!important;
+  color:#28343f!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.export-fit-row-v67{justify-content:flex-start!important;gap:8px!important;margin-top:8px!important;}
+.export-scale-hitbox-v67{
+  position:absolute!important;
+  z-index:48!important;
+  pointer-events:auto!important;
+  touch-action:none!important;
+  cursor:move!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,0.001)!important;
+}
+.export-scale-hitbox-v67:hover,
+.export-scale-hitbox-v67.is-dragging{
+  outline:2px dashed rgba(90,121,74,.62)!important;
+  outline-offset:-8px!important;
+  background:rgba(255,255,255,.05)!important;
+}
+.export-scale-bar-draggable-v64.is-hover-priority line,
+.export-scale-bar-draggable-v63.is-hover-priority line{stroke-width:3.6px!important;}
+.export-scale-bar-draggable-v64.is-hover-priority text,
+.export-scale-bar-draggable-v63.is-hover-priority text{filter:drop-shadow(0 1px 2px rgba(255,255,255,.95))!important;}
+.export-field-outline-v51,
+.export-field-outline-v50,
+.export-outer-outline-v62{z-index:20!important;}
+.export-scale-hitbox-v67{z-index:60!important;}
+
+#parentFilterBar:not(.is-collapsed) .parent-filter-title{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:8px!important;
+  row-gap:8px!important;
+}
+#parentFilterBar:not(.is-collapsed) .parent-filter-actions{
+  flex:1 0 100%!important;
+  width:100%!important;
+  margin-left:0!important;
+  display:flex!important;
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+#parentFilterBar:not(.is-collapsed) .parent-filter-actions .mini-action{
+  margin:0!important;
+  height:31px!important;
+  min-height:31px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#parentFilterBar.is-collapsed{
+  width:auto!important;
+  min-width:0!important;
+  max-width:min(270px,calc(100vw - 24px))!important;
+  overflow:visible!important;
+  padding:9px 12px!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-title{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:8px!important;
+  min-height:32px!important;
+  white-space:nowrap!important;
+  margin:0!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-actions{
+  flex:0 0 auto!important;
+  width:auto!important;
+  margin-left:2px!important;
+  gap:0!important;
+  display:inline-flex!important;
+}
+#parentFilterBar.is-collapsed #showAllParentsBtn,
+#parentFilterBar.is-collapsed #clearAllParentsBtn{
+  display:none!important;
+}
+#parentFilterBar.is-collapsed #collapseParentFilter{
+  display:inline-flex!important;
+  width:auto!important;
+  height:30px!important;
+  min-height:30px!important;
+  padding:0 11px!important;
+  margin:0!important;
+}
+#parentFilterBar.is-collapsed .drag-grip,
+#parentFilterBar.is-collapsed .parent-filter-title > span:not(.parent-filter-actions){
+  flex:0 0 auto!important;
+  min-width:0!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-title > span:not(.parent-filter-actions):not(.drag-grip){
+  max-width:142px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+.legend-subtitle-v67{
+  margin:6px 0 6px!important;
+  font-weight:800!important;
+  color:#5d6870!important;
+  font-size:11px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.05em!important;
+}
+.legend-row-class-v67{
+  display:grid!important;
+  grid-template-columns:18px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:7px!important;
+}
+.legend-scale-note-v67{margin-top:5px!important;font-size:10.5px!important;line-height:1.25!important;}
+.choropleth-scale-control-v67 + .choropleth-scale-control-v67{margin-bottom:4px!important;}
+
+@media (max-width:1920px), (max-height:1100px){
+  #metricFilters:not(.is-collapsed),
+  #parentFilterBar:not(.is-collapsed){
+    max-height:calc(100vh - 20px)!important;
+    overflow-y:auto!important;
+  }
+  #metricFilters.is-dragging,
+  #parentFilterBar.is-dragging{will-change:left,top!important;}
+  #parentFilterBar{width:270px!important;}
+  #parentFilterBar.is-collapsed{max-width:250px!important;width:auto!important;}
+  #metricFilters{width:min(340px,calc(100vw - 650px))!important;}
+  .pie-grid{grid-template-columns:1fr 1fr!important;gap:7px!important;}
+  .pie-card{padding:7px!important;border-radius:12px!important;min-width:0!important;overflow:hidden!important;}
+  .pie-card h3{font-size:10.5px!important;line-height:1.1!important;margin:0 0 5px!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:4px!important;}
+  .pie-wrap{display:grid!important;place-items:center!important;min-height:96px!important;}
+  .pie-svg{width:98px!important;height:98px!important;display:block!important;margin:auto!important;}
+  .pie-total{width:54px!important;height:54px!important;font-size:8.5px!important;line-height:1.05!important;}
+  .pie-total b{font-size:10px!important;max-width:48px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+  .pie-legend{margin-top:5px!important;display:grid!important;gap:3px!important;}
+  .pie-legend-row{grid-template-columns:9px minmax(0,1fr) 35px!important;gap:4px!important;font-size:9.5px!important;line-height:1.08!important;align-items:center!important;}
+  .pie-dot{width:8px!important;height:8px!important;}
+  .pie-legend-row span:nth-child(2){overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;min-width:0!important;}
+  .pie-legend-row b{text-align:right!important;font-size:9.2px!important;font-variant-numeric:tabular-nums!important;}
+  .analytics-title{font-size:10.5px!important;line-height:1.15!important;margin-bottom:6px!important;}
+  .analytics-title span{font-size:9px!important;line-height:1.15!important;}
+}
+@supports (zoom:.9){
+  @media (max-width:1920px), (max-height:1100px){
+    html.compact-1080-v67 #metricFilters:not(.is-collapsed),
+    html.compact-1080-v67 #parentFilterBar:not(.is-collapsed){max-height:calc((100vh - 20px) / .9)!important;}
+  }
+}
+html.compact-1080-v67 #metricFilters:not(.is-collapsed),
+html.compact-1080-v67 #parentFilterBar:not(.is-collapsed){
+  max-height:calc(100vh - 20px)!important;
+  overflow-y:auto!important;
+}
+html.compact-1080-v67 #parentFilterBar.is-collapsed{
+  width:auto!important;
+  max-width:250px!important;
+}
+html.compact-1080-v67 .pie-grid{gap:7px!important;}
+html.compact-1080-v67 .pie-card{padding:7px!important;}
+html.compact-1080-v67 .pie-svg{width:96px!important;height:96px!important;}
+html.compact-1080-v67 .pie-total{width:52px!important;height:52px!important;}
+html.compact-1080-v67 .pie-legend-row{grid-template-columns:9px minmax(0,1fr) 34px!important;font-size:9.4px!important;}
+/* v67b: do not CSS-zoom draggable bottom widgets; zoom made pointer coordinates clamp too early on Full HD */
+@media (max-width:1920px), (max-height:1100px){
+  #metricFilters,
+  #parentFilterBar{zoom:1!important;}
+}
+html.compact-1080-v67 #metricFilters,
+html.compact-1080-v67 #parentFilterBar{zoom:1!important;}
