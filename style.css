@@ -2402,3 +2402,233 @@ html.compact-1080-v67 .pie-legend-row{grid-template-columns:9px minmax(0,1fr) 34
 }
 html.compact-1080-v67 #metricFilters,
 html.compact-1080-v67 #parentFilterBar{zoom:1!important;}
+
+/* v68: chart modal repair, collapsed upper-level selector without scrollbars, export dim control and smoother preview */
+.export-dim-fieldset-v68{
+  border:1px solid rgba(196,185,164,.78)!important;
+  border-radius:14px!important;
+  background:rgba(255,253,248,.76)!important;
+  padding:10px 12px!important;
+  margin:10px 0!important;
+}
+.export-dim-row-v68{
+  display:grid!important;
+  grid-template-columns:minmax(160px,1fr) auto!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+.export-dim-row-v68 input[type="range"]{width:100%!important;}
+.export-dim-row-v68 b{
+  min-width:46px!important;
+  text-align:right!important;
+  font-size:12px!important;
+  color:#28343f!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.export-scale-hitbox-v68{
+  position:absolute!important;
+  z-index:80!important;
+  pointer-events:auto!important;
+  touch-action:none!important;
+  cursor:move!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,0.001)!important;
+}
+.export-scale-hitbox-v68:hover,
+.export-scale-hitbox-v68.is-dragging{
+  outline:2px dashed rgba(90,121,74,.62)!important;
+  outline-offset:-8px!important;
+  background:rgba(255,255,255,.05)!important;
+}
+.export-scale-hitbox-v67{display:none!important;}
+.export-graticule-labels-v68 .export-degree-label-v68{
+  paint-order:stroke fill!important;
+  stroke:rgba(255,255,255,.72)!important;
+  stroke-width:3px!important;
+  stroke-linejoin:round!important;
+  font-weight:800!important;
+}
+.export-context-dim-v68{mix-blend-mode:normal!important;}
+.export-preview-status{will-change:contents;}
+.export-map-svg-v68{shape-rendering:geometricPrecision;}
+
+/* Full HD: no horizontal scrollbar and no protruding controls in collapsed upper-level panel */
+#parentFilterBar.is-collapsed{
+  width:238px!important;
+  max-width:238px!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  padding:8px 9px!important;
+  box-sizing:border-box!important;
+}
+#parentFilterBar.is-collapsed .parent-checkboxes{display:none!important;}
+#parentFilterBar.is-collapsed .parent-filter-title{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  gap:7px!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  margin:0!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar.is-collapsed .drag-grip{flex:0 0 auto!important;}
+#parentFilterBar.is-collapsed .parent-filter-title > span:not(.parent-filter-actions):not(.drag-grip){
+  flex:1 1 auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar.is-collapsed .parent-filter-actions{
+  flex:0 0 auto!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  width:auto!important;
+  min-width:0!important;
+  margin-left:0!important;
+  gap:0!important;
+  overflow:visible!important;
+}
+#parentFilterBar.is-collapsed #showAllParentsBtn,
+#parentFilterBar.is-collapsed #clearAllParentsBtn{display:none!important;}
+#parentFilterBar.is-collapsed #collapseParentFilter{
+  flex:0 0 auto!important;
+  display:inline-flex!important;
+  height:30px!important;
+  min-height:30px!important;
+  max-width:92px!important;
+  padding:0 10px!important;
+  font-size:11.5px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+#parentFilterBar:not(.is-collapsed){overflow-x:hidden!important;}
+#parentFilterBar:not(.is-collapsed) .parent-filter-actions{
+  flex:1 0 100%!important;
+  display:flex!important;
+  justify-content:flex-start!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:100%!important;
+  margin-left:0!important;
+  overflow:hidden!important;
+}
+#parentFilterBar:not(.is-collapsed) .parent-filter-actions .mini-action{flex:0 0 auto!important;}
+@media (max-width:1920px), (max-height:1100px){
+  #metricFilters:not(.is-collapsed),
+  #parentFilterBar:not(.is-collapsed){max-height:calc(100vh - 16px)!important;}
+  #parentFilterBar.is-collapsed{width:232px!important;max-width:232px!important;}
+}
+html.compact-1080-v67 #parentFilterBar.is-collapsed,
+html.compact-1080-v68 #parentFilterBar.is-collapsed{width:232px!important;max-width:232px!important;overflow:hidden!important;}
+html.compact-1080-v67 #metricFilters,
+html.compact-1080-v67 #parentFilterBar,
+html.compact-1080-v68 #metricFilters,
+html.compact-1080-v68 #parentFilterBar{zoom:1!important;}
+
+/* Enlarged pie modal must not inherit compact right-panel pie sizes */
+.chart-lightbox .chart-lightbox-card{
+  left:max(360px,3vw)!important;
+  right:max(360px,3vw)!important;
+  top:28px!important;
+  bottom:76px!important;
+  min-height:520px!important;
+  padding:24px 26px!important;
+}
+.chart-lightbox .chart-lightbox-body{
+  height:calc(100% - 72px)!important;
+  overflow:auto!important;
+  padding-right:6px!important;
+}
+.chart-lightbox .expanded-chart-summary{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:12px!important;
+  margin-bottom:18px!important;
+}
+.chart-lightbox .expanded-chart-layout{
+  display:grid!important;
+  grid-template-columns:minmax(320px,.9fr) minmax(420px,1.1fr)!important;
+  gap:28px!important;
+  align-items:center!important;
+  min-height:390px!important;
+}
+.chart-lightbox .expanded-pie-wrap{
+  min-height:380px!important;
+  display:grid!important;
+  place-items:center!important;
+  position:relative!important;
+  overflow:visible!important;
+}
+.chart-lightbox .pie-svg-expanded,
+.chart-lightbox svg.pie-svg.pie-svg-expanded{
+  width:min(42vh,420px)!important;
+  height:min(42vh,420px)!important;
+  min-width:300px!important;
+  min-height:300px!important;
+  max-width:420px!important;
+  max-height:420px!important;
+  display:block!important;
+  margin:auto!important;
+  overflow:visible!important;
+}
+.chart-lightbox .pie-total-expanded,
+.chart-lightbox .pie-total.pie-total-expanded{
+  width:150px!important;
+  height:150px!important;
+  max-width:150px!important;
+  max-height:150px!important;
+  display:grid!important;
+  place-items:center!important;
+  text-align:center!important;
+  line-height:1.08!important;
+}
+.chart-lightbox .pie-total-expanded span{font-size:12px!important;}
+.chart-lightbox .pie-total-expanded b{
+  font-size:22px!important;
+  max-width:145px!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.chart-lightbox .chart-legend{
+  align-self:stretch!important;
+  overflow:auto!important;
+  display:grid!important;
+  gap:8px!important;
+  align-content:start!important;
+  padding:6px 4px 6px 0!important;
+}
+.chart-lightbox .chart-legend-head,
+.chart-lightbox .chart-legend-row{
+  display:grid!important;
+  grid-template-columns:14px minmax(0,1fr) 70px 112px!important;
+  gap:10px!important;
+  align-items:center!important;
+  min-width:0!important;
+}
+.chart-lightbox .chart-legend-row{
+  padding:9px 10px!important;
+  font-size:13px!important;
+  line-height:1.2!important;
+}
+.chart-lightbox .pie-dot{width:10px!important;height:10px!important;}
+.chart-lightbox .chart-modal-note{margin-top:14px!important;font-size:11px!important;}
+@media(max-width:1220px){
+  .chart-lightbox .chart-lightbox-card{left:18px!important;right:18px!important;bottom:54px!important;}
+  .chart-lightbox .expanded-chart-layout{grid-template-columns:1fr!important;min-height:0!important;}
+  .chart-lightbox .expanded-pie-wrap{min-height:300px!important;}
+  .chart-lightbox .pie-svg-expanded{width:300px!important;height:300px!important;min-width:260px!important;min-height:260px!important;}
+  .chart-lightbox .expanded-chart-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+@media(max-width:760px){
+  .chart-lightbox .chart-lightbox-card{left:10px!important;right:10px!important;top:10px!important;bottom:10px!important;border-radius:22px!important;padding:18px!important;}
+  .chart-lightbox .expanded-chart-summary{grid-template-columns:1fr!important;}
+  .chart-lightbox .chart-legend-head,
+  .chart-lightbox .chart-legend-row{grid-template-columns:12px minmax(0,1fr) 56px 86px!important;}
+}

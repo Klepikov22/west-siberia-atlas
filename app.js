@@ -1,4 +1,4 @@
-const APP_VERSION = '67';
+const APP_VERSION = '68';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -7826,3 +7826,480 @@ function v67UpdateCompactClass(){
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
   window.addEventListener('resize', ()=>{ v67UpdateCompactClass(); setTimeout(()=>positionBottomWidgets(false),80); }, {passive:true});
 })();
+
+/* v68: export performance cache/debounce, fixed scale-bar drag, clipped dynamic graticule labels, context dimming, rail-length class scales, Full HD drag clamp */
+function v68Finite(v, fallback){ const n=Number(v); return Number.isFinite(n) ? n : fallback; }
+function v68Clamp(n,min,max){ const v=Number(n); return Math.max(min, Math.min(max, Number.isFinite(v)?v:min)); }
+const v68PriorEnsureExportFlags = typeof ensureExportFlags === 'function' ? ensureExportFlags : null;
+ensureExportFlags = function ensureExportFlagsV68(){
+  const ex = v68PriorEnsureExportFlags ? v68PriorEnsureExportFlags() : (state.export || (state.export = {}));
+  if(!Number.isFinite(Number(ex.contextDimOpacity))) ex.contextDimOpacity = 0;
+  ex.contextDimOpacity = v68Clamp(ex.contextDimOpacity, 0, 0.85);
+  if(!ex._v68) ex._v68 = {};
+  return ex;
+};
+
+function v68SyncContextDimControls(){
+  const ex = ensureExportFlags();
+  const slider = $('exportContextDimOpacity');
+  const label = $('exportContextDimOpacityLabel');
+  const value = v68Clamp(ex.contextDimOpacity,0,0.85);
+  if(slider && Math.abs(Number(slider.value)-value)>0.001) slider.value = value.toFixed(2);
+  if(label) label.textContent = `${Math.round(value*100)}%`;
+}
+function v68InstallContextDimControls(modal){
+  if(!modal || modal.dataset.v68DimControls === '1'){
+    v68SyncContextDimControls();
+    return;
+  }
+  const anchor = document.querySelector('.export-zoom-fieldset-v67') || document.querySelector('#exportShowHydro')?.closest('.export-option-grid') || document.querySelector('.export-controls .button-row');
+  if(anchor){
+    anchor.insertAdjacentHTML('afterend', `
+      <div class="export-fieldset export-dim-fieldset-v68">
+        <div class="export-fieldset-title">Приглушение окружения вне слоя / выборки</div>
+        <label class="control-label" for="exportContextDimOpacity">Непрозрачность приглушающего фона</label>
+        <div class="export-dim-row-v68"><input id="exportContextDimOpacity" type="range" min="0" max="0.85" step="0.01" value="0"><b id="exportContextDimOpacityLabel">0%</b></div>
+        <div class="mini-muted">0% — окружающая гидрография и дороги не приглушаются. Больше значение — сильнее гасится фон за пределами текущего слоя или выборки.</div>
+      </div>`);
+  }
+  modal.dataset.v68DimControls = '1';
+  const slider = $('exportContextDimOpacity');
+  if(slider){
+    slider.addEventListener('input', e=>{
+      const ex = ensureExportFlags();
+      ex.contextDimOpacity = v68Clamp(e.target.value,0,0.85);
+      v68SyncContextDimControls();
+      v68ScheduleExportPreviewUpdate(90);
+    });
+    slider.addEventListener('change', ()=>v68ScheduleExportPreviewUpdate(0));
+  }
+  v68SyncContextDimControls();
+}
+const v68PriorEnsureExportModal = typeof ensureExportModal === 'function' ? ensureExportModal : null;
+ensureExportModal = function ensureExportModalV68(){
+  const modal = v68PriorEnsureExportModal ? v68PriorEnsureExportModal() : null;
+  v68InstallContextDimControls(modal);
+  return modal;
+};
+const v68PriorSyncExportDefaults = typeof syncExportDefaults === 'function' ? syncExportDefaults : null;
+syncExportDefaults = function syncExportDefaultsV68(resetTitle){
+  if(v68PriorSyncExportDefaults) v68PriorSyncExportDefaults(resetTitle);
+  v68SyncContextDimControls();
+};
+
+function v68GraticuleStep(bbox){
+  const spanLon = Math.abs((bbox?.[2]||0) - (bbox?.[0]||0));
+  const spanLat = Math.abs((bbox?.[3]||0) - (bbox?.[1]||0));
+  const span = Math.max(spanLon, spanLat);
+  if(span <= 10) return 1;
+  if(span <= 22) return 2;
+  if(span <= 46) return 5;
+  return 10;
+}
+function v68FormatLon(lon){ return `${Math.abs(lon)}°${lon>=0?'E':'W'}`; }
+function v68FormatLat(lat){ return `${Math.abs(lat)}°${lat>=0?'N':'S'}`; }
+function exportGraticuleSvg(project,w,h,bbox,fieldRect){
+  const style = exportGraticuleStyle();
+  const [minLon,minLat,maxLon,maxLat] = bbox;
+  const step = v68GraticuleStep(bbox);
+  const paths = [];
+  const lon0 = Math.ceil(minLon/step)*step;
+  const lat0 = Math.ceil(minLat/step)*step;
+  const latInc = Math.max(0.02,(maxLat-minLat)/72);
+  const lonInc = Math.max(0.02,(maxLon-minLon)/72);
+  for(let lon=lon0; lon<=maxLon+1e-9; lon+=step){
+    const pts=[];
+    for(let lat=minLat; lat<=maxLat+1e-9; lat+=latInc){
+      const p=project(lon,lat); pts.push(`${pts.length?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    paths.push(`<path d="${pts.join(' ')}" fill="none" stroke="${style.stroke}" stroke-width="0.65" stroke-dasharray="${style.dash}"/>`);
+  }
+  for(let lat=lat0; lat<=maxLat+1e-9; lat+=step){
+    const pts=[];
+    for(let lon=minLon; lon<=maxLon+1e-9; lon+=lonInc){
+      const p=project(lon,lat); pts.push(`${pts.length?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    }
+    paths.push(`<path d="${pts.join(' ')}" fill="none" stroke="${style.stroke}" stroke-width="0.65" stroke-dasharray="${style.dash}"/>`);
+  }
+  return `<g class="export-graticule export-graticule-v68">${paths.join('')}</g>`;
+}
+function exportGraticuleLabelsSvg(project,w,h,bbox,fieldRect){
+  const style = exportGraticuleStyle();
+  const [minLon,minLat,maxLon,maxLat] = bbox;
+  const step = v68GraticuleStep(bbox);
+  const field = fieldRect || exportMapFieldRect(w,h);
+  const fs = Math.max(8, Math.min(18, Number(state.export?.graticuleLabelSize)||12));
+  const labels=[];
+  const lon0 = Math.ceil(minLon/step)*step;
+  const lat0 = Math.ceil(minLat/step)*step;
+  for(let lon=lon0; lon<=maxLon+1e-9; lon+=step){
+    const p=project(lon, minLat + (maxLat-minLat)*0.035);
+    const x=v68Clamp(p.x, field.x+24, field.x+field.w-24);
+    if(p.x>=field.x+18 && p.x<=field.x+field.w-18){
+      labels.push(`<text class="export-degree-label export-degree-label-v68" x="${x.toFixed(1)}" y="${(field.y+field.h-10).toFixed(1)}" text-anchor="middle" font-size="${fs}" fill="${style.label}">${v68FormatLon(lon)}</text>`);
+    }
+  }
+  for(let lat=lat0; lat<=maxLat+1e-9; lat+=step){
+    const p=project(minLon + (maxLon-minLon)*0.035, lat);
+    const y=v68Clamp(p.y, field.y+18, field.y+field.h-18);
+    if(p.y>=field.y+18 && p.y<=field.y+field.h-18){
+      labels.push(`<text class="export-degree-label export-degree-label-v68" x="${(field.x+10).toFixed(1)}" y="${(y+fs*0.32).toFixed(1)}" text-anchor="start" font-size="${fs}" fill="${style.label}">${v68FormatLat(lat)}</text>`);
+    }
+  }
+  return `<g class="export-graticule-labels export-graticule-labels-v68" pointer-events="none">${labels.join('')}</g>`;
+}
+
+function v68FieldRectPath(field){
+  return `M${field.x.toFixed(1)},${field.y.toFixed(1)}H${(field.x+field.w).toFixed(1)}V${(field.y+field.h).toFixed(1)}H${field.x.toFixed(1)}Z`;
+}
+function v68ContextDimSvg(features, projection, fieldRect){
+  const ex = ensureExportFlags();
+  const opacity = v68Clamp(ex.contextDimOpacity,0,0.85);
+  if(opacity <= 0.001) return '';
+  const source = (features && features.length) ? features : [];
+  const layerPaths = source.map(f=>geomToSvgPath(f.geometry, projection)).filter(Boolean).join(' ');
+  if(!layerPaths) return '';
+  const fill = exportBasemapFill ? exportBasemapFill() : '#eef3ef';
+  const d = `${v68FieldRectPath(fieldRect)} ${layerPaths}`;
+  return `<g class="export-context-dim-v68" clip-path="url(#exportMapClip)" pointer-events="none"><path d="${d}" fill="${fill}" fill-opacity="${opacity.toFixed(2)}" fill-rule="evenodd" clip-rule="evenodd"/></g>`;
+}
+
+const v68FullSvgCache = new Map();
+function v68ExportFeatureSignature(features){
+  const arr = (features||[]).map(f=>{
+    try{ return featureId(f) || f.properties?.unit_id || f.properties?.id || f.properties?.name || ''; }
+    catch(_){ return f.properties?.unit_id || f.properties?.name || ''; }
+  });
+  return `${arr.length}:${arr.slice(0,850).join('|')}`;
+}
+function v68ExportMapCacheKey(){
+  const ex=ensureExportFlags();
+  const {w,h}=exportMapSize();
+  const features = (typeof v66ExportSourceFeatures === 'function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
+  let bbox='';
+  try{ bbox = geoBBoxFromFeatures(features).map(v=>Number(v).toFixed(5)).join(','); }catch(_){ bbox=''; }
+  const f = exportMapFieldRect(w,h);
+  const buf = ['top','right','bottom','left'].map(k=>Math.round(Number(ex.extentBuffer?.[k])||0)).join(',');
+  const scale = ex.scaleBarPosition ? `${Math.round(Number(ex.scaleBarPosition.x)||0)},${Math.round(Number(ex.scaleBarPosition.y)||0)}` : 'auto';
+  const flags = ['showHydro','showAdmin','showRailways','showPopulation','showLabels','showGraticule','showGraticuleLabels','showScale'].map(k=>ex[k]?'1':'0').join('');
+  return [APP_VERSION,state.year,state.mode,ex.scope,flags,ex.labelMode,Math.round(Number(ex.graticuleLabelSize)||12),Number(ex.exportZoomDelta||0).toFixed(2),Number(ex.contextDimOpacity||0).toFixed(2),w,h,f.x,f.y,f.w,f.h,buf,scale,bbox,v68ExportFeatureSignature(features)].join('§');
+}
+
+buildExportSvgMap = async function buildExportSvgMapV68(){
+  const ex = ensureExportFlags();
+  if(ex.autoFitField !== false && !ex.manualMapViewport){
+    ex.mapViewport.x = 0;
+    ex.mapViewport.y = 0;
+  }
+  ex.mapViewport.zoom = (typeof v67ExportZoomFactor === 'function') ? v67ExportZoomFactor(ex.exportZoomDelta) : (Number(ex.mapViewport.zoom)||1);
+  const {w,h} = exportMapSize();
+  const fieldRect = exportMapFieldRect(w,h);
+  const features = (typeof v66ExportSourceFeatures === 'function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
+  const sourceBBox = geoBBoxFromFeatures(features);
+  const gridBBox = (typeof v66GeoBBoxWithKmBuffer === 'function') ? v66GeoBBoxWithKmBuffer(features) : sourceBBox;
+  const baseProjection = (typeof v66MakeFeatureFitProjection === 'function')
+    ? v66MakeFeatureFitProjection(features, sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx) || 10)
+    : makeExportProjection(sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx) || 10);
+  const projection = (lon,lat)=>{ const p=baseProjection(lon,lat); return {x:p.x+fieldRect.x, y:p.y+fieldRect.y}; };
+  const centerLat = (sourceBBox[1]+sourceBBox[3])/2;
+  const centerLon = (sourceBBox[0]+sourceBBox[2])/2;
+  const p1=projection(centerLon,centerLat), p2=projection(centerLon+1,centerLat);
+  const pxPerDeg=Math.max(1,Math.hypot(p2.x-p1.x,p2.y-p1.y));
+  const kmPerDeg=111.32*Math.max(0.12,Math.cos(centerLat*Math.PI/180));
+  const kmPerPx=kmPerDeg/pxPerDeg;
+  const field=valField();
+  const vals=field?features.map(f=>Number(f.properties?.[field])).filter(v=>Number.isFinite(v)):[];
+  const bodyTransform=exportMapBodyTransform(w,h);
+  const zoom=Number(ex.mapViewport?.zoom)||1;
+  const parts=[];
+  parts.push(`<svg class="export-map-svg export-map-svg-v66 export-map-svg-v67 export-map-svg-v68" data-map-w="${w}" data-map-h="${h}" data-base-km-per-px="${kmPerPx}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Карта"><defs><clipPath id="exportMapClip"><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" ry="10"/></clipPath><filter id="labelShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1" stdDeviation="1.25" flood-color="#ffffff" flood-opacity="0.94"/></filter></defs><rect width="${w}" height="${h}" rx="18" fill="#eef3ef"/><rect x="${fieldRect.x}" y="${fieldRect.y}" width="${fieldRect.w}" height="${fieldRect.h}" rx="10" fill="${exportBasemapFill()}" stroke="rgba(111,123,98,.55)" stroke-width="1.2"/><g clip-path="url(#exportMapClip)"><g id="exportMapBody" class="export-map-body" transform="${bodyTransform}">`);
+  if(ex.showGraticule) parts.push(exportGraticuleSvg(projection,w,h,gridBBox,fieldRect));
+  if(ex.showHydro) parts.push(await exportHydroSvg(projection,gridBBox));
+  if(ex.showRailways) parts.push(await exportRailSvg(projection,gridBBox));
+  parts.push(v68ContextDimSvg(features, projection, fieldRect));
+  if(ex.showAdmin) parts.push(exportAdminPolygonsSvg(features,projection,vals));
+  if(ex.showPopulation) parts.push(exportPopulationCirclesSvg(features,projection));
+  if(ex.showLabels && ex.labelMode !== 'none') parts.push(exportAdminLabelsSvg(features,projection,w,h));
+  parts.push(`</g></g>`);
+  if(ex.showGraticule && ex.showGraticuleLabels){
+    parts.push(`<g clip-path="url(#exportMapClip)">${exportGraticuleLabelsSvg(projection,w,h,gridBBox,fieldRect)}</g>`);
+  }
+  if(ex.showScale) parts.push(`<g id="exportScaleBar">${v64ScaleBarSvg(kmPerPx/zoom,w,h,fieldRect)}</g>`);
+  parts.push(`<rect x="0.5" y="0.5" width="${w-1}" height="${h-1}" rx="18" fill="none" stroke="rgba(52,67,75,.16)" stroke-width="1"/></svg>`);
+  return parts.join('');
+};
+
+let v68ExportRenderSeq = 0;
+let v68ExportTimer = null;
+let v68ExportPendingResolve = [];
+function v68ScheduleExportPreviewUpdate(delay=90){
+  if(!state.export?.open){ return Promise.resolve(); }
+  clearTimeout(v68ExportTimer);
+  return new Promise(resolve=>{
+    v68ExportPendingResolve.push(resolve);
+    v68ExportTimer=setTimeout(async()=>{
+      const resolves=v68ExportPendingResolve.splice(0);
+      try{ await updateExportLiveMap({immediate:true}); }
+      finally{ resolves.forEach(fn=>{ try{ fn(); }catch(_){} }); }
+    }, Math.max(0,delay));
+  });
+}
+updateExportLiveMap = async function updateExportLiveMapV68(options={}){
+  const el=$('exportSvgMap'); if(!el) return;
+  if(!options.immediate){
+    return v68ScheduleExportPreviewUpdate(90);
+  }
+  const status=$('exportPreviewStatus');
+  const seq=++v68ExportRenderSeq;
+  try{
+    ensureExportFlags();
+    if(status) status.textContent='Строим SVG-карту…';
+    const key=v68ExportMapCacheKey();
+    let svg=v68FullSvgCache.get(key);
+    if(!svg){
+      svg=await buildExportSvgMap();
+      if(v68FullSvgCache.size>10){ const first=v68FullSvgCache.keys().next().value; v68FullSvgCache.delete(first); }
+      v68FullSvgCache.set(key, svg);
+    }
+    if(seq !== v68ExportRenderSeq) return;
+    el.innerHTML=svg;
+    requestAnimationFrame(()=>{ v68InstallScaleBarHitbox(); v68SyncContextDimControls(); if(typeof v67SyncExportZoomControls==='function') v67SyncExportZoomControls(); });
+    if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+  }catch(e){
+    console.error('SVG export map error v68', e);
+    if(seq !== v68ExportRenderSeq) return;
+    el.innerHTML=`<div class="export-map-placeholder">Не удалось построить карту: ${escapeHtml(e.message||String(e))}</div>`;
+    if(status) status.textContent='Ошибка построения карты.';
+  }
+};
+
+function v68InstallScaleBarHitbox(){
+  const frame=document.querySelector('.export-map-frame-v62, .export-map-frame-v51, .export-map-frame-v50');
+  if(!frame) return;
+  frame.querySelectorAll('.export-scale-hitbox-v67,.export-scale-hitbox-v68').forEach(el=>el.remove());
+  const group=frame.querySelector('#exportScaleBar .export-scale-bar-draggable-v64, #exportScaleBar .export-scale-bar-draggable-v63');
+  if(!group) return;
+  const svg=frame.querySelector('#exportSvgMap svg.export-map-svg');
+  const ex=ensureExportFlags();
+  const width=Number(group.dataset.scaleWidth)||180;
+  const baseX=Number(group.dataset.baseX)||0;
+  const baseY=Number(group.dataset.baseY)||0;
+  const fieldSize=exportMapSize();
+  const pos=ex.scaleBarPosition && Number.isFinite(Number(ex.scaleBarPosition.x)) && Number.isFinite(Number(ex.scaleBarPosition.y))
+    ? {x:Number(ex.scaleBarPosition.x), y:Number(ex.scaleBarPosition.y)}
+    : {x:baseX, y:baseY};
+  const hit=document.createElement('div');
+  hit.className='export-scale-hitbox-v68';
+  hit.title='Перетащить масштабную линейку';
+  const frameRect=()=>frame.getBoundingClientRect();
+  const scale=()=>{
+    const r=frameRect();
+    const sx=r.width/Math.max(1,fieldSize.w);
+    const sy=r.height/Math.max(1,fieldSize.h);
+    return {sx,sy};
+  };
+  const clampPos=p=>{
+    if(typeof v63ClampScalePosition === 'function') return v63ClampScalePosition(p, width, fieldSize.w, fieldSize.h);
+    return {x:v68Clamp(p.x,18,fieldSize.w-width-18), y:v68Clamp(p.y,42,fieldSize.h-18)};
+  };
+  const apply=p=>{
+    const next=clampPos(p);
+    const sc=scale();
+    hit.style.left=`${Math.round((next.x-24)*sc.sx)}px`;
+    hit.style.top=`${Math.round((next.y-44)*sc.sy)}px`;
+    hit.style.width=`${Math.round((width+48)*sc.sx)}px`;
+    hit.style.height=`${Math.round(74*sc.sy)}px`;
+    group.setAttribute('transform',`translate(${(next.x-baseX).toFixed(1)} ${(next.y-baseY).toFixed(1)})`);
+    return next;
+  };
+  let current=apply(pos);
+  hit.addEventListener('mouseenter',()=>group.classList.add('is-hover-priority'));
+  hit.addEventListener('mouseleave',()=>group.classList.remove('is-hover-priority'));
+  hit.addEventListener('pointerdown',ev=>{
+    ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    frame.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50,.export-outer-outline-v62').forEach(el=>el.classList.remove('is-editing'));
+    hit.classList.add('is-dragging'); group.classList.add('is-dragging','is-hover-priority');
+    hit.setPointerCapture?.(ev.pointerId);
+    const sc0=scale();
+    const start={x:current.x,y:current.y,clientX:ev.clientX,clientY:ev.clientY,sx:sc0.sx,sy:sc0.sy};
+    const move=e=>{
+      e.preventDefault(); e.stopPropagation();
+      const next=clampPos({x:start.x+(e.clientX-start.clientX)/Math.max(0.001,start.sx), y:start.y+(e.clientY-start.clientY)/Math.max(0.001,start.sy)});
+      ex.scaleBarPosition={x:Math.round(next.x), y:Math.round(next.y)};
+      current=apply(next);
+    };
+    const up=e=>{
+      e.preventDefault(); e.stopPropagation();
+      hit.classList.remove('is-dragging'); group.classList.remove('is-dragging');
+      hit.releasePointerCapture?.(ev.pointerId);
+      window.removeEventListener('pointermove',move,true);
+      window.removeEventListener('pointerup',up,true);
+      window.removeEventListener('pointercancel',up,true);
+      v68FullSvgCache.clear();
+    };
+    window.addEventListener('pointermove',move,true);
+    window.addEventListener('pointerup',up,true);
+    window.addEventListener('pointercancel',up,true);
+  }, true);
+  frame.appendChild(hit);
+}
+v67InstallScaleBarHitbox = v68InstallScaleBarHitbox;
+
+function v68RoundBreak(raw, mode=state.mode){
+  const n=Number(raw);
+  if(!Number.isFinite(n)) return null;
+  if(mode==='rail_length') return Math.max(0, Math.round(n/10)*10);
+  return (typeof v67RoundBreak === 'function') ? v67RoundBreak(raw, mode) : Math.round(n);
+}
+function v68FmtBreak(v, mode=state.mode){
+  if(mode==='rail_length') return `${num(Math.round(Number(v)||0))} км`;
+  return (typeof v67FmtBreak === 'function') ? v67FmtBreak(v, mode) : String(v);
+}
+function v68RailLengthLinearBreaks(values){
+  const vals=(values||[]).map(v=>v67MetricDisplayValue(v,'rail_length')).filter(v=>Number.isFinite(v)&&v>0).sort((a,b)=>a-b);
+  if(!vals.length) return null;
+  const max=vals[vals.length-1];
+  if(max<=0) return null;
+  const k=Math.min(7, Math.max(4, Math.ceil(Math.sqrt(vals.length))));
+  const raw=[];
+  for(let i=1;i<k;i++) raw.push(max*i/k);
+  const thresholds=[];
+  raw.forEach(v=>{ const r=v68RoundBreak(v,'rail_length'); if(r>0 && r<max && (!thresholds.length || r>thresholds[thresholds.length-1])) thresholds.push(r); });
+  if(!thresholds.length) return null;
+  const labels=[];
+  for(let i=0;i<=thresholds.length;i++){
+    if(i===0) labels.push(`до ${v68FmtBreak(thresholds[0],'rail_length')}`);
+    else if(i===thresholds.length) labels.push(`более ${v68FmtBreak(thresholds[i-1],'rail_length')}`);
+    else labels.push(`${v68FmtBreak(thresholds[i-1],'rail_length')}–${v68FmtBreak(thresholds[i],'rail_length')}`);
+  }
+  return {thresholds, labels, method:'linear'};
+}
+function v68RailLengthBreaks(values, method){
+  const vals=(values||[]).map(v=>v67MetricDisplayValue(v,'rail_length')).filter(v=>Number.isFinite(v)&&v>0).sort((a,b)=>a-b);
+  if(!vals.length) return null;
+  if(method==='continuous' || method==='linear') return v68RailLengthLinearBreaks(values);
+  const max=vals[vals.length-1], min=vals[0];
+  const k=Math.min(7, Math.max(4, Math.ceil(Math.sqrt(vals.length))));
+  let raw=[];
+  if(method==='geometric'){
+    const ratio=Math.pow(max/Math.max(1,min),1/k);
+    for(let i=1;i<k;i++) raw.push(Math.max(1,min)*Math.pow(ratio,i));
+  }else{
+    for(let i=1;i<k;i++) raw.push(v67Quantile(vals,i/k));
+  }
+  const thresholds=[];
+  raw.forEach(v=>{ const r=v68RoundBreak(v,'rail_length'); if(r>0 && r<max && (!thresholds.length || r>thresholds[thresholds.length-1])) thresholds.push(r); });
+  if(!thresholds.length) return v68RailLengthLinearBreaks(values);
+  const labels=[];
+  for(let i=0;i<=thresholds.length;i++){
+    if(i===0) labels.push(`до ${v68FmtBreak(thresholds[0],'rail_length')}`);
+    else if(i===thresholds.length) labels.push(`более ${v68FmtBreak(thresholds[i-1],'rail_length')}`);
+    else labels.push(`${v68FmtBreak(thresholds[i-1],'rail_length')}–${v68FmtBreak(thresholds[i],'rail_length')}`);
+  }
+  return {thresholds, labels, method:method==='geometric'?'geometric':'quantile'};
+}
+const v68PriorClassDescriptor = typeof v67ClassDescriptor === 'function' ? v67ClassDescriptor : null;
+v67ClassDescriptor = function v67ClassDescriptorV68(values, mode=state.mode){
+  const method = (typeof v67ScaleMode === 'function') ? v67ScaleMode() : 'continuous';
+  if(mode==='rail_length') return v68RailLengthBreaks(values, method);
+  if(v68PriorClassDescriptor) return v68PriorClassDescriptor(values, mode);
+  return null;
+};
+const v68PriorSyncChoroplethScaleControl = typeof v67SyncChoroplethScaleControl === 'function' ? v67SyncChoroplethScaleControl : null;
+v67SyncChoroplethScaleControl = function v67SyncChoroplethScaleControlV68(){
+  if(v68PriorSyncChoroplethScaleControl) v68PriorSyncChoroplethScaleControl();
+  const select=$('choroplethScaleSelect');
+  if(!select) return;
+  const fixedOpt=select.querySelector('option[value="fixed"]');
+  if(fixedOpt && state.mode==='rail_length') fixedOpt.disabled=true;
+  const continuousOpt=select.querySelector('option[value="continuous"]');
+  if(continuousOpt) continuousOpt.textContent = state.mode==='rail_length' ? 'Линейная, округление до 10 км' : 'Непрерывная по рангу';
+};
+
+function v68TimelineBottomGap(){
+  const timeline=$('timelineBar');
+  if(!timeline) return 8;
+  const rect=timeline.getBoundingClientRect();
+  const gap=Math.round(window.innerHeight-rect.bottom);
+  return Math.max(6, Number.isFinite(gap)?gap:8);
+}
+v67TimelineBottomGap = v68TimelineBottomGap;
+v66TimelineBottomGap = v68TimelineBottomGap;
+function v68ClampWidgetToViewport(panel){
+  if(!panel) return;
+  const rect=panel.getBoundingClientRect();
+  const bottomGap=v68TimelineBottomGap();
+  const left=v68Clamp(rect.left,8,Math.max(8,window.innerWidth-rect.width-8));
+  const top=v68Clamp(rect.top,8,Math.max(8,window.innerHeight-bottomGap-rect.height));
+  panel.style.left=`${left}px`;
+  panel.style.top=`${top}px`;
+  panel.style.right='auto';
+  panel.style.bottom='auto';
+  panel.style.transform='none';
+}
+v67ClampWidgetToViewport = v68ClampWidgetToViewport;
+const v68PriorPositionBottomWidgets = typeof positionBottomWidgets === 'function' ? positionBottomWidgets : null;
+positionBottomWidgets = function positionBottomWidgetsV68(force=false){
+  if(v68PriorPositionBottomWidgets) v68PriorPositionBottomWidgets(force);
+  ['metricFilters','parentFilterBar'].forEach(id=>{
+    const panel=$(id);
+    if(panel && (force || panel.dataset.userDragged==='1')) v68ClampWidgetToViewport(panel);
+  });
+};
+
+(function initV68Patch(){
+  const boot=()=>{
+    try{
+      ensureExportFlags();
+      v68SyncContextDimControls();
+      if(typeof v67SyncChoroplethScaleControl==='function') v67SyncChoroplethScaleControl();
+      requestAnimationFrame(()=>v68InstallScaleBarHitbox());
+    }catch(e){ console.warn('v68 init skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+  window.addEventListener('resize',()=>{ setTimeout(()=>{ ['metricFilters','parentFilterBar'].forEach(id=>{ const p=$(id); if(p?.dataset.userDragged==='1') v68ClampWidgetToViewport(p); }); v68InstallScaleBarHitbox(); },60); },{passive:true});
+})();
+
+/* v68b: expose compact class under current version too */
+const v68PriorUpdateCompactClass = typeof v67UpdateCompactClass === 'function' ? v67UpdateCompactClass : null;
+v67UpdateCompactClass = function v67UpdateCompactClassV68(){
+  if(v68PriorUpdateCompactClass) v68PriorUpdateCompactClass();
+  try{
+    const compact = window.innerWidth <= 1920 || window.innerHeight <= 1100 || (window.devicePixelRatio >= 1.25 && window.innerWidth <= 2200);
+    document.documentElement.classList.toggle('compact-1080-v68', compact);
+    document.body.classList.toggle('compact-1080-v68', compact);
+  }catch(_){ }
+};
+try{ v67UpdateCompactClass(); }catch(_){ }
+
+/* v68c: correct legend note for rail-length linear classes */
+updateLegend = function updateLegendV68(gj, vals){
+  const box=$('legendBox'); if(!box || !gj) return;
+  let html='<b>Легенда</b>';
+  if(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type'){
+    const field=state.mode;
+    const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14);
+    cats.forEach(c=>{ html += `<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${escapeHtml(c)}</div>`; });
+  }else{
+    const desc=(typeof v67ClassDescriptor==='function') ? v67ClassDescriptor(vals||[], state.mode) : null;
+    html += `<div class="legend-subtitle-v67">${escapeHtml(v67ChoroplethTitle ? v67ChoroplethTitle() : 'Значение показателя')}</div>`;
+    if(desc){
+      const count=desc.thresholds.length+1;
+      desc.labels.forEach((label,i)=>{
+        html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`;
+      });
+      const modeLabel = desc.method==='fixed' ? 'фиксированные классы'
+        : desc.method==='linear' ? 'линейная шкала, округление до 10 км'
+        : desc.method==='quantile' ? 'квантили, округлены'
+        : 'геометрическая шкала, округлена';
+      html += `<div class="mini-muted legend-scale-note-v67">${modeLabel}</div>`;
+    }else{
+      activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+    }
+  }
+  if(state.layers.hydro && $('hydroToggle')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
+  if(state.layers.rail && $('railToggle')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
+  const visibleFeatures=selectedFeatures();
+  if($('centersToggle')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
+  box.innerHTML=html;
+};
