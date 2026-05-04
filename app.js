@@ -1,4 +1,4 @@
-const APP_VERSION = '57';
+const APP_VERSION = '58';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5419,7 +5419,7 @@ function v56SelectionGuard(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
 })();
 
-/* v57: окончательный safe-override инициализации экспорта.
+/* v58: окончательный safe-override инициализации экспорта.
    Причина: старый v51-wrapper перехватывал ensureExportFlags и иногда возвращал undefined,
    из-за чего exportMapSize() падал на чтении canvasWidth. */
 function ensureExportFlags(){
@@ -5478,10 +5478,91 @@ function exportMapSize(){
 }
 (function initV57Patch(){
   const boot=()=>{
-    try{ ensureExportFlags(); }catch(e){ console.error('v57 export init failed', e); }
+    try{ ensureExportFlags(); }catch(e){ console.error('v58 export init failed', e); }
     const status=document.getElementById('exportPreviewStatus');
     if(status && /canvasWidth/.test(status.textContent||'')) status.textContent='Превью готово к обновлению.';
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
 
+
+
+/* v58 hotfix: runtime reassignment after old v51 wrapper.
+   Важно: в v51 был оператор `ensureExportFlags = v51EnsureExportFlagsExtra;`.
+   Function declarations ниже по файлу не перебивают такой runtime-assignment, поэтому нужен именно
+   финальный оператор присваивания в самом конце файла. */
+const safeExportFiniteV58 = (v, fallback) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+const safeExportBoxV58 = (obj, defaults) => {
+  const out = (obj && typeof obj === 'object') ? obj : {};
+  Object.keys(defaults).forEach(k => {
+    if (!Number.isFinite(Number(out[k]))) out[k] = defaults[k];
+  });
+  return out;
+};
+ensureExportFlags = function ensureExportFlagsV58(){
+  if (typeof state === 'undefined') return {
+    canvasWidth: 1480,
+    canvasHeight: 1040,
+    extentBuffer: {top:200,right:200,bottom:200,left:200},
+    pagePadding: {top:0,right:0,bottom:0,left:0},
+    fieldPadding: {top:110,right:42,bottom:54,left:42},
+    innerFrame: {x:80,y:130,w:900,h:760},
+    overlayPositions: {},
+    statsFields: {}
+  };
+  if (!state.export || typeof state.export !== 'object') state.export = {};
+  const ex = state.export;
+  if (typeof ex.open !== 'boolean') ex.open = false;
+  if (!ex.scope) ex.scope = 'currentLayer';
+  if (!ex.paper) ex.paper = 'a4Landscape';
+  if (!ex.template) ex.template = 'thesis';
+  if (!ex.projection) ex.projection = 'lambert';
+  if (!Number.isFinite(Number(ex.centralMeridian))) ex.centralMeridian = 75;
+  if (typeof ex.title !== 'string' || !ex.title) {
+    try { ex.title = (typeof defaultExportTitle === 'function') ? defaultExportTitle() : `Административно-территориальное деление (${state.year || ''} г.)`; }
+    catch(_) { ex.title = `Административно-территориальное деление (${state.year || ''} г.)`; }
+  }
+  if (typeof ex.subtitle !== 'string') ex.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k => {
+    if (typeof ex[k] !== 'boolean') ex[k] = true;
+  });
+  if (!ex.contextMode) ex.contextMode = 'auto';
+  if (typeof ex.contextText !== 'string') ex.contextText = '';
+  if (!ex.labelMode) ex.labelMode = 'balanced';
+  if (!Number.isFinite(Number(ex.minPopulation))) ex.minPopulation = 0;
+  if (!Number.isFinite(Number(ex.minArea))) ex.minArea = 0;
+  if (!Number.isFinite(Number(ex.graticuleLabelSize))) ex.graticuleLabelSize = 12;
+  ex.canvasWidth = Math.max(900, safeExportFiniteV58(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
+  ex.canvasHeight = Math.max(700, safeExportFiniteV58(ex.canvasHeight, ex.paper === 'a4Portrait' ? 1680 : ex.paper === 'screen' ? 1040 : 1040));
+  if (!Number.isFinite(Number(ex.titleFontSize))) ex.titleFontSize = 34;
+  if (!Number.isFinite(Number(ex.panelWidth))) ex.panelWidth = 300;
+  if (!Number.isFinite(Number(ex.bufferPreset))) ex.bufferPreset = 200;
+  ex.extentBuffer = safeExportBoxV58(ex.extentBuffer, {top:200,right:200,bottom:200,left:200});
+  ex.pagePadding = safeExportBoxV58(ex.pagePadding, {top:0,right:0,bottom:0,left:0});
+  ex.fieldPadding = safeExportBoxV58(ex.fieldPadding, {top:110,right:42,bottom:54,left:42});
+  if (typeof ex.autoFitField !== 'boolean') ex.autoFitField = true;
+  ex.innerFrame = safeExportBoxV58(ex.innerFrame, {x:80,y:130,w:900,h:760});
+  if (!ex.overlayPositions || typeof ex.overlayPositions !== 'object') ex.overlayPositions = {};
+  ['title','stats','legend','context'].forEach(k => {
+    if (!ex.overlayPositions[k] || typeof ex.overlayPositions[k] !== 'object') ex.overlayPositions[k] = {};
+  });
+  if (typeof ex.activeFrame !== 'string') ex.activeFrame = '';
+  if (typeof ex.selectedWidget !== 'string') ex.selectedWidget = '';
+  if (typeof ex.lastCanvasKey !== 'string') ex.lastCanvasKey = '';
+  if (!ex.statsFields || typeof ex.statsFields !== 'object') ex.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k => { if (typeof ex.statsFields[k] !== 'boolean') ex.statsFields[k] = statDefaults[k]; });
+  return ex;
+};
+exportMapSize = function exportMapSizeV58(){
+  const ex = ensureExportFlags();
+  return {
+    w: Math.max(900, safeExportFiniteV58(ex && ex.canvasWidth, 1480)),
+    h: Math.max(700, safeExportFiniteV58(ex && ex.canvasHeight, 1040))
+  };
+};
+/* Принудительно прогреваем состояние после финального присваивания. */
+try { ensureExportFlags(); } catch(e) { console.error('v58 export state init failed', e); }
