@@ -1896,3 +1896,68 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
   max-height:none!important;
 }
 #metricFilters.is-collapsed .metric-filter-grid{max-height:0!important;overflow:hidden!important;padding-bottom:0!important}
+
+
+/* v61: stable export edit states + guaranteed filter scrollbar and 15px bottom gap */
+.export-field-outline-v51,
+.export-field-outline-v50{
+  border-style:solid!important;
+  border-color:rgba(166,145,116,.42)!important;
+  box-shadow:none!important;
+  cursor:move!important;
+}
+.export-field-outline-v51 .export-resize-handle,
+.export-field-outline-v50 .export-resize-handle{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.export-field-outline-v51.is-editing,
+.export-field-outline-v50.is-editing{
+  border-style:dashed!important;
+  border-color:rgba(180,107,64,.78)!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.46) inset!important;
+  cursor:default!important;
+}
+.export-field-outline-v51.is-editing .export-resize-handle,
+.export-field-outline-v50.is-editing .export-resize-handle{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+.export-title-card-v50 .export-card-resize-handle{
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.export-title-card-v50.is-selected:not(.export-resize-muted) .export-card-resize-handle{
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+#metricFilters.metric-filters-scrollable-v61,
+#metricFilters:not(.is-collapsed){
+  overflow-y:scroll!important;
+  overflow-x:hidden!important;
+  box-sizing:border-box!important;
+  padding-bottom:15px!important;
+  scrollbar-width:thin!important;
+  overscroll-behavior:contain!important;
+}
+#metricFilters.metric-filters-scrollable-v61 .metric-filter-grid,
+#metricFilters .metric-filter-grid.metric-filter-grid-scroll-v61{
+  max-height:none!important;
+  overflow:visible!important;
+  padding-bottom:15px!important;
+}
+#metricFilters.metric-filters-scrollable-v61 .metric-filter-grid::after,
+#metricFilters .metric-filter-grid.metric-filter-grid-scroll-v61::after{
+  content:"";
+  display:block;
+  height:15px;
+}
+#metricFilters.metric-filters-scrollable-v61 .metric-filter-item:last-child,
+#metricFilters:not(.is-collapsed) .metric-filter-item:last-child{
+  margin-bottom:15px!important;
+}
+#metricFilters.metric-filters-scrollable-v61::-webkit-scrollbar{width:10px}
+#metricFilters.metric-filters-scrollable-v61::-webkit-scrollbar-thumb{background:rgba(126,92,35,.38);border-radius:999px;border:2px solid rgba(255,255,255,.55)}
+#metricFilters.metric-filters-scrollable-v61::-webkit-scrollbar-track{background:rgba(255,255,255,.18);border-radius:999px}
+#metricFilters.is-collapsed{overflow:hidden!important;padding-bottom:12px!important}
+#metricFilters.is-collapsed .metric-filter-grid{max-height:0!important;overflow:hidden!important;padding-bottom:0!important}

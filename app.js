@@ -1,4 +1,4 @@
-const APP_VERSION = '60';
+const APP_VERSION = '61';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5967,4 +5967,268 @@ initExportOverlayDrag = function initExportOverlayDragV60(){
 (function initV60Patch(){
   const boot=()=>{ applyMetricFilterScrollV60(); clearExportEditingAffordancesV60(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+
+/* v61: final export interaction model + filter panel bottom padding/scrollbar
+   - title editing behavior restored to v59 style: click/drag selects, resize handle is available while selected;
+   - inner map frame: normal state = draggable; click = edit mode; edit mode = resize only; outside click = normal state;
+   - filter panel gets a real scrollbar and a fixed 15 px bottom gap after the last filter block. */
+function v61EnsureExportState(){
+  try{ return ensureExportFlags(); }
+  catch(_){
+    if(!state.export) state.export={};
+    return state.export;
+  }
+}
+function v61ClearInnerFrameEdit(){
+  const ex=v61EnsureExportState();
+  ex.activeFrame='';
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(el=>{
+    el.classList.remove('is-selected','is-editing');
+    el.classList.add('export-resize-muted');
+  });
+}
+function v61ActivateInnerFrame(outline){
+  if(!outline) return;
+  const ex=v61EnsureExportState();
+  ex.activeFrame='inner';
+  document.querySelectorAll('.export-field-outline-v51,.export-field-outline-v50').forEach(el=>{
+    const on=el===outline;
+    el.classList.toggle('is-selected',on);
+    el.classList.toggle('is-editing',on);
+    el.classList.toggle('export-resize-muted',!on);
+  });
+}
+function v61ClearTitleEdit(){
+  const ex=v61EnsureExportState();
+  ex.selectedWidget='';
+  document.querySelectorAll('.export-map-card-v50').forEach(el=>{
+    el.classList.remove('is-selected','is-editing');
+    el.classList.add('export-resize-muted');
+  });
+}
+function v61ActivateTitleCard(card){
+  if(!card) return;
+  const ex=v61EnsureExportState();
+  const key=card.dataset.exportWidget||'';
+  ex.selectedWidget=key;
+  document.querySelectorAll('.export-map-card-v50').forEach(el=>{
+    const on=el===card;
+    el.classList.toggle('is-selected',on);
+    el.classList.toggle('is-editing',on);
+    el.classList.toggle('export-resize-muted',!on);
+  });
+}
+function v61ClearAllExportEditing(){
+  v61ClearInnerFrameEdit();
+  v61ClearTitleEdit();
+}
+function v61ApplyMetricFilterScroll(){
+  const panel=document.getElementById('metricFilters');
+  if(!panel) return;
+  panel.classList.add('metric-filters-scrollable-v61');
+  panel.style.overflowY='scroll';
+  panel.style.overflowX='hidden';
+  panel.style.boxSizing='border-box';
+  panel.style.paddingBottom='15px';
+  const rect=panel.getBoundingClientRect();
+  const available=Math.max(300, window.innerHeight - Math.max(8, rect.top) - 12);
+  panel.style.maxHeight=`${Math.min(720, available)}px`;
+  const grid=panel.querySelector('.metric-filter-grid');
+  if(grid){
+    grid.classList.add('metric-filter-grid-scroll-v61');
+    grid.style.maxHeight='none';
+    grid.style.overflow='visible';
+    grid.style.paddingBottom='15px';
+  }
+}
+initExportOverlayDrag = function initExportOverlayDragV61(){
+  const frame=document.querySelector('.export-map-frame-v51') || document.querySelector('.export-map-frame-v50');
+  if(!frame) return;
+  // click outside inner map frame turns edit mode off; cards are also reset unless clicked directly.
+  if(!document.documentElement.dataset.v61ExportOutsideBound){
+    document.documentElement.dataset.v61ExportOutsideBound='1';
+    document.addEventListener('pointerdown',ev=>{
+      const inExport=!!ev.target.closest('.export-map-frame-v51,.export-map-frame-v50');
+      const inInner=!!ev.target.closest('.export-field-outline-v51,.export-field-outline-v50');
+      const inCard=!!ev.target.closest('.export-map-card-v50');
+      if(inExport && !inInner && !inCard) v61ClearAllExportEditing();
+      if(!inExport && document.getElementById('exportMode')?.classList.contains('open')) v61ClearAllExportEditing();
+    }, true);
+  }
+  // Title and other export cards: v59 behavior.
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBoundV61==='1') return;
+    card.dataset.dragBoundV61='1';
+    card.addEventListener('pointerdown',ev=>{
+      if(ev.target.closest('.export-card-resize-handle')) return;
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault(); ev.stopPropagation();
+      v61ClearInnerFrameEdit();
+      v61ActivateTitleCard(card);
+      const fr=frame.getBoundingClientRect();
+      const cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'card';
+      const dx=ev.clientX-cr.left;
+      const dy=ev.clientY-cr.top;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(8,Math.min(fr.width-card.offsetWidth-8,e.clientX-fr.left-dx));
+        const top=Math.max(8,Math.min(fr.height-card.offsetHeight-8,e.clientY-fr.top-dy));
+        card.style.left=left+'px';
+        card.style.top=top+'px';
+        const ex=v61EnsureExportState();
+        ex.overlayPositions[key]={left:Math.round(left),top:Math.round(top),width:card.offsetWidth};
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        // v59: after a click the resize handle remains available; after dragging it returns to normal.
+        if(moved){ v61ClearTitleEdit(); syncExportDefaults(false); }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  frame.querySelectorAll('.export-card-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV61==='1') return;
+    handle.dataset.boundV61='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const card=handle.closest('.export-map-card'); if(!card) return;
+      v61ClearInnerFrameEdit();
+      v61ActivateTitleCard(card);
+      const fr=frame.getBoundingClientRect();
+      const cr=card.getBoundingClientRect();
+      const key=card.dataset.exportWidget||'title';
+      const startX=ev.clientX;
+      const startW=cr.width;
+      const move=e=>{
+        const nw=Math.max(320,Math.min(fr.width-(cr.left-fr.left)-8,startW+(e.clientX-startX)));
+        card.style.width=nw+'px';
+        const ex=v61EnsureExportState();
+        const pos=ex.overlayPositions[key] || {left:Math.round(cr.left-fr.left),top:Math.round(cr.top-fr.top),width:startW};
+        pos.width=Math.round(nw);
+        ex.overlayPositions[key]=pos;
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        v61ClearTitleEdit();
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline-v51') || frame.querySelector('.export-field-outline-v50');
+  if(outline && outline.dataset.dragBoundV61!=='1'){
+    outline.dataset.dragBoundV61='1';
+    outline.addEventListener('pointerdown',ev=>{
+      const isHandle=!!ev.target.closest('.export-resize-handle');
+      const isEditing=outline.classList.contains('is-editing') || v61EnsureExportState().activeFrame==='inner';
+      if(isHandle) return; // handled by resize listeners below
+      ev.preventDefault(); ev.stopPropagation();
+      v61ClearTitleEdit();
+      if(isEditing){
+        // In edit mode the frame itself is not draggable.
+        v61ActivateInnerFrame(outline);
+        return;
+      }
+      const fr=frame.getBoundingClientRect();
+      const or=outline.getBoundingClientRect();
+      const dx=ev.clientX-or.left;
+      const dy=ev.clientY-or.top;
+      const fw=or.width;
+      const fh=or.height;
+      let moved=false;
+      const move=e=>{
+        moved=true;
+        const left=Math.max(0,Math.min(fr.width-fw,e.clientX-fr.left-dx));
+        const top=Math.max(0,Math.min(fr.height-fh,e.clientY-fr.top-dy));
+        outline.style.left=left+'px';
+        outline.style.top=top+'px';
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        const ex=v61EnsureExportState();
+        ex.autoFitField=false;
+        if(moved){
+          ex.innerFrame={x:Math.round(parseFloat(outline.style.left)||0),y:Math.round(parseFloat(outline.style.top)||0),w:Math.round(fw),h:Math.round(fh)};
+          v61ClearInnerFrameEdit();
+          renderExportPreviewCard();
+        }else{
+          // Single click = edit mode with visible guides and resize handles.
+          v61ActivateInnerFrame(outline);
+        }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  }
+  frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
+    if(handle.dataset.boundV61==='1') return;
+    handle.dataset.boundV61='1';
+    handle.addEventListener('pointerdown',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const target=handle.dataset.frame;
+      const dir=handle.dataset.dir||'se';
+      const ex=v61EnsureExportState();
+      if(target==='inner' && outline && !(outline.classList.contains('is-editing') || ex.activeFrame==='inner')){
+        // Handles are visually unavailable in normal mode, but guard anyway.
+        return;
+      }
+      if(target==='inner' && outline) v61ActivateInnerFrame(outline);
+      const startX=ev.clientX;
+      const startY=ev.clientY;
+      const size0=exportMapSize();
+      const w0=Number(size0.w), h0=Number(size0.h);
+      const f0={...exportMapFieldRect(w0,h0)};
+      const move=e=>{
+        const dx=e.clientX-startX;
+        const dy=e.clientY-startY;
+        const exNow=v61EnsureExportState();
+        if(target==='outer'){
+          const minW=Math.max(900,(exNow.innerFrame?.x||0)+(exNow.innerFrame?.w||0)+20);
+          const minH=Math.max(700,(exNow.innerFrame?.y||0)+(exNow.innerFrame?.h||0)+20);
+          exNow.canvasWidth=Math.max(minW,w0+dx);
+          exNow.canvasHeight=Math.max(minH,h0+dy);
+        }else{
+          exNow.autoFitField=false;
+          const nw=f0.w+(dir.includes('e')?dx:0);
+          const nh=f0.h+(dir.includes('s')?dy:0);
+          const next={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))};
+          exNow.innerFrame=next;
+          if(outline){ outline.style.width=next.w+'px'; outline.style.height=next.h+'px'; }
+        }
+        syncExportDefaults(false);
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move);
+        document.removeEventListener('pointerup',up);
+        if(target==='inner' && outline){
+          // After resize, stay in edit mode until the user clicks outside the inner frame.
+          v61ActivateInnerFrame(outline);
+          renderExportPreviewCard();
+        }else{
+          v61ClearAllExportEditing();
+          renderExportPreviewCard();
+        }
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    },{passive:false});
+  });
+};
+(function initV61Patch(){
+  const boot=()=>{
+    v61ApplyMetricFilterScroll();
+    v61ClearAllExportEditing();
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+  window.addEventListener('resize',v61ApplyMetricFilterScroll,{passive:true});
+  window.addEventListener('pointerup',()=>setTimeout(v61ApplyMetricFilterScroll,0),{passive:true});
 })();
