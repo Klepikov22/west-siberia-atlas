@@ -1,4 +1,4 @@
-const APP_VERSION = '62';
+const APP_VERSION = '63';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -6485,5 +6485,124 @@ initExportOverlayDrag = function initExportOverlayDragV62(){
     if(typeof v61ApplyMetricFilterScroll==='function') v61ApplyMetricFilterScroll();
     v62ClearAllExportEditing();
   };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+/* v63: draggable scale bar + 10 px minimum map padding, km buffers only as additional manual padding */
+const v63PriorEnsureExportFlags = ensureExportFlags;
+ensureExportFlags = function ensureExportFlagsV63(){
+  const ex = v63PriorEnsureExportFlags ? v63PriorEnsureExportFlags() : (state.export || (state.export = {}));
+  if(!ex.scaleBarPosition || typeof ex.scaleBarPosition !== 'object') ex.scaleBarPosition = null;
+  if(!Number.isFinite(Number(ex.minLayerPaddingPx))) ex.minLayerPaddingPx = 10;
+  // Старые сборки по умолчанию раздували bbox на 200 км по всем сторонам.
+  // В v63 это заменено на минимальный экранный отступ 10 px, а километры остаются только ручной добавкой.
+  const b = ex.extentBuffer || {};
+  const looksLikeOldDefault = ['top','right','bottom','left'].every(k => Math.abs((Number(b[k])||0) - 200) < 0.001);
+  if(!ex.v63BufferDefaultApplied && looksLikeOldDefault){
+    ex.extentBuffer = {top:0,right:0,bottom:0,left:0};
+    ex.v63BufferDefaultApplied = true;
+  }
+  if(!ex.extentBuffer || typeof ex.extentBuffer !== 'object') ex.extentBuffer = {top:0,right:0,bottom:0,left:0};
+  ['top','right','bottom','left'].forEach(k=>{ if(!Number.isFinite(Number(ex.extentBuffer[k]))) ex.extentBuffer[k]=0; });
+  return ex;
+};
+const v63PriorMakeExportProjection = typeof makeExportProjection === 'function' ? makeExportProjection : null;
+makeExportProjection = function makeExportProjectionV63(bbox,w,h,pad=0){
+  const ex = ensureExportFlags();
+  const effectivePad = Math.max(Number(ex.minLayerPaddingPx)||10, Number(pad)||0);
+  if(v63PriorMakeExportProjection) return v63PriorMakeExportProjection(bbox,w,h,effectivePad);
+  return makeLambertExportProjection(bbox,w,h,effectivePad);
+};
+exportExpandedGeoBBox = function exportExpandedGeoBBoxV63(features){
+  const ex = ensureExportFlags();
+  const source = features && features.length ? features : (state.rawGeoJSON?.features || []);
+  const bbox = geoBBoxFromFeatures(source);
+  const [minX,minY,maxX,maxY] = bbox;
+  const centerLat = (minY + maxY) / 2;
+  const b = ex.extentBuffer || {top:0,right:0,bottom:0,left:0};
+  const left = kmToLonDeg(Math.max(0, Number(b.left)||0), centerLat);
+  const right = kmToLonDeg(Math.max(0, Number(b.right)||0), centerLat);
+  const top = kmToLatDeg(Math.max(0, Number(b.top)||0));
+  const bottom = kmToLatDeg(Math.max(0, Number(b.bottom)||0));
+  return [Math.max(-180,minX-left), Math.max(-84,minY-bottom), Math.min(180,maxX+right), Math.min(89,maxY+top)];
+};
+function v63ScaleDefaults(kmPerPx,w,h,fieldRect){
+  const targetPx=180;
+  const targetKm=Math.max(1,kmPerPx*targetPx);
+  const nice=[10,25,50,75,100,150,200,300,500,750,1000,1500,2000,3000].filter(v=>v<=targetKm).pop() || 10;
+  const px=Math.max(45,Math.min(360,nice/kmPerPx));
+  const field=fieldRect || exportMapFieldRect(w,h);
+  return {nice, px, x:field.x+28, y:field.y+field.h-26};
+}
+function v63ClampScalePosition(pos, px, w, h){
+  const x=Math.max(18, Math.min(w - px - 18, Number(pos?.x)));
+  const y=Math.max(42, Math.min(h - 18, Number(pos?.y)));
+  return {x:Number.isFinite(x)?x:18, y:Number.isFinite(y)?y:h-28};
+}
+exportScaleBarSvgFromKmPerPx = function exportScaleBarSvgFromKmPerPxV63(kmPerPx,w,h,fieldRect){
+  const ex=ensureExportFlags();
+  const d=v63ScaleDefaults(kmPerPx,w,h,fieldRect);
+  let pos = ex.scaleBarPosition && Number.isFinite(Number(ex.scaleBarPosition.x)) && Number.isFinite(Number(ex.scaleBarPosition.y))
+    ? v63ClampScalePosition(ex.scaleBarPosition,d.px,w,h)
+    : {x:d.x,y:d.y};
+  ex.scaleBarPosition = pos;
+  const dx=pos.x-d.x, dy=pos.y-d.y;
+  const px=d.px, x=d.x, y=d.y;
+  return `<g class="export-scale-bar-draggable-v63" data-scale-width="${px.toFixed(1)}" data-base-x="${x.toFixed(1)}" data-base-y="${y.toFixed(1)}" transform="translate(${dx.toFixed(1)} ${dy.toFixed(1)})" style="cursor:move"><rect x="${(x-20).toFixed(1)}" y="${(y-38).toFixed(1)}" width="${(px+40).toFixed(1)}" height="58" fill="transparent" pointer-events="all"/><line x1="${x}" y1="${y}" x2="${(x+px).toFixed(1)}" y2="${y}" stroke="#253241" stroke-width="3" pointer-events="none"/><line x1="${x}" y1="${y-6}" x2="${x}" y2="${y+6}" stroke="#253241" stroke-width="2" pointer-events="none"/><line x1="${(x+px).toFixed(1)}" y1="${y-6}" x2="${(x+px).toFixed(1)}" y2="${y+6}" stroke="#253241" stroke-width="2" pointer-events="none"/><text x="${(x+px/2).toFixed(1)}" y="${y-10}" text-anchor="middle" font-size="12" font-weight="800" fill="#253241" pointer-events="none">${d.nice} км</text></g>`;
+};
+function v63SvgPoint(svg, evt){
+  const pt=svg.createSVGPoint();
+  pt.x=evt.clientX; pt.y=evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function initExportScaleBarDragV63(){
+  const svg=document.querySelector('#exportSvgMap svg.export-map-svg');
+  const g=document.querySelector('#exportScaleBar .export-scale-bar-draggable-v63');
+  if(!svg || !g || g.dataset.v63Bound==='1') return;
+  g.dataset.v63Bound='1';
+  g.addEventListener('pointerdown', ev=>{
+    ev.preventDefault(); ev.stopPropagation();
+    const ex=ensureExportFlags();
+    const size=exportMapSize();
+    const px=Number(g.dataset.scaleWidth)||180;
+    const baseX=Number(g.dataset.baseX)||28;
+    const baseY=Number(g.dataset.baseY)||Math.max(42,size.h-28);
+    const current=v63ClampScalePosition(ex.scaleBarPosition || {x:baseX,y:baseY}, px, size.w, size.h);
+    const start=v63SvgPoint(svg, ev);
+    const offset={x:start.x-current.x, y:start.y-current.y};
+    g.classList.add('is-dragging');
+    const move=e=>{
+      const p=v63SvgPoint(svg,e);
+      const next=v63ClampScalePosition({x:p.x-offset.x,y:p.y-offset.y}, px, size.w, size.h);
+      ex.scaleBarPosition={x:Math.round(next.x),y:Math.round(next.y)};
+      g.setAttribute('transform',`translate(${(next.x-baseX).toFixed(1)} ${(next.y-baseY).toFixed(1)})`);
+    };
+    const up=()=>{
+      document.removeEventListener('pointermove',move);
+      document.removeEventListener('pointerup',up);
+      g.classList.remove('is-dragging');
+      syncExportDefaults(false);
+    };
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  },{passive:false});
+}
+const v63PriorUpdateExportLiveMap = updateExportLiveMap;
+updateExportLiveMap = async function updateExportLiveMapV63(){
+  const el=$('exportSvgMap'); if(!el) return;
+  const status=$('exportPreviewStatus');
+  try{
+    if(status) status.textContent='Строим SVG-карту…';
+    el.innerHTML=await buildExportSvgMap();
+    initExportScaleBarDragV63();
+    if(status) status.textContent='Превью обновлено. Можно сохранить PNG.';
+  }catch(e){
+    console.error('SVG export map error',e);
+    el.innerHTML=`<div class="export-map-placeholder">Не удалось построить карту: ${escapeHtml(e.message||String(e))}</div>`;
+    if(status) status.textContent='Ошибка построения карты.';
+  }
+};
+(function initV63Patch(){
+  const boot=()=>{ try{ ensureExportFlags(); initExportScaleBarDragV63(); }catch(e){ console.warn('v63 init skipped', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
