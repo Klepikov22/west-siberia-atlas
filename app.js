@@ -1,4 +1,4 @@
-const APP_VERSION = '43';
+const APP_VERSION = '44';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -3543,7 +3543,7 @@ function riverNormalizedWeight(f, forExport=false){
   return forExport ? (0.65 + Math.pow(t,0.86)*2.15) : (0.8 + Math.pow(t,0.86)*1.55);
 }
 function riverStyle(f){
-  const s=themeVars();
+  const s=styleVars();
   return {color:s.river, weight:riverNormalizedWeight(f,false), opacity:state.theme==='light'?0.78:0.82, lineCap:'round', lineJoin:'round'};
 }
 function ensureExportFlags(){
@@ -3825,7 +3825,7 @@ async function exportHydroSvg(project,bbox){
   try{
     const rivers=await loadJson(state.manifest.layers.hydro.rivers);
     const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
-    const vars=themeVars();
+    const vars=styleVars();
     const showReservoirs = Number(state.year) >= 1959;
     let northCap=null; try{ northCap=await loadJson('data/hydro/north_cap.geojson'); }catch(e){}
     const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
