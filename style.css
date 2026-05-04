@@ -1597,3 +1597,119 @@ body:not(.left-panel-hidden) #leftPanel,body:not(.right-panel-hidden) #rightPane
   opacity:1;
   transform:translateY(-50%) translateX(0);
 }
+
+/* v47 export cleanup */
+.export-modal-v47 .export-shell{inset:10px;grid-template-columns:330px minmax(0,1fr);gap:12px;border-radius:22px}
+.export-modal-v47 .export-controls{padding:16px 14px 18px;overflow:auto;background:var(--panel2)}
+.export-modal-v47 .export-preview-area{overflow:auto;padding:14px 18px 18px;background:linear-gradient(180deg,#eef4ef,#e6ece7)}
+.export-modal-v47 .export-preview-card{min-height:calc(100vh - 56px);display:flex;align-items:flex-start;justify-content:center}
+.export-layer-grid-v47{grid-template-columns:1fr 1fr}
+.export-fieldset-simple{padding:10px;margin:10px 0;background:rgba(255,255,255,.42)}
+.export-layout-v47{padding:10px 12px 14px;border-radius:22px;background:#f9f7f1;box-shadow:0 10px 26px rgba(44,51,44,.10)}
+.export-map-frame-v47{position:relative;border-radius:22px;overflow:hidden;background:#f7f5ef;box-shadow:inset 0 0 0 1px rgba(93,84,65,.14)}
+.export-field-outline-v47{position:absolute;border:1.5px dashed rgba(180,107,64,.48);border-radius:10px;pointer-events:auto;z-index:6;background:rgba(255,255,255,.035);box-shadow:0 0 0 1px rgba(255,255,255,.40) inset;cursor:move}
+.export-title-card-v47{background:transparent!important;border:none!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;color:#253241;min-width:520px;max-width:none;cursor:grab}
+.export-title-card-v47 .export-map-card-body{padding:0!important}
+.export-title-block-v47{padding:0;text-shadow:0 1px 0 rgba(255,255,255,.65)}
+.export-title-block-v47 .export-academic-kicker{font-size:11px;line-height:1.1;letter-spacing:.12em;text-transform:uppercase;color:#7f877f;font-weight:800;margin-bottom:6px}
+.export-title-block-v47 h1{margin:0;font-family:Georgia,'Times New Roman',serif;line-height:1.02;letter-spacing:-.025em;color:#283442;max-width:1040px}
+.export-title-block-v43,.export-title-row-v43,.export-header-meta-v43{display:block}
+.export-title-row-v43 .export-header-meta-v43,.export-header-meta-v43{display:none!important}
+.export-map-card-v43,.export-map-card-v47{max-height:none!important;overflow:visible!important}
+.export-map-card-v43 .export-map-card-body,.export-map-card-v47 .export-map-card-body{max-height:none!important;overflow:visible!important}
+.export-legend-card-v43,.export-context-card-v43,.export-stats-card-v43{border:1px solid rgba(134,123,98,.26);background:rgba(255,252,246,.94);box-shadow:0 8px 24px rgba(44,51,44,.12)}
+.export-legend-plain-v43,.export-stats-plain-v43,.export-context-plain-v43{max-height:none!important;overflow:visible!important}
+.export-legend-wrap-v43 .legend-row{align-items:flex-start;line-height:1.25}
+.export-stats-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:10px}
+.export-stats-fields label{font-size:12px}
+.floating-export-launcher{z-index:1900}
+@media(max-width:1240px){.export-modal-v47 .export-shell{grid-template-columns:1fr}.export-modal-v47 .export-controls{max-height:42vh}.export-stats-fields{grid-template-columns:1fr}}
+
+/* v48: compact export launcher attached to the right panel */
+.floating-export-launcher-v48{
+  position:fixed!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:none!important;
+  z-index:2050!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:160px!important;
+  height:34px!important;
+  padding:0 10px!important;
+  border-radius:13px!important;
+  border:1px solid rgba(132,113,82,.30)!important;
+  background:rgba(255,250,239,.96)!important;
+  color:#26323e!important;
+  box-shadow:0 8px 20px rgba(35,43,46,.14)!important;
+  font-size:12px!important;
+  line-height:1!important;
+  letter-spacing:.01em!important;
+  cursor:pointer!important;
+  backdrop-filter:blur(10px) saturate(1.08)!important;
+  -webkit-backdrop-filter:blur(10px) saturate(1.08)!important;
+}
+.floating-export-launcher-v48:hover{
+  transform:translateY(-1px)!important;
+  background:rgba(255,247,229,.99)!important;
+  box-shadow:0 10px 22px rgba(35,43,46,.18)!important;
+}
+.floating-export-launcher-v48 .floating-export-icon{
+  width:20px!important;
+  height:20px!important;
+  border-radius:8px!important;
+  font-size:14px!important;
+  background:#c18a28!important;
+  color:#fff!important;
+  display:grid!important;
+  place-items:center!important;
+  flex:0 0 auto!important;
+}
+.floating-export-launcher-v48 .floating-export-text{
+  display:inline!important;
+  white-space:nowrap!important;
+  font-size:12px!important;
+  font-weight:900!important;
+}
+.floating-export-launcher-v48::after{
+  content:'Режим экспорта карты';
+  position:absolute;
+  left:0;
+  top:calc(100% + 7px);
+  right:auto;
+  transform:translateY(-4px);
+  opacity:0;
+  pointer-events:none;
+  white-space:nowrap;
+  padding:7px 9px;
+  border-radius:11px;
+  background:rgba(37,45,54,.94);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  box-shadow:0 8px 18px rgba(0,0,0,.16);
+  transition:opacity .16s ease, transform .16s ease;
+}
+.floating-export-launcher-v48:hover::after{
+  opacity:1;
+  transform:translateY(0);
+}
+:root[data-theme="dark"] .floating-export-launcher-v48{
+  background:rgba(30,38,48,.94)!important;
+  color:#eef4f7!important;
+  border-color:rgba(214,174,97,.28)!important;
+}
+@media(max-width:980px){
+  .floating-export-launcher-v48 .floating-export-text{display:none!important}
+  .floating-export-launcher-v48{padding:0 8px!important;width:34px!important}
+}
+
+/* v49: auto-fit export cartographic field */
+.export-modal-v49 .export-shell{inset:10px;grid-template-columns:350px minmax(0,1fr)}
+.export-modal-v49 .export-controls{padding:16px 14px 18px;overflow:auto;background:var(--panel2)}
+.export-modal-v49 .export-preview-area{overflow:auto;padding:14px 18px 18px;background:linear-gradient(180deg,#eef4ef,#e6ece7)}
+.export-modal-v49 .export-preview-card{min-height:calc(100vh - 56px);display:flex;align-items:flex-start;justify-content:center}.export-checkline{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:700;color:var(--text);margin:8px 0}.export-checkline input{margin-top:2px}.export-layer-grid-v49{grid-template-columns:1fr 1fr}.export-modal-v49 .export-fieldset{background:rgba(255,255,255,.45)}
+@media(max-width:1240px){.export-modal-v49 .export-shell{grid-template-columns:1fr}.export-modal-v49 .export-controls{max-height:42vh}}

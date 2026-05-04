@@ -1,4 +1,4 @@
-const APP_VERSION = '46';
+const APP_VERSION = '49';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -3925,3 +3925,510 @@ function ensureExportLauncherInstalled(){
   else installExportLauncher();
 }
 ensureExportLauncherInstalled();
+
+/* v47: export UX cleanup, fixed map-frame drag, thinner river hierarchy */
+function riverNormalizedWeight(f, forExport=false){
+  const v=riverStrokeWeightValue(f);
+  const min=0.2, max=1.2;
+  const t=Math.max(0, Math.min(1, (v-min)/(max-min)));
+  const base = forExport ? (0.65 + Math.pow(t,0.86)*2.15) : (0.8 + Math.pow(t,0.86)*1.55);
+  return base * 0.70;
+}
+function riverStyle(f){
+  const s=styleVars();
+  return {color:s.river, weight:riverNormalizedWeight(f,false), opacity:state.theme==='light'?0.74:0.78, lineCap:'round', lineJoin:'round'};
+}
+function exportApplyLayoutPreset(preset){
+  ensureExportFlags();
+  const p = preset || state.export.layoutPreset || 'balanced';
+  state.export.layoutPreset = p;
+  if(p==='mapLarge'){
+    state.export.pagePadding={top:12,right:12,bottom:12,left:12};
+    state.export.fieldPadding={top:92,right:28,bottom:44,left:28};
+  }else if(p==='legendSpace'){
+    state.export.pagePadding={top:16,right:16,bottom:16,left:16};
+    state.export.fieldPadding={top:116,right:360,bottom:56,left:42};
+  }else if(p==='article'){
+    state.export.pagePadding={top:24,right:24,bottom:24,left:24};
+    state.export.fieldPadding={top:92,right:315,bottom:60,left:42};
+    state.export.titleFontSize=34;
+  }else{
+    state.export.pagePadding={top:16,right:16,bottom:16,left:16};
+    state.export.fieldPadding={top:108,right:320,bottom:54,left:42};
+  }
+}
+function exportSetUniformBuffer(km){
+  ensureExportFlags();
+  const v=Math.max(0, Number(km)||0);
+  state.export.extentBuffer={top:v,right:v,bottom:v,left:v};
+  state.export.bufferPreset=v;
+}
+function ensureExportFlags(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  if(typeof state.export.open !== 'boolean') state.export.open = false;
+  if(!state.export.scope) state.export.scope = 'currentLayer';
+  if(!state.export.paper) state.export.paper = 'a4Landscape';
+  if(!state.export.template) state.export.template = 'thesis';
+  if(!state.export.title) state.export.title = defaultExportTitle();
+  if(typeof state.export.subtitle !== 'string') state.export.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{
+    if(typeof state.export[k] !== 'boolean') state.export[k] = true;
+  });
+  if(!state.export.contextMode) state.export.contextMode = 'auto';
+  if(!state.export.contextText){
+    const preset = exportContextPresets(state.year || '');
+    state.export.contextText = preset.short || preset.long || '';
+  }
+  if(!state.export.labelMode) state.export.labelMode = 'balanced';
+  if(!Number.isFinite(Number(state.export.graticuleLabelSize))) state.export.graticuleLabelSize = 12;
+  if(!Number.isFinite(Number(state.export.canvasWidth))) state.export.canvasWidth = state.export.paper === 'a4Portrait' ? 1240 : state.export.paper === 'screen' ? 1760 : 1480;
+  if(!Number.isFinite(Number(state.export.canvasHeight))) state.export.canvasHeight = state.export.paper === 'a4Portrait' ? 1680 : state.export.paper === 'screen' ? 1040 : 1040;
+  if(!state.export.extentBuffer) state.export.extentBuffer = {top:200,right:200,bottom:200,left:200};
+  if(!state.export.pagePadding) state.export.pagePadding = {top:16,right:16,bottom:16,left:16};
+  if(!state.export.fieldPadding) state.export.fieldPadding = {top:108,right:320,bottom:54,left:42};
+  ['top','right','bottom','left'].forEach(k=>{
+    if(!Number.isFinite(Number(state.export.extentBuffer[k]))) state.export.extentBuffer[k] = 200;
+    if(!Number.isFinite(Number(state.export.pagePadding[k]))) state.export.pagePadding[k] = 16;
+    if(!Number.isFinite(Number(state.export.fieldPadding[k]))) state.export.fieldPadding[k] = (k==='top'?108:(k==='bottom'?54:(k==='right'?320:42)));
+  });
+  if(!state.export.overlayPositions || typeof state.export.overlayPositions !== 'object') state.export.overlayPositions = {};
+  if(!Number.isFinite(Number(state.export.titleFontSize))) state.export.titleFontSize = state.export.template === 'presentation' ? 46 : 36;
+  if(!Number.isFinite(Number(state.export.panelWidth))) state.export.panelWidth = 300;
+  if(!state.export.statsFields || typeof state.export.statsFields !== 'object') state.export.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof state.export.statsFields[k] !== 'boolean') state.export.statsFields[k] = statDefaults[k]; });
+  if(!state.export.layoutPreset) state.export.layoutPreset='balanced';
+  if(!Number.isFinite(Number(state.export.bufferPreset))) state.export.bufferPreset=Number(state.export.extentBuffer.top)||200;
+}
+function ensureExportModal(){
+  let old=$('exportMode');
+  if(old && !old.classList.contains('export-modal-v47')) old.remove();
+  let modal=$('exportMode'); if(modal) return modal;
+  ensureExportFlags();
+  modal=document.createElement('div');
+  modal.id='exportMode';
+  modal.className='export-modal export-modal-v47';
+  modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div>
+  <section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle">
+    <aside class="export-controls">
+      <div class="export-controls-head">
+        <div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div>
+        <button type="button" class="export-close" aria-label="Закрыть экспорт">×</button>
+      </div>
+      <label class="control-label" for="exportTitleInput">Название карты</label>
+      <input id="exportTitleInput" class="export-text-input" type="text">
+      <div class="export-form-grid2">
+        <div><label class="control-label" for="exportTitleFontSize">Размер заголовка, px</label><input id="exportTitleFontSize" class="export-text-input" type="number" min="24" max="60" step="1"></div>
+        <div><label class="control-label" for="exportPanelWidth">Ширина карточек, px</label><input id="exportPanelWidth" class="export-text-input" type="number" min="220" max="420" step="2"></div>
+      </div>
+      <div class="export-form-grid2">
+        <div><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select></div>
+        <div><label class="control-label" for="exportPaperSelect">Формат</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div>
+      </div>
+      <div class="export-form-grid2">
+        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div>
+        <div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div>
+      </div>
+      <div class="export-fieldset export-fieldset-simple"><div class="export-fieldset-title">Компоновка листа</div>
+        <select id="exportLayoutPreset"><option value="balanced">Сбалансированно</option><option value="mapLarge">Карта крупнее</option><option value="legendSpace">Место справа под легенду</option><option value="article">Компактная статья</option></select>
+        <div class="mini-muted">Рамку карты можно двигать мышью в превью. Размер при перетаскивании больше не меняется.</div>
+      </div>
+      <div class="export-fieldset export-fieldset-simple"><div class="export-fieldset-title">Буфер вокруг выбранных АТЕ</div>
+        <div class="export-form-grid2"><input id="exportUniformBuffer" class="export-text-input" type="number" min="0" step="10"><button id="exportApplyBuffer" type="button">Применить, км</button></div>
+      </div>
+      <details class="export-context-box"><summary>Точные настройки рамок</summary>
+        <div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка PNG, px</div><div class="export-form-grid4">
+          <div><label class="control-label" for="exportPagePadTop">Верх</label><input id="exportPagePadTop" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportPagePadRight">Право</label><input id="exportPagePadRight" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportPagePadBottom">Низ</label><input id="exportPagePadBottom" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportPagePadLeft">Лево</label><input id="exportPagePadLeft" class="export-text-input" type="number" min="0" step="2"></div>
+        </div></div>
+        <div class="export-fieldset"><div class="export-fieldset-title">Поле карты внутри PNG, px</div><div class="export-form-grid4">
+          <div><label class="control-label" for="exportFieldPadTop">Верх</label><input id="exportFieldPadTop" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportFieldPadRight">Право</label><input id="exportFieldPadRight" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportFieldPadBottom">Низ</label><input id="exportFieldPadBottom" class="export-text-input" type="number" min="0" step="2"></div>
+          <div><label class="control-label" for="exportFieldPadLeft">Лево</label><input id="exportFieldPadLeft" class="export-text-input" type="number" min="0" step="2"></div>
+        </div></div>
+        <div class="export-fieldset"><div class="export-fieldset-title">Буфер экстента по сторонам, км</div><div class="export-form-grid4">
+          <div><label class="control-label" for="exportBufferTop">Север</label><input id="exportBufferTop" class="export-text-input" type="number" min="0" step="10"></div>
+          <div><label class="control-label" for="exportBufferRight">Восток</label><input id="exportBufferRight" class="export-text-input" type="number" min="0" step="10"></div>
+          <div><label class="control-label" for="exportBufferBottom">Юг</label><input id="exportBufferBottom" class="export-text-input" type="number" min="0" step="10"></div>
+          <div><label class="control-label" for="exportBufferLeft">Запад</label><input id="exportBufferLeft" class="export-text-input" type="number" min="0" step="10"></div>
+        </div></div>
+      </details>
+      <div class="export-option-grid export-layer-grid export-layer-grid-v47">
+        <label><input type="checkbox" id="exportShowHydro"> Гидрография и океан</label>
+        <label><input type="checkbox" id="exportShowAdmin"> Административный слой</label>
+        <label><input type="checkbox" id="exportShowRailways"> Железные дороги</label>
+        <label><input type="checkbox" id="exportShowPopulation"> Круги населения</label>
+        <label><input type="checkbox" id="exportShowLabels"> Подписи АТЕ</label>
+        <label><input type="checkbox" id="exportShowGraticule"> Градусная сетка</label>
+        <label><input type="checkbox" id="exportShowGraticuleLabels"> Подписи сетки</label>
+        <label><input type="checkbox" id="exportShowScale"> Масштабная линейка</label>
+        <label><input type="checkbox" id="exportShowLegend"> Легенда</label>
+        <label><input type="checkbox" id="exportShowStats"> Общая информация</label>
+        <label><input type="checkbox" id="exportShowContext"> Контекст</label>
+      </div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportLabelModeSelect">Подписи АТЕ</label><select id="exportLabelModeSelect"><option value="none">Не показывать</option><option value="major">Только крупнейшие</option><option value="balanced">Сбалансированно</option><option value="dense">Плотнее</option></select></div><div><label class="control-label" for="exportGraticuleLabelSizeInput">Подписи сетки, px</label><input id="exportGraticuleLabelSizeInput" class="export-text-input" type="number" min="8" max="24" step="1"></div></div>
+      <details id="exportContextDetails" class="export-context-box"><summary>Контекст</summary><label class="control-label" for="exportContextMode">Текст</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select><textarea id="exportContextText" class="export-context-text" rows="4"></textarea></details>
+      <details class="export-context-box"><summary>Содержание блока информации</summary><div class="export-stats-fields" id="exportStatsFieldsBox"></div></details>
+      <div class="button-row export-buttons"><button id="refreshExportPreview" type="button">Обновить превью</button></div>
+      <button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button>
+    </aside>
+    <div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div>
+  </section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.export-close').addEventListener('click', closeExportMode);
+  modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
+  const bind=(id, event, fn)=>{ const el=$(id); if(el) el.addEventListener(event, fn); };
+  bind('exportTitleInput','input', e=>{ state.export.title=e.target.value; renderExportPreviewCard(); });
+  bind('exportTitleFontSize','input', e=>{ state.export.titleFontSize=Math.max(24, Math.min(60, Number(e.target.value)||36)); renderExportPreviewCard(); });
+  bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220, Math.min(420, Number(e.target.value)||300)); renderExportPreviewCard(); });
+  bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(false); });
+  bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; if(e.target.value==='a4Portrait'){ state.export.canvasWidth=1240; state.export.canvasHeight=1680; } else if(e.target.value==='screen'){ state.export.canvasWidth=1760; state.export.canvasHeight=1040; } else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; } syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
+  bind('exportLayoutPreset','change', e=>{ exportApplyLayoutPreset(e.target.value); syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportUniformBuffer','input', e=>{ state.export.bufferPreset=Math.max(0, Number(e.target.value)||0); });
+  bind('exportApplyBuffer','click', e=>{ e.preventDefault(); exportSetUniformBuffer($('exportUniformBuffer')?.value); syncExportDefaults(false); renderExportPreviewCard(); });
+  [['PagePadTop','pagePadding','top'],['PagePadRight','pagePadding','right'],['PagePadBottom','pagePadding','bottom'],['PagePadLeft','pagePadding','left'],['FieldPadTop','fieldPadding','top'],['FieldPadRight','fieldPadding','right'],['FieldPadBottom','fieldPadding','bottom'],['FieldPadLeft','fieldPadding','left'],['BufferTop','extentBuffer','top'],['BufferRight','extentBuffer','right'],['BufferBottom','extentBuffer','bottom'],['BufferLeft','extentBuffer','left']].forEach(([id,obj,key])=>bind(`export${id}`,'input', e=>{ state.export[obj][key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; if(name==='Context' && $('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none'; renderExportPreviewCard(); }));
+  bind('exportLabelModeSelect','change', e=>{ state.export.labelMode=e.target.value; state.export.showLabels=e.target.value!=='none'; if($('exportShowLabels')) $('exportShowLabels').checked=state.export.showLabels; renderExportPreviewCard(); });
+  bind('exportGraticuleLabelSizeInput','input', e=>{ state.export.graticuleLabelSize=Math.max(8, Math.min(24, Number(e.target.value)||12)); renderExportPreviewCard(); });
+  bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
+  bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
+  bind('refreshExportPreview','click', ()=>refreshExportPreview(false));
+  bind('downloadExportPng','click', downloadExportPng);
+  return modal;
+}
+function syncExportDefaults(resetTitle=true){
+  ensureExportFlags();
+  if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
+  if(state.export.contextMode==='auto' || resetTitle || !state.export.contextText) syncExportContextText();
+  const V=(id,val)=>{ if($(id)) $(id).value=val; }, C=(id,val)=>{ if($(id)) $(id).checked=!!val; };
+  V('exportTitleInput',state.export.title); V('exportTitleFontSize', state.export.titleFontSize); V('exportPanelWidth', state.export.panelWidth); V('exportScopeSelect',state.export.scope); V('exportPaperSelect',state.export.paper); V('exportCanvasWidth',state.export.canvasWidth); V('exportCanvasHeight',state.export.canvasHeight); V('exportLayoutPreset',state.export.layoutPreset); V('exportUniformBuffer', state.export.bufferPreset); V('exportContextMode',state.export.contextMode); V('exportContextText',state.export.contextText||'');
+  ['top','right','bottom','left'].forEach(k=>{ V('exportPagePad'+k.charAt(0).toUpperCase()+k.slice(1), state.export.pagePadding[k]); V('exportFieldPad'+k.charAt(0).toUpperCase()+k.slice(1), state.export.fieldPadding[k]); V('exportBuffer'+k.charAt(0).toUpperCase()+k.slice(1), state.export.extentBuffer[k]); });
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>C(`exportShow${name}`, state.export[`show${name}`]));
+  V('exportLabelModeSelect', state.export.labelMode); V('exportGraticuleLabelSizeInput', state.export.graticuleLabelSize);
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext ? 'block' : 'none';
+  renderExportStatsFieldsControls();
+}
+function exportOverlayBlocksHtml(features){
+  const titleSize=Math.max(24, Math.min(60, Number(state.export.titleFontSize)||36));
+  const contextText = state.export.contextMode==='auto' ? exportContextAutoText() : (state.export.contextText || '');
+  const titleHtml=`<div class="export-title-block-v47"><div class="export-academic-kicker">${escapeHtml(exportTemplateName())} · ${escapeHtml(exportPaperName())}</div><h1 style="font-size:${titleSize}px">${escapeHtml(state.export.title || defaultExportTitle())}</h1></div>`;
+  const blocks=[exportDraggableBlock('title', titleHtml, 'export-title-card-v47')];
+  if(state.export.showContext) blocks.push(exportDraggableBlock('context', `<div class="export-context-plain-v43">${escapeHtml(contextText)}</div>`, 'export-context-card-v43'));
+  if(state.export.showStats) blocks.push(exportDraggableBlock('stats', `<div class="export-stats-plain-v43">${exportStatsHtml(features)}</div>`, 'export-stats-card-v43'));
+  if(state.export.showLegend) blocks.push(exportDraggableBlock('legend', `<div class="export-legend-plain-v43">${exportLegendHtml()}</div>`, 'export-legend-card-v43'));
+  return blocks.join('');
+}
+function renderExportPreviewCard(){
+  ensureExportFlags();
+  const wrap=$('exportPreviewCard'); if(!wrap) return;
+  const features=exportScopeFeatures();
+  const {w,h}=exportMapSize();
+  const field=exportMapFieldRect(w,h);
+  wrap.innerHTML=`<article class="export-layout export-layout-v47" style="width:${w}px"><section class="export-main export-main-v43"><div class="export-map-frame export-map-frame-v47" style="width:${w}px;height:${h}px"><div id="exportSvgMap" class="export-svg-map"></div><div class="export-field-outline export-field-outline-v47" style="left:${field.x}px;top:${field.y}px;width:${field.w}px;height:${field.h}px" title="Перетащите рамку картографического поля"></div>${exportOverlayBlocksHtml(features)}</div></section><footer class="export-footer export-footer-v43">${escapeHtml(exportSourceCaption())}</footer></article>`;
+  updateExportLiveMap();
+  initExportOverlayDrag();
+}
+function initExportOverlayDrag(){
+  const frame=document.querySelector('.export-map-frame-v47'); if(!frame) return;
+  frame.querySelectorAll('.export-map-card').forEach(card=>{
+    if(card.dataset.dragBound==='1') return;
+    card.dataset.dragBound='1';
+    card.addEventListener('pointerdown', ev=>{
+      if(ev.target.closest('input,textarea,select,button,a')) return;
+      ev.preventDefault();
+      const f=frame.getBoundingClientRect(); const r=card.getBoundingClientRect(); const key=card.dataset.exportWidget; const dx=ev.clientX-r.left, dy=ev.clientY-r.top;
+      const move=e=>{
+        const maxX=f.width-r.width-8, maxY=f.height-r.height-8;
+        const left=Math.max(8, Math.min(maxX, e.clientX-f.left-dx));
+        const top=Math.max(8, Math.min(maxY, e.clientY-f.top-dy));
+        card.style.left=left+'px'; card.style.top=top+'px'; card.style.right='auto'; card.style.bottom='auto';
+        state.export.overlayPositions[key]={left:Math.round(left), top:Math.round(top), width: card.offsetWidth};
+      };
+      const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); };
+      document.addEventListener('pointermove',move); document.addEventListener('pointerup',up);
+    }, {passive:false});
+  });
+  const outline=frame.querySelector('.export-field-outline');
+  if(outline && outline.dataset.dragBound!=='1'){
+    outline.dataset.dragBound='1';
+    outline.addEventListener('pointerdown', ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const f=frame.getBoundingClientRect(), r=outline.getBoundingClientRect();
+      const outer=exportOuterFrameRect(frame.clientWidth, frame.clientHeight);
+      const dx=ev.clientX-r.left, dy=ev.clientY-r.top;
+      const fieldW=r.width, fieldH=r.height;
+      const move=e=>{
+        const left=Math.max(outer.x, Math.min(outer.x+outer.w-fieldW, e.clientX-f.left-dx));
+        const top=Math.max(outer.y, Math.min(outer.y+outer.h-fieldH, e.clientY-f.top-dy));
+        outline.style.left=left+'px'; outline.style.top=top+'px';
+      };
+      const up=()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up);
+        const left=parseFloat(outline.style.left)||outer.x;
+        const top=parseFloat(outline.style.top)||outer.y;
+        state.export.fieldPadding.left=Math.round(left-outer.x);
+        state.export.fieldPadding.top=Math.round(top-outer.y);
+        state.export.fieldPadding.right=Math.round(outer.w - (left-outer.x) - fieldW);
+        state.export.fieldPadding.bottom=Math.round(outer.h - (top-outer.y) - fieldH);
+        syncExportDefaults(false);
+        renderExportPreviewCard();
+      };
+      document.addEventListener('pointermove',move);
+      document.addEventListener('pointerup',up);
+    }, {passive:false});
+  }
+}
+async function exportHydroSvg(project,bbox){
+  try{
+    const rivers=await loadJson(state.manifest.layers.hydro.rivers);
+    const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
+    const vars=styleVars();
+    const showReservoirs = Number(state.year) >= 1959;
+    let northCap=null; try{ northCap=await loadJson('data/hydro/north_cap.geojson'); }catch(e){}
+    const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
+    const waterPaths=(waterRaw.features||[]).filter(f=>(showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.90" stroke="${vars.waterLine}" stroke-width="0.72" stroke-opacity="0.72"/>`).join('');
+    const riverPaths=(rivers.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="none" stroke="${vars.river}" stroke-width="${riverNormalizedWeight(f,true).toFixed(2)}" stroke-opacity="${(0.42 + Math.min(1, riverNormalizedWeight(f,true)/2.0)*0.32).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+    return `<g class="export-hydro"><g>${capPaths}${waterPaths}</g><g>${riverPaths}</g></g>`;
+  }catch(e){ console.warn('export hydro svg skipped',e); return ''; }
+}
+async function openExportMode(){
+  const modal=ensureExportModal();
+  state.export.open=true; syncExportDefaults(true);
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  await refreshExportPreview(false);
+}
+
+/* v48: compact export launcher anchored to the right panel */
+function positionFloatingExportLauncherV48(){
+  const btn = document.getElementById('floatingExportLauncher');
+  if(!btn) return;
+  const panel = document.getElementById('rightPanel');
+  const margin = 20;
+  btn.classList.add('floating-export-launcher-v48');
+  btn.innerHTML = '<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
+  if(panel){
+    const r = panel.getBoundingClientRect();
+    const targetLeft = Math.max(12, Math.min(window.innerWidth - btn.offsetWidth - 12, r.left + margin));
+    const targetTop = Math.max(12, Math.min(window.innerHeight - btn.offsetHeight - 12, r.top + margin));
+    btn.style.left = `${Math.round(targetLeft)}px`;
+    btn.style.top = `${Math.round(targetTop)}px`;
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
+    btn.style.transform = 'none';
+  }else{
+    btn.style.right = '18px';
+    btn.style.top = '18px';
+    btn.style.left = 'auto';
+    btn.style.transform = 'none';
+  }
+}
+function ensureCompactExportLauncherV48(){
+  const ready = () => {
+    let btn = document.getElementById('floatingExportLauncher');
+    if(!btn){
+      btn = document.createElement('button');
+      btn.id = 'floatingExportLauncher';
+      btn.type = 'button';
+      btn.title = 'Режим экспорта карты';
+      btn.setAttribute('aria-label','Открыть режим экспорта карты');
+      btn.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        try{ await openExportMode(); }
+        catch(err){ console.error('Export mode failed to open', err); alert('Не удалось открыть режим экспорта карты: ' + (err?.message || err)); }
+      });
+      document.body.appendChild(btn);
+    }
+    btn.className = 'floating-export-launcher floating-export-launcher-v48';
+    btn.title = 'Режим экспорта карты';
+    btn.setAttribute('aria-label','Открыть режим экспорта карты');
+    positionFloatingExportLauncherV48();
+    window.addEventListener('resize', positionFloatingExportLauncherV48, {passive:true});
+    const panel = document.getElementById('rightPanel');
+    if(panel && window.MutationObserver){
+      const mo = new MutationObserver(()=>requestAnimationFrame(positionFloatingExportLauncherV48));
+      mo.observe(panel, {attributes:true, attributeFilter:['class','style']});
+    }
+    setTimeout(positionFloatingExportLauncherV48, 250);
+    setTimeout(positionFloatingExportLauncherV48, 900);
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, {once:true});
+  else ready();
+}
+ensureCompactExportLauncherV48();
+
+/* v49: auto-fit export cartographic field by selected admin polygons */
+function exportSelectionMetricAspect(features){
+  const source = (features && features.length) ? features : (state.currentGeoJSON?.features || state.rawGeoJSON?.features || []);
+  const bbox = geoBBoxFromFeatures(source);
+  const [minLon,minLat,maxLon,maxLat] = bbox;
+  const midLat = (minLat + maxLat) / 2;
+  const widthKm = Math.max(1, (maxLon - minLon) * 111.32 * Math.max(0.22, Math.cos(midLat * Math.PI / 180)));
+  const heightKm = Math.max(1, (maxLat - minLat) * 111.32);
+  return Math.max(0.18, Math.min(5.5, widthKm / heightKm));
+}
+function exportAutoFieldRect(w,h,features){
+  const outer = exportOuterFrameRect(w,h);
+  const topMin = 100;
+  const bottomMin = 100;
+  const sideMin = 28;
+  const sideMax = 400;
+  const maxW = Math.max(260, outer.w - sideMin * 2);
+  const maxH = Math.max(260, outer.h - topMin - bottomMin);
+  const aspect = exportSelectionMetricAspect(features);
+  let fieldW = maxW;
+  let fieldH = fieldW / aspect;
+  if(fieldH > maxH){ fieldH = maxH; fieldW = fieldH * aspect; }
+  const minWBySideLimit = Math.max(260, outer.w - sideMax * 2);
+  if(fieldW < minWBySideLimit){
+    fieldW = Math.min(maxW, minWBySideLimit);
+    fieldH = Math.min(maxH, fieldW / aspect);
+  }
+  fieldW = Math.max(260, Math.min(maxW, fieldW));
+  fieldH = Math.max(260, Math.min(maxH, fieldH));
+  let x = outer.x + (outer.w - fieldW) / 2;
+  let y = outer.y + topMin + (maxH - fieldH) / 2;
+  const leftGap = x - outer.x;
+  const rightGap = outer.x + outer.w - (x + fieldW);
+  if(leftGap > sideMax || rightGap > sideMax){
+    const correctedW = Math.min(maxW, Math.max(fieldW, outer.w - sideMax * 2));
+    x = outer.x + (outer.w - correctedW) / 2;
+    fieldW = correctedW;
+  }
+  return {x:Math.round(x), y:Math.round(y), w:Math.round(fieldW), h:Math.round(fieldH), aspect};
+}
+function exportMapFieldRect(w,h){
+  ensureExportFlags();
+  if(state.export.autoFitField !== false){
+    return exportAutoFieldRect(w,h,exportScopeFeatures());
+  }
+  const outer=exportOuterFrameRect(w,h); const p=state.export.fieldPadding || {top:110,right:42,bottom:54,left:42};
+  return {x:outer.x+(Number(p.left)||0), y:outer.y+(Number(p.top)||0), w:Math.max(220, outer.w-(Number(p.left)||0)-(Number(p.right)||0)), h:Math.max(220, outer.h-(Number(p.top)||0)-(Number(p.bottom)||0))};
+}
+function ensureExportFlags(){
+  if(!state.export || typeof state.export !== 'object') state.export = {};
+  if(typeof state.export.open !== 'boolean') state.export.open = false;
+  if(!state.export.scope) state.export.scope = 'currentLayer';
+  if(!state.export.paper) state.export.paper = 'a4Landscape';
+  if(!state.export.template) state.export.template = 'thesis';
+  if(!state.export.title) state.export.title = defaultExportTitle();
+  if(typeof state.export.subtitle !== 'string') state.export.subtitle = '';
+  ['showLegend','showStats','showContext','showGraticule','showGraticuleLabels','showScale','showAdmin','showHydro','showRailways','showPopulation','showLabels'].forEach(k=>{ if(typeof state.export[k] !== 'boolean') state.export[k] = true; });
+  if(!state.export.contextMode) state.export.contextMode = 'auto';
+  if(!state.export.contextText){ const preset = exportContextPresets(state.year || ''); state.export.contextText = preset.short || preset.long || ''; }
+  if(!state.export.labelMode) state.export.labelMode = 'balanced';
+  if(!Number.isFinite(Number(state.export.graticuleLabelSize))) state.export.graticuleLabelSize = 12;
+  if(!Number.isFinite(Number(state.export.canvasWidth))) state.export.canvasWidth = state.export.paper === 'a4Portrait' ? 1240 : state.export.paper === 'screen' ? 1760 : 1480;
+  if(!Number.isFinite(Number(state.export.canvasHeight))) state.export.canvasHeight = state.export.paper === 'a4Portrait' ? 1680 : state.export.paper === 'screen' ? 1040 : 1040;
+  if(!state.export.extentBuffer) state.export.extentBuffer = {top:200,right:200,bottom:200,left:200};
+  if(!state.export.pagePadding) state.export.pagePadding = {top:16,right:16,bottom:16,left:16};
+  if(!state.export.fieldPadding) state.export.fieldPadding = {top:108,right:320,bottom:54,left:42};
+  ['top','right','bottom','left'].forEach(k=>{
+    if(!Number.isFinite(Number(state.export.extentBuffer[k]))) state.export.extentBuffer[k] = 200;
+    if(!Number.isFinite(Number(state.export.pagePadding[k]))) state.export.pagePadding[k] = 16;
+    if(!Number.isFinite(Number(state.export.fieldPadding[k]))) state.export.fieldPadding[k] = (k==='top'?108:(k==='bottom'?54:(k==='right'?320:42)));
+  });
+  if(!state.export.overlayPositions || typeof state.export.overlayPositions !== 'object') state.export.overlayPositions = {};
+  if(!Number.isFinite(Number(state.export.titleFontSize))) state.export.titleFontSize = state.export.template === 'presentation' ? 46 : 36;
+  if(!Number.isFinite(Number(state.export.panelWidth))) state.export.panelWidth = 300;
+  if(!state.export.statsFields || typeof state.export.statsFields !== 'object') state.export.statsFields = {};
+  const statDefaults = {objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
+  Object.keys(statDefaults).forEach(k=>{ if(typeof state.export.statsFields[k] !== 'boolean') state.export.statsFields[k] = statDefaults[k]; });
+  if(!state.export.layoutPreset) state.export.layoutPreset='balanced';
+  if(!Number.isFinite(Number(state.export.bufferPreset))) state.export.bufferPreset=Number(state.export.extentBuffer.top)||200;
+  if(typeof state.export.autoFitField !== 'boolean') state.export.autoFitField = true;
+}
+function exportFieldStatusText(){
+  const {w,h}=exportMapSize();
+  const outer=exportOuterFrameRect(w,h);
+  const f=exportMapFieldRect(w,h);
+  const left=Math.round(f.x-outer.x), right=Math.round(outer.x+outer.w-(f.x+f.w));
+  const top=Math.round(f.y-outer.y), bottom=Math.round(outer.y+outer.h-(f.y+f.h));
+  return `Автоподгонка поля: ${f.w}×${f.h}px; поля: верх ${top}, низ ${bottom}, лево ${left}, право ${right}px`;
+}
+function syncExportDefaults(resetTitle=true){
+  ensureExportFlags();
+  const features=exportScopeFeatures();
+  if(resetTitle || !state.export.title) state.export.title=defaultExportTitle();
+  if(state.export.contextMode==='auto' || resetTitle || !state.export.contextText) syncExportContextText();
+  const V=(id,val)=>{ if($(id)) $(id).value=val; }, C=(id,val)=>{ if($(id)) $(id).checked=!!val; };
+  V('exportTitleInput',state.export.title); V('exportTitleFontSize', state.export.titleFontSize); V('exportPanelWidth', state.export.panelWidth); V('exportScopeSelect',state.export.scope); V('exportPaperSelect',state.export.paper); V('exportTemplateSelect',state.export.template); V('exportContextMode',state.export.contextMode); V('exportContextText',state.export.contextText||'');
+  V('exportCanvasWidth',state.export.canvasWidth); V('exportCanvasHeight',state.export.canvasHeight);
+  ['top','right','bottom','left'].forEach(k=>{ V('exportPagePad'+k.charAt(0).toUpperCase()+k.slice(1), state.export.pagePadding[k]); V('exportFieldPad'+k.charAt(0).toUpperCase()+k.slice(1), state.export.fieldPadding[k]); V('exportBuffer'+k.charAt(0).toUpperCase()+k.slice(1), state.export.extentBuffer[k]); });
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>C(`exportShow${name}`, state.export[`show${name}`]));
+  C('exportAutoFitField', state.export.autoFitField);
+  V('exportLabelModeSelect', state.export.labelMode); V('exportGraticuleLabelSizeInput', state.export.graticuleLabelSize);
+  if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext ? 'block' : 'none';
+  const note=$('exportAutoFieldStatus'); if(note) note.textContent=exportFieldStatusText();
+  renderExportStatsFieldsControls?.();
+}
+function ensureExportModal(){
+  let old=$('exportMode');
+  if(old && !old.classList.contains('export-modal-v49')) old.remove();
+  let modal=$('exportMode'); if(modal) return modal;
+  ensureExportFlags();
+  modal=document.createElement('div');
+  modal.id='exportMode';
+  modal.className='export-modal export-modal-v49';
+  modal.setAttribute('aria-hidden','true');
+  modal.innerHTML=`<div class="export-backdrop" data-close-export="1"></div>
+  <section class="export-shell" role="dialog" aria-modal="true" aria-labelledby="exportModeTitle">
+    <aside class="export-controls">
+      <div class="export-controls-head"><div><div class="eyebrow">Экспорт карты · v${APP_VERSION}</div><h2 id="exportModeTitle">Экспорт для диплома</h2></div><button type="button" class="export-close" aria-label="Закрыть экспорт">×</button></div>
+      <label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text">
+      <div class="export-form-grid2"><div><label class="control-label" for="exportTitleFontSize">Размер заголовка, px</label><input id="exportTitleFontSize" class="export-text-input" type="number" min="24" max="60" step="1"></div><div><label class="control-label" for="exportPanelWidth">Ширина карточек, px</label><input id="exportPanelWidth" class="export-text-input" type="number" min="220" max="420" step="2"></div></div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select></div><div><label class="control-label" for="exportPaperSelect">Формат листа</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div></div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportTemplateSelect">Режим оформления</label><select id="exportTemplateSelect"><option value="thesis">Карта для диплома</option><option value="article">Карта для статьи</option><option value="presentation">Презентационный слайд</option></select></div><div><label class="control-label" for="exportContextMode">Текст контекста</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select></div></div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div>
+      <div class="export-fieldset"><div class="export-fieldset-title">Автокомпоновка картографического поля</div><label class="export-checkline"><input type="checkbox" id="exportAutoFitField"> Автоматически подгонять поле по форме выбранного слоя / выборки</label><div id="exportAutoFieldStatus" class="mini-muted"></div><div class="mini-muted">Правило: верх/низ не меньше 100 px; боковые интервалы не больше 400 px.</div></div>
+      <details class="export-context-box"><summary>Точные настройки рамок</summary><div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка / рабочее поле, px</div><div class="export-form-grid4">${['Top:Сверху','Right:Справа','Bottom:Снизу','Left:Слева'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportPagePad${id}">${l}</label><input id="exportPagePad${id}" class="export-text-input" type="number" min="0" step="2"></div>`}).join('')}</div></div><div class="export-fieldset"><div class="export-fieldset-title">Ручное картографическое поле, px</div><div class="export-form-grid4">${['Top:Верх','Right:Право','Bottom:Низ','Left:Лево'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportFieldPad${id}">${l}</label><input id="exportFieldPad${id}" class="export-text-input" type="number" min="0" step="2"></div>`}).join('')}</div></div></details>
+      <div class="export-fieldset"><div class="export-fieldset-title">Буфер экстента от выбранных административных полигонов, км</div><div class="export-form-grid4">${['Top:Север','Right:Восток','Bottom:Юг','Left:Запад'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportBuffer${id}">${l}</label><input id="exportBuffer${id}" class="export-text-input" type="number" min="0" step="10"></div>`}).join('')}</div></div>
+      <div class="export-option-grid export-layer-grid export-layer-grid-v49">${[['Hydro','Гидрография и океан'],['Admin','Административный слой'],['Railways','Железные дороги'],['Population','Круги населения'],['Labels','Подписи АТЕ'],['Graticule','Градусная сетка'],['GraticuleLabels','Подписи сетки'],['Scale','Масштабная линейка'],['Legend','Легенда'],['Stats','Общая информация'],['Context','Контекст']].map(([id,l])=>`<label><input type="checkbox" id="exportShow${id}"> ${l}</label>`).join('')}</div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportLabelModeSelect">Генерализация подписей</label><select id="exportLabelModeSelect"><option value="none">Не показывать</option><option value="major">Только крупнейшие</option><option value="balanced">Сбалансированно</option><option value="dense">Плотнее</option></select></div><div><label class="control-label" for="exportGraticuleLabelSizeInput">Размер подписей сетки, px</label><input id="exportGraticuleLabelSizeInput" class="export-text-input" type="number" min="8" max="24" step="1"></div></div>
+      <details id="exportContextDetails" class="export-context-box" open><summary>Контекст</summary><textarea id="exportContextText" class="export-context-text" rows="5"></textarea></details>
+      <details class="export-context-box"><summary>Содержание блока информации</summary><div class="export-stats-fields" id="exportStatsFieldsBox"></div></details>
+      <div class="button-row export-buttons"><button id="refreshExportPreview" type="button">Обновить превью</button></div><button id="downloadExportPng" type="button" class="export-primary-btn">Сохранить PNG</button>
+      <div class="mini-muted">Поле карты автоматически меняет пропорции под слой: вертикальная территория получает более узкое поле, горизонтальная — более низкое.</div>
+    </aside><div class="export-preview-area"><div id="exportPreviewStatus" class="export-preview-status">Подготовка превью…</div><div id="exportPreviewCard" class="export-preview-card"></div></div>
+  </section>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.export-close').addEventListener('click', closeExportMode);
+  modal.querySelector('[data-close-export]').addEventListener('click', closeExportMode);
+  const bind=(id,event,fn)=>{ const el=$(id); if(el) el.addEventListener(event,fn); };
+  bind('exportTitleInput','input', e=>{ state.export.title=e.target.value; renderExportPreviewCard(); });
+  bind('exportTitleFontSize','input', e=>{ state.export.titleFontSize=Math.max(24, Math.min(60, Number(e.target.value)||36)); renderExportPreviewCard(); });
+  bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220, Math.min(420, Number(e.target.value)||300)); renderExportPreviewCard(); });
+  bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; if(e.target.value==='a4Portrait'){ state.export.canvasWidth=1240; state.export.canvasHeight=1680; } else if(e.target.value==='screen'){ state.export.canvasWidth=1760; state.export.canvasHeight=1040; } else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; } syncExportDefaults(false); renderExportPreviewCard(); });
+  bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; renderExportPreviewCard(); });
+  bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
+  bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
+  bind('exportAutoFitField','change', e=>{ state.export.autoFitField=!!e.target.checked; renderExportPreviewCard(); syncExportDefaults(false); });
+  [['PagePadTop','pagePadding','top'],['PagePadRight','pagePadding','right'],['PagePadBottom','pagePadding','bottom'],['PagePadLeft','pagePadding','left'],['FieldPadTop','fieldPadding','top'],['FieldPadRight','fieldPadding','right'],['FieldPadBottom','fieldPadding','bottom'],['FieldPadLeft','fieldPadding','left'],['BufferTop','extentBuffer','top'],['BufferRight','extentBuffer','right'],['BufferBottom','extentBuffer','bottom'],['BufferLeft','extentBuffer','left']].forEach(([id,obj,key])=>bind(`export${id}`,'input', e=>{ state.export[obj][key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
+  ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; if(name==='Context' && $('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext?'block':'none'; renderExportPreviewCard(); }));
+  bind('exportLabelModeSelect','change', e=>{ state.export.labelMode=e.target.value; state.export.showLabels=e.target.value!=='none'; if($('exportShowLabels')) $('exportShowLabels').checked=state.export.showLabels; renderExportPreviewCard(); });
+  bind('exportGraticuleLabelSizeInput','input', e=>{ state.export.graticuleLabelSize=Math.max(8, Math.min(24, Number(e.target.value)||12)); renderExportPreviewCard(); });
+  bind('refreshExportPreview','click', ()=>refreshExportPreview(false));
+  bind('downloadExportPng','click', downloadExportPng);
+  return modal;
+}
+async function openExportMode(){
+  const modal=ensureExportModal();
+  state.export.open=true; syncExportDefaults(true);
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  await refreshExportPreview(false);
+}
+function positionFloatingExportLauncherV48(){
+  const btn = document.getElementById('floatingExportLauncher'); if(!btn) return;
+  const panel = document.getElementById('rightPanel'); const margin = 20;
+  btn.classList.add('floating-export-launcher-v48');
+  btn.innerHTML = '<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
+  if(panel){ const r=panel.getBoundingClientRect(); btn.style.left=`${Math.round(Math.max(12, Math.min(window.innerWidth-btn.offsetWidth-12, r.left+margin)))}px`; btn.style.top=`${Math.round(Math.max(12, Math.min(window.innerHeight-btn.offsetHeight-12, r.top+margin)))}px`; btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none'; }
+}
