@@ -4986,7 +4986,7 @@ function defaultExportTitle(){
 }
 
 
-/* v53: городское население через отдельные городские/рабоче-поселковые полигоны */
+/* v54: hotfix updateStats/updateGroupAnalytics after v53 urban split */
 function urbanBreakdown(features){
   const total=sum(features.map(f=>Number(f.properties?.population)||0));
   const strictCity=sum(features.map(f=>Number(f.properties?.strict_city_pop)||0));
@@ -5014,8 +5014,9 @@ function updateStats(features){
   const avgRailD=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_density_km_1000)||0))/baseAte.length:0;
   const extraUrban=(parts.strictCityTotal||parts.workerSettlementTotal)?`<div class="metric-line"><span>собственно города</span><b>${num(parts.strictCityTotal)}</b></div><div class="metric-line"><span>рабочие посёлки / ПГТ</span><b>${num(parts.workerSettlementTotal)}</b></div>`:'';
   const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
-  $('statsBox').innerHTML=html;
-  updateCharts(features);
+  const leftStats=$('statsBox'); if(leftStats) leftStats.innerHTML=html;
+  const rightStats=$('rightStatsBox'); if(rightStats) rightStats.innerHTML=html;
+  updateGroupAnalytics(features);
 }
 function showFeature(f){
   const p=f.properties||{}; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect');
