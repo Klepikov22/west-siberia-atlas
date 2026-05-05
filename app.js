@@ -1,4 +1,4 @@
-const APP_VERSION = '70';
+const APP_VERSION = '72';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -3069,7 +3069,7 @@ function ensureExportModal(){
       <div class="export-form-grid2">
         <div>
           <label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label>
-          <input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20">
+          <input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20">
         </div>
         <div>
           <label class="control-label" for="exportCanvasHeight">Высота PNG, px</label>
@@ -3136,7 +3136,7 @@ function ensureExportModal(){
     else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; }
     syncExportDefaults(false); renderExportPreviewCard();
   });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500, Number(e.target.value)||1480); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
   [['Top','top'],['Right','right'],['Bottom','bottom'],['Left','left']].forEach(([id,key])=>bind(`exportBuffer${id}`,'input', e=>{ state.export.extentBuffer[key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
   ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; renderExportPreviewCard(); }));
@@ -3175,7 +3175,7 @@ function syncExportDefaults(resetTitle=true){
 }
 function exportMapSize(){
   ensureExportFlags();
-  return {w: Math.max(900, Number(state.export.canvasWidth)||1480), h: Math.max(700, Number(state.export.canvasHeight)||1040)};
+  return {w: Math.max(500, Number(state.export.canvasWidth)||1480), h: Math.max(700, Number(state.export.canvasHeight)||1040)};
 }
 function exportMapFieldRect(w,h){
   const top=120;
@@ -3386,7 +3386,7 @@ function ensureExportModal(){
         <div><label class="control-label" for="exportContextMode">Текст контекста</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select></div>
       </div>
       <div class="export-form-grid2">
-        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div>
+        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20"></div>
         <div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div>
       </div>
       <div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка / рабочее поле, px</div>
@@ -3451,7 +3451,7 @@ function ensureExportModal(){
   bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; if(state.export.contextMode==='auto') syncExportContextText(); renderExportPreviewCard(); });
   bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
   bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500, Number(e.target.value)||1480); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
   [['PagePadTop','pagePadding','top'],['PagePadRight','pagePadding','right'],['PagePadBottom','pagePadding','bottom'],['PagePadLeft','pagePadding','left'],['FieldPadTop','fieldPadding','top'],['FieldPadRight','fieldPadding','right'],['FieldPadBottom','fieldPadding','bottom'],['FieldPadLeft','fieldPadding','left'],['BufferTop','extentBuffer','top'],['BufferRight','extentBuffer','right'],['BufferBottom','extentBuffer','bottom'],['BufferLeft','extentBuffer','left']].forEach(([id,obj,key])=>bind(`export${id}`,'input', e=>{ state.export[obj][key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
   ['Hydro','Admin','Railways','Population','Labels','Legend','Stats','Context','Graticule','GraticuleLabels','Scale'].forEach(name=>bind(`exportShow${name}`,'change', e=>{ state.export[`show${name}`]=!!e.target.checked; renderExportPreviewCard(); }));
@@ -3475,7 +3475,7 @@ function syncExportDefaults(resetTitle=true){
   V('exportLabelModeSelect', state.export.labelMode); V('exportGraticuleLabelSizeInput', state.export.graticuleLabelSize);
   if($('exportContextDetails')) $('exportContextDetails').style.display=state.export.showContext ? 'block' : 'none';
 }
-function exportMapSize(){ ensureExportFlags(); return {w: Math.max(900, Number(state.export.canvasWidth)||1480), h: Math.max(700, Number(state.export.canvasHeight)||1040)}; }
+function exportMapSize(){ ensureExportFlags(); return {w: Math.max(500, Number(state.export.canvasWidth)||1480), h: Math.max(700, Number(state.export.canvasHeight)||1040)}; }
 function exportOuterFrameRect(w,h){
   const p=state.export.pagePadding || {top:16,right:16,bottom:16,left:16};
   return {x:Number(p.left)||0, y:Number(p.top)||0, w:Math.max(200, w-(Number(p.left)||0)-(Number(p.right)||0)), h:Math.max(200, h-(Number(p.top)||0)-(Number(p.bottom)||0))};
@@ -3638,7 +3638,7 @@ function ensureExportModal(){
         <div><label class="control-label" for="exportContextMode">Текст контекста</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select></div>
       </div>
       <div class="export-form-grid2">
-        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div>
+        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20"></div>
         <div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div>
       </div>
       <div class="export-form-grid2">
@@ -3705,7 +3705,7 @@ function ensureExportModal(){
   bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; if(state.export.contextMode==='auto') syncExportContextText(); renderExportPreviewCard(); });
   bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
   bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500, Number(e.target.value)||1480); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
   bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220, Math.min(420, Number(e.target.value)||300)); renderExportPreviewCard(); });
   [['PagePadTop','pagePadding','top'],['PagePadRight','pagePadding','right'],['PagePadBottom','pagePadding','bottom'],['PagePadLeft','pagePadding','left'],['FieldPadTop','fieldPadding','top'],['FieldPadRight','fieldPadding','right'],['FieldPadBottom','fieldPadding','bottom'],['FieldPadLeft','fieldPadding','left'],['BufferTop','extentBuffer','top'],['BufferRight','extentBuffer','right'],['BufferBottom','extentBuffer','bottom'],['BufferLeft','extentBuffer','left']].forEach(([id,obj,key])=>bind(`export${id}`,'input', e=>{ state.export[obj][key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
@@ -4029,7 +4029,7 @@ function ensureExportModal(){
         <div><label class="control-label" for="exportPaperSelect">Формат</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div>
       </div>
       <div class="export-form-grid2">
-        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div>
+        <div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20"></div>
         <div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div>
       </div>
       <div class="export-fieldset export-fieldset-simple"><div class="export-fieldset-title">Компоновка листа</div>
@@ -4089,7 +4089,7 @@ function ensureExportModal(){
   bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220, Math.min(420, Number(e.target.value)||300)); renderExportPreviewCard(); });
   bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); refreshExportPreview(false); });
   bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; if(e.target.value==='a4Portrait'){ state.export.canvasWidth=1240; state.export.canvasHeight=1680; } else if(e.target.value==='screen'){ state.export.canvasWidth=1760; state.export.canvasHeight=1040; } else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; } syncExportDefaults(false); renderExportPreviewCard(); });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500, Number(e.target.value)||1480); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
   bind('exportLayoutPreset','change', e=>{ exportApplyLayoutPreset(e.target.value); syncExportDefaults(false); renderExportPreviewCard(); });
   bind('exportUniformBuffer','input', e=>{ state.export.bufferPreset=Math.max(0, Number(e.target.value)||0); });
@@ -4386,7 +4386,7 @@ function ensureExportModal(){
       <div class="export-form-grid2"><div><label class="control-label" for="exportTitleFontSize">Размер заголовка, px</label><input id="exportTitleFontSize" class="export-text-input" type="number" min="24" max="60" step="1"></div><div><label class="control-label" for="exportPanelWidth">Ширина карточек, px</label><input id="exportPanelWidth" class="export-text-input" type="number" min="220" max="420" step="2"></div></div>
       <div class="export-form-grid2"><div><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select></div><div><label class="control-label" for="exportPaperSelect">Формат листа</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div></div>
       <div class="export-form-grid2"><div><label class="control-label" for="exportTemplateSelect">Режим оформления</label><select id="exportTemplateSelect"><option value="thesis">Карта для диплома</option><option value="article">Карта для статьи</option><option value="presentation">Презентационный слайд</option></select></div><div><label class="control-label" for="exportContextMode">Текст контекста</label><select id="exportContextMode"><option value="auto">Авто-компактный</option><option value="short">Краткий</option><option value="long">Развёрнутый</option></select></div></div>
-      <div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div>
+      <div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина PNG, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота PNG, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div>
       <div class="export-fieldset"><div class="export-fieldset-title">Автокомпоновка картографического поля</div><label class="export-checkline"><input type="checkbox" id="exportAutoFitField"> Автоматически подгонять поле по форме выбранного слоя / выборки</label><div id="exportAutoFieldStatus" class="mini-muted"></div><div class="mini-muted">Правило: верх/низ не меньше 100 px; боковые интервалы не больше 400 px.</div></div>
       <details class="export-context-box"><summary>Точные настройки рамок</summary><div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка / рабочее поле, px</div><div class="export-form-grid4">${['Top:Сверху','Right:Справа','Bottom:Снизу','Left:Слева'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportPagePad${id}">${l}</label><input id="exportPagePad${id}" class="export-text-input" type="number" min="0" step="2"></div>`}).join('')}</div></div><div class="export-fieldset"><div class="export-fieldset-title">Ручное картографическое поле, px</div><div class="export-form-grid4">${['Top:Верх','Right:Право','Bottom:Низ','Left:Лево'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportFieldPad${id}">${l}</label><input id="exportFieldPad${id}" class="export-text-input" type="number" min="0" step="2"></div>`}).join('')}</div></div></details>
       <div class="export-fieldset"><div class="export-fieldset-title">Буфер экстента от выбранных административных полигонов, км</div><div class="export-form-grid4">${['Top:Север','Right:Восток','Bottom:Юг','Left:Запад'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportBuffer${id}">${l}</label><input id="exportBuffer${id}" class="export-text-input" type="number" min="0" step="10"></div>`}).join('')}</div></div>
@@ -4410,7 +4410,7 @@ function ensureExportModal(){
   bind('exportTemplateSelect','change', e=>{ state.export.template=e.target.value; renderExportPreviewCard(); });
   bind('exportContextMode','change', e=>{ state.export.contextMode=e.target.value; syncExportContextText(); renderExportPreviewCard(); });
   bind('exportContextText','input', e=>{ state.export.contextText=e.target.value; renderExportPreviewCard(); });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900, Number(e.target.value)||1480); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500, Number(e.target.value)||1480); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700, Number(e.target.value)||1040); renderExportPreviewCard(); });
   bind('exportAutoFitField','change', e=>{ state.export.autoFitField=!!e.target.checked; renderExportPreviewCard(); syncExportDefaults(false); });
   [['PagePadTop','pagePadding','top'],['PagePadRight','pagePadding','right'],['PagePadBottom','pagePadding','bottom'],['PagePadLeft','pagePadding','left'],['FieldPadTop','fieldPadding','top'],['FieldPadRight','fieldPadding','right'],['FieldPadBottom','fieldPadding','bottom'],['FieldPadLeft','fieldPadding','left'],['BufferTop','extentBuffer','top'],['BufferRight','extentBuffer','right'],['BufferBottom','extentBuffer','bottom'],['BufferLeft','extentBuffer','left']].forEach(([id,obj,key])=>bind(`export${id}`,'input', e=>{ state.export[obj][key]=Math.max(0, Number(e.target.value)||0); renderExportPreviewCard(); }));
@@ -4463,8 +4463,8 @@ function ensureExportFlags(){
   const statDefaults={objects:true,population:true,area:true,density:true,urbanShare:true,urbanPopulation:false,ruralPopulation:false,avgArea:false,avgPopulation:false,avgDensity:false};
   Object.keys(statDefaults).forEach(k=>{ if(typeof state.export.statsFields[k] !== 'boolean') state.export.statsFields[k]=statDefaults[k]; });
 }
-function exportMapSize(){ ensureExportFlags(); return {w:Math.max(900, v50Number(state.export.canvasWidth,1480)), h:Math.max(700, v50Number(state.export.canvasHeight,1040))}; }
-function exportOuterFrameRect(w,h){ return {x:0,y:0,w:Math.max(900,w),h:Math.max(700,h)}; }
+function exportMapSize(){ ensureExportFlags(); return {w:Math.max(500, v50Number(state.export.canvasWidth,1480)), h:Math.max(700, v50Number(state.export.canvasHeight,1040))}; }
+function exportOuterFrameRect(w,h){ return {x:0,y:0,w:Math.max(500,w),h:Math.max(700,h)}; }
 function exportSelectionMetricAspect(features){
   const source=(features&&features.length)?features:(state.currentGeoJSON?.features||state.rawGeoJSON?.features||[]);
   const bbox=geoBBoxFromFeatures(source);
@@ -4526,7 +4526,7 @@ function ensureExportModal(){
       <label class="control-label" for="exportTitleInput">Название карты</label><input id="exportTitleInput" class="export-text-input" type="text">
       <div class="export-form-grid2"><div><label class="control-label" for="exportTitleFontSize">Размер заголовка, px</label><input id="exportTitleFontSize" class="export-text-input" type="number" min="24" max="60" step="1"></div><div><label class="control-label" for="exportPanelWidth">Ширина карточек, px</label><input id="exportPanelWidth" class="export-text-input" type="number" min="220" max="420" step="2"></div></div>
       <div class="export-form-grid2"><div><label class="control-label" for="exportScopeSelect">Охват карты</label><select id="exportScopeSelect"><option value="currentLayer">Текущий слой / фильтры</option><option value="selection">Текущая выборка</option><option value="parents">Отмеченные верхнеуровневые АТЕ</option></select></div><div><label class="control-label" for="exportPaperSelect">Формат</label><select id="exportPaperSelect"><option value="a4Landscape">A4 horizontal</option><option value="a4Portrait">A4 vertical</option><option value="screen">Широкий экран</option></select></div></div>
-      <div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка PNG</div><div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина внешней рамки, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="900" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота внешней рамки, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div></div>
+      <div class="export-fieldset"><div class="export-fieldset-title">Внешняя рамка PNG</div><div class="export-form-grid2"><div><label class="control-label" for="exportCanvasWidth">Ширина внешней рамки, px</label><input id="exportCanvasWidth" class="export-text-input" type="number" min="500" step="20"></div><div><label class="control-label" for="exportCanvasHeight">Высота внешней рамки, px</label><input id="exportCanvasHeight" class="export-text-input" type="number" min="700" step="20"></div></div></div>
       <div class="export-fieldset"><div class="export-fieldset-title">Внутренняя рамка карты</div><label class="export-checkline"><input type="checkbox" id="exportAutoFitField"> Автоматически подгонять по форме выбранного слоя / выборки</label><div class="export-form-grid4"><div><label class="control-label" for="exportInnerX">X</label><input id="exportInnerX" class="export-text-input" type="number" min="0" step="2"></div><div><label class="control-label" for="exportInnerY">Y</label><input id="exportInnerY" class="export-text-input" type="number" min="0" step="2"></div><div><label class="control-label" for="exportInnerWidth">Ширина</label><input id="exportInnerWidth" class="export-text-input" type="number" min="260" step="2"></div><div><label class="control-label" for="exportInnerHeight">Высота</label><input id="exportInnerHeight" class="export-text-input" type="number" min="260" step="2"></div></div><div id="exportAutoFieldStatus" class="mini-muted"></div><div class="mini-muted">Авто: верх/низ не меньше 100 px; боковые интервалы не больше 400 px. Ручной режим: рамку можно двигать и растягивать в превью.</div></div>
       <div class="export-fieldset"><div class="export-fieldset-title">Буфер экстента от выбранных административных полигонов, км</div><div class="export-form-grid4">${['Top:Север','Right:Восток','Bottom:Юг','Left:Запад'].map(x=>{const [id,l]=x.split(':');return `<div><label class="control-label" for="exportBuffer${id}">${l}</label><input id="exportBuffer${id}" class="export-text-input" type="number" min="0" step="10"></div>`}).join('')}</div></div>
       <div class="export-option-grid export-layer-grid export-layer-grid-v50">${[['Hydro','Гидрография и океан'],['Admin','Административный слой'],['Railways','Железные дороги'],['Population','Круги населения'],['Labels','Подписи АТЕ'],['Graticule','Градусная сетка'],['GraticuleLabels','Подписи сетки'],['Scale','Масштабная линейка'],['Legend','Легенда'],['Stats','Общая информация'],['Context','Контекст']].map(([id,l])=>`<label><input type="checkbox" id="exportShow${id}"> ${l}</label>`).join('')}</div>
@@ -4544,7 +4544,7 @@ function ensureExportModal(){
   bind('exportPanelWidth','input', e=>{ state.export.panelWidth=Math.max(220,Math.min(420,Number(e.target.value)||300)); renderExportPreviewCard(); });
   bind('exportScopeSelect','change', e=>{ state.export.scope=e.target.value; syncExportDefaults(false); renderExportPreviewCard(); });
   bind('exportPaperSelect','change', e=>{ state.export.paper=e.target.value; if(e.target.value==='a4Portrait'){ state.export.canvasWidth=1240; state.export.canvasHeight=1680; } else if(e.target.value==='screen'){ state.export.canvasWidth=1760; state.export.canvasHeight=1040; } else { state.export.canvasWidth=1480; state.export.canvasHeight=1040; } syncExportDefaults(false); renderExportPreviewCard(); });
-  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(900,Number(e.target.value)||1480); clampInnerFrameToOuter(); renderExportPreviewCard(); });
+  bind('exportCanvasWidth','input', e=>{ state.export.canvasWidth=Math.max(500,Number(e.target.value)||1480); clampInnerFrameToOuter(); renderExportPreviewCard(); });
   bind('exportCanvasHeight','input', e=>{ state.export.canvasHeight=Math.max(700,Number(e.target.value)||1040); clampInnerFrameToOuter(); renderExportPreviewCard(); });
   bind('exportAutoFitField','change', e=>{ state.export.autoFitField=!!e.target.checked; syncExportDefaults(false); renderExportPreviewCard(); });
   [['InnerX','x'],['InnerY','y'],['InnerWidth','w'],['InnerHeight','h']].forEach(([id,key])=>bind(`export${id}`,'input', e=>{ state.export.autoFitField=false; state.export.innerFrame[key]=Math.max(key==='w'||key==='h'?260:0,Number(e.target.value)||0); clampInnerFrameToOuter(); syncExportDefaults(false); renderExportPreviewCard(); }));
@@ -4611,7 +4611,7 @@ function initExportOverlayDrag(){
   }
   frame.querySelectorAll('.export-resize-handle').forEach(handle=>{
     if(handle.dataset.bound==='1') return; handle.dataset.bound='1';
-    handle.addEventListener('pointerdown',ev=>{ ev.preventDefault(); ev.stopPropagation(); const dir=handle.dataset.dir; const target=handle.dataset.frame; const startX=ev.clientX,startY=ev.clientY; const w0=Number(state.export.canvasWidth), h0=Number(state.export.canvasHeight); const f0={...exportMapFieldRect(w0,h0)}; const move=e=>{ const dx=e.clientX-startX, dy=e.clientY-startY; if(target==='outer'){ const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20); const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20); state.export.canvasWidth=Math.max(minW,w0+dx); state.export.canvasHeight=Math.max(minH,h0+dy); }else{ state.export.autoFitField=false; let nw=f0.w+(dir.includes('e')?dx:0); let nh=f0.h+(dir.includes('s')?dy:0); state.export.innerFrame={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))}; } syncExportDefaults(false); renderExportPreviewCard(); }; const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);}; document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); },{passive:false});
+    handle.addEventListener('pointerdown',ev=>{ ev.preventDefault(); ev.stopPropagation(); const dir=handle.dataset.dir; const target=handle.dataset.frame; const startX=ev.clientX,startY=ev.clientY; const w0=Number(state.export.canvasWidth), h0=Number(state.export.canvasHeight); const f0={...exportMapFieldRect(w0,h0)}; const move=e=>{ const dx=e.clientX-startX, dy=e.clientY-startY; if(target==='outer'){ const minW=Math.max(500,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20); const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20); state.export.canvasWidth=Math.max(minW,w0+dx); state.export.canvasHeight=Math.max(minH,h0+dy); }else{ state.export.autoFitField=false; let nw=f0.w+(dir.includes('e')?dx:0); let nh=f0.h+(dir.includes('s')?dy:0); state.export.innerFrame={x:f0.x,y:f0.y,w:Math.max(260,Math.min(w0-f0.x,nw)),h:Math.max(260,Math.min(h0-f0.y,nh))}; } syncExportDefaults(false); renderExportPreviewCard(); }; const up=()=>{document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);}; document.addEventListener('pointermove',move); document.addEventListener('pointerup',up); },{passive:false});
   });
 }
 async function exportHydroSvg(project,bbox){
@@ -4925,7 +4925,7 @@ function initExportOverlayDrag(){
       const move=e=>{
         const dx=e.clientX-startX, dy=e.clientY-startY;
         if(target==='outer'){
-          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minW=Math.max(500,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
           const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
           state.export.canvasWidth=Math.max(minW,w0+dx);
           state.export.canvasHeight=Math.max(minH,h0+dy);
@@ -5099,14 +5099,14 @@ function syncExportContextText(){
 }
 function exportMapSize(){
   const ex = ensureExportFlags();
-  return {w:Math.max(900, v55Finite(ex.canvasWidth,1480)), h:Math.max(700, v55Finite(ex.canvasHeight,1040))};
+  return {w:Math.max(500, v55Finite(ex.canvasWidth,1480)), h:Math.max(700, v55Finite(ex.canvasHeight,1040))};
 }
 function exportOuterFrameRect(w,h){
-  return {x:0, y:0, w:Math.max(900, v55Finite(w,1480)), h:Math.max(700, v55Finite(h,1040))};
+  return {x:0, y:0, w:Math.max(500, v55Finite(w,1480)), h:Math.max(700, v55Finite(h,1040))};
 }
 function exportMapFieldRect(w,h){
   const ex = ensureExportFlags();
-  w = Math.max(900, v55Finite(w,1480));
+  w = Math.max(500, v55Finite(w,1480));
   h = Math.max(700, v55Finite(h,1040));
   if(ex.autoFitField !== false && typeof exportAutoFieldRect === 'function'){
     try{
@@ -5452,7 +5452,7 @@ function ensureExportFlags(){
   if(!Number.isFinite(Number(ex.minPopulation))) ex.minPopulation = 0;
   if(!Number.isFinite(Number(ex.minArea))) ex.minArea = 0;
   if(!Number.isFinite(Number(ex.graticuleLabelSize))) ex.graticuleLabelSize = 12;
-  ex.canvasWidth = Math.max(900, finite(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
+  ex.canvasWidth = Math.max(500, finite(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
   ex.canvasHeight = Math.max(700, finite(ex.canvasHeight, ex.paper === 'a4Portrait' ? 1680 : ex.paper === 'screen' ? 1040 : 1040));
   if(!Number.isFinite(Number(ex.titleFontSize))) ex.titleFontSize = 34;
   if(!Number.isFinite(Number(ex.panelWidth))) ex.panelWidth = 300;
@@ -5474,7 +5474,7 @@ function ensureExportFlags(){
 function exportMapSize(){
   const ex = ensureExportFlags();
   const finite = (v, fallback) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
-  return {w:Math.max(900, finite(ex.canvasWidth,1480)), h:Math.max(700, finite(ex.canvasHeight,1040))};
+  return {w:Math.max(500, finite(ex.canvasWidth,1480)), h:Math.max(700, finite(ex.canvasHeight,1040))};
 }
 (function initV57Patch(){
   const boot=()=>{
@@ -5535,7 +5535,7 @@ ensureExportFlags = function ensureExportFlagsV58(){
   if (!Number.isFinite(Number(ex.minPopulation))) ex.minPopulation = 0;
   if (!Number.isFinite(Number(ex.minArea))) ex.minArea = 0;
   if (!Number.isFinite(Number(ex.graticuleLabelSize))) ex.graticuleLabelSize = 12;
-  ex.canvasWidth = Math.max(900, safeExportFiniteV58(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
+  ex.canvasWidth = Math.max(500, safeExportFiniteV58(ex.canvasWidth, ex.paper === 'a4Portrait' ? 1240 : ex.paper === 'screen' ? 1760 : 1480));
   ex.canvasHeight = Math.max(700, safeExportFiniteV58(ex.canvasHeight, ex.paper === 'a4Portrait' ? 1680 : ex.paper === 'screen' ? 1040 : 1040));
   if (!Number.isFinite(Number(ex.titleFontSize))) ex.titleFontSize = 34;
   if (!Number.isFinite(Number(ex.panelWidth))) ex.panelWidth = 300;
@@ -5560,7 +5560,7 @@ ensureExportFlags = function ensureExportFlagsV58(){
 exportMapSize = function exportMapSizeV58(){
   const ex = ensureExportFlags();
   return {
-    w: Math.max(900, safeExportFiniteV58(ex && ex.canvasWidth, 1480)),
+    w: Math.max(500, safeExportFiniteV58(ex && ex.canvasWidth, 1480)),
     h: Math.max(700, safeExportFiniteV58(ex && ex.canvasHeight, 1040))
   };
 };
@@ -5730,7 +5730,7 @@ initExportOverlayDrag = function initExportOverlayDragV59(){
       const move=e=>{
         const dx=e.clientX-startX, dy=e.clientY-startY;
         if(target==='outer'){
-          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minW=Math.max(500,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
           const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
           state.export.canvasWidth=Math.max(minW,w0+dx);
           state.export.canvasHeight=Math.max(minH,h0+dy);
@@ -5933,7 +5933,7 @@ initExportOverlayDrag = function initExportOverlayDragV60(){
       const move=e=>{
         const dx=e.clientX-startX, dy=e.clientY-startY;
         if(target==='outer'){
-          const minW=Math.max(900,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
+          const minW=Math.max(500,(state.export.innerFrame?.x||0)+(state.export.innerFrame?.w||0)+20);
           const minH=Math.max(700,(state.export.innerFrame?.y||0)+(state.export.innerFrame?.h||0)+20);
           state.export.canvasWidth=Math.max(minW,w0+dx);
           state.export.canvasHeight=Math.max(minH,h0+dy);
@@ -6192,7 +6192,7 @@ initExportOverlayDrag = function initExportOverlayDragV61(){
         const dy=e.clientY-startY;
         const exNow=v61EnsureExportState();
         if(target==='outer'){
-          const minW=Math.max(900,(exNow.innerFrame?.x||0)+(exNow.innerFrame?.w||0)+20);
+          const minW=Math.max(500,(exNow.innerFrame?.x||0)+(exNow.innerFrame?.w||0)+20);
           const minH=Math.max(700,(exNow.innerFrame?.y||0)+(exNow.innerFrame?.h||0)+20);
           exNow.canvasWidth=Math.max(minW,w0+dx);
           exNow.canvasHeight=Math.max(minH,h0+dy);
@@ -6272,7 +6272,7 @@ function v62ClearAllExportEditing(){
 function v62OuterMinSize(){
   const ex=v62EnsureExportState();
   const inner=ex.innerFrame || {};
-  const minW=Math.max(900, Number(inner.x||0)+Number(inner.w||0)+24);
+  const minW=Math.max(500, Number(inner.x||0)+Number(inner.w||0)+24);
   const minH=Math.max(700, Number(inner.y||0)+Number(inner.h||0)+24);
   return {minW,minH};
 }
@@ -8573,3 +8573,180 @@ buildExportSvgMap = async function buildExportSvgMapV70(){
   }catch(e){ console.warn('v70 strict export clip postprocess skipped', e); }
   return svg;
 };
+
+/* v72: historical XIX-century admin layers + century filter and slideshow for the timeline */
+function v72SortedYears(){
+  return (state.manifest?.years || []).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+}
+function v72CenturyOfYear(y){
+  y=Number(y);
+  if(y>=1801 && y<=1900) return '19';
+  if(y>=1901 && y<=2000) return '20';
+  if(y>=2001 && y<=2100) return '21';
+  return 'other';
+}
+function v72TimelineScopeYears(){
+  const years=v72SortedYears();
+  const scope=state.timelineCentury || 'all';
+  if(scope==='all') return years;
+  if(scope==='19' || scope==='20' || scope==='21') return years.filter(y=>v72CenturyOfYear(y)===scope);
+  if(scope==='imperial') return years.filter(y=>y<=1914);
+  if(scope==='soviet') return years.filter(y=>y>=1918 && y<=1989);
+  return years;
+}
+function v72TimelineScopeLabel(){
+  const scope=state.timelineCentury || 'all';
+  const labels={all:'Все годы', '19':'XIX век', '20':'XX век', '21':'XXI век', imperial:'Имперский период', soviet:'Советский период'};
+  return labels[scope] || labels.all;
+}
+async function v72SetYear(year, opts={}){
+  const y=Number(year);
+  if(!Number.isFinite(y) || !state.manifest?.years?.map(Number).includes(y)) return;
+  if(!opts.keepSlideshow && !opts.fromSlideshow) v72StopTimelineSlideshow();
+  if(state.year===y){ setYearLabels(); updateTimelineActive(); return; }
+  state.year=y;
+  setYearLabels();
+  updateTimelineActive();
+  state.selectedIds.clear();
+  if(state.export && state.export.open){
+    state.export.mapImage='';
+    if(state.export.contextMode==='auto' || !state.export.contextText){
+      try{ syncExportContextText?.(); }catch(_){ }
+    }
+  }
+  await refreshAll();
+}
+function v72EnsureTimelineControls(){
+  const bar=$('timelineBar');
+  if(!bar) return;
+  bar.classList.add('timeline-v72');
+  const head=bar.querySelector('.timeline-head');
+  if(!head) return;
+  let left=head.querySelector('.timeline-main-label');
+  if(!left){
+    left=document.createElement('span');
+    left.className='timeline-main-label';
+    left.textContent='Год';
+    const old=head.querySelector('span');
+    if(old) old.replaceWith(left); else head.prepend(left);
+  }
+  let tools=head.querySelector('.timeline-tools-v72');
+  if(!tools){
+    tools=document.createElement('div');
+    tools.className='timeline-tools-v72';
+    tools.innerHTML=`<label class="timeline-century-label" for="timelineCenturySelect">Период</label><select id="timelineCenturySelect" class="timeline-century-select" aria-label="Период таймлайна"><option value="all">Все годы</option><option value="19">XIX век</option><option value="20">XX век</option><option value="21">XXI век</option><option value="imperial">Имперский период</option><option value="soviet">Советский период</option></select><button id="timelinePlayButton" class="timeline-play-button" type="button" aria-pressed="false" title="Запустить слайд-шоу изменения сетки АТД">▶ Слайд-шоу</button>`;
+    head.appendChild(tools);
+    const sel=tools.querySelector('#timelineCenturySelect');
+    const play=tools.querySelector('#timelinePlayButton');
+    sel.addEventListener('change', async e=>{
+      state.timelineCentury=e.target.value || 'all';
+      v72StopTimelineSlideshow();
+      const years=v72TimelineScopeYears();
+      buildTimeline();
+      if(years.length && !years.includes(Number(state.year))){
+        const nearest=years.reduce((best,y)=>Math.abs(y-state.year)<Math.abs(best-state.year)?y:best, years[0]);
+        await v72SetYear(nearest, {keepSlideshow:true});
+      }else{
+        updateTimelineActive();
+      }
+    });
+    play.addEventListener('click', ()=>{
+      if(state.timelinePlaying) v72StopTimelineSlideshow();
+      else v72StartTimelineSlideshow();
+    });
+  }
+  const sel=$('timelineCenturySelect');
+  if(sel && sel.value !== (state.timelineCentury || 'all')) sel.value=state.timelineCentury || 'all';
+  v72UpdateTimelinePlayButton();
+}
+function v72UpdateTimelinePlayButton(){
+  const btn=$('timelinePlayButton');
+  if(!btn) return;
+  const on=!!state.timelinePlaying;
+  btn.classList.toggle('is-playing', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.textContent=on ? 'Ⅱ Пауза' : '▶ Слайд-шоу';
+  btn.title=on ? 'Остановить слайд-шоу' : 'Запустить слайд-шоу изменения сетки АТД';
+}
+function v72StopTimelineSlideshow(){
+  state.timelinePlaying=false;
+  if(state.timelineTimer){ clearTimeout(state.timelineTimer); state.timelineTimer=null; }
+  v72UpdateTimelinePlayButton();
+}
+function v72StartTimelineSlideshow(){
+  const years=v72TimelineScopeYears();
+  if(years.length<2) return;
+  state.timelinePlaying=true;
+  v72UpdateTimelinePlayButton();
+  const step=async ()=>{
+    if(!state.timelinePlaying) return;
+    const list=v72TimelineScopeYears();
+    if(list.length<2){ v72StopTimelineSlideshow(); return; }
+    const cur=Number(state.year);
+    let idx=list.indexOf(cur);
+    if(idx<0) idx=-1;
+    const next=list[(idx+1)%list.length];
+    try{ await v72SetYear(next, {fromSlideshow:true, keepSlideshow:true}); }
+    catch(e){ console.warn('timeline slideshow step skipped', e); }
+    if(state.timelinePlaying) state.timelineTimer=setTimeout(step, 1350);
+  };
+  state.timelineTimer=setTimeout(step, 250);
+}
+function buildTimeline(){
+  const track=$('yearTimeline');
+  if(!track) return;
+  v72EnsureTimelineControls();
+  const years=v72TimelineScopeYears();
+  track.innerHTML='';
+  track.dataset.scope=state.timelineCentury || 'all';
+  years.forEach(y=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='timeline-year';
+    btn.dataset.year=String(y);
+    btn.title=`Показать слой АТД за ${y} год`;
+    btn.innerHTML = `<span class="dot" aria-hidden="true"></span><span>${y}</span>`;
+    btn.addEventListener('click', ()=>v72SetYear(y));
+    track.appendChild(btn);
+  });
+  if(!years.length){
+    const empty=document.createElement('span');
+    empty.className='timeline-empty-v72';
+    empty.textContent='Нет слоёв для выбранного периода';
+    track.appendChild(empty);
+  }
+  updateTimelineActive();
+}
+function updateTimelineActive(){
+  document.querySelectorAll('.timeline-year').forEach(b=>b.classList.toggle('active', Number(b.dataset.year)===Number(state.year)));
+  const active=document.querySelector('.timeline-year.active');
+  if(active && active.scrollIntoView) active.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+}
+const v72PriorSetYearLabels = typeof setYearLabels === 'function' ? setYearLabels : null;
+setYearLabels = function setYearLabelsV72(){
+  if(v72PriorSetYearLabels) v72PriorSetYearLabels();
+  const bar=$('timelineBar');
+  if(bar) bar.dataset.scopeLabel=v72TimelineScopeLabel();
+};
+const v72PriorExportContextPresets = typeof exportContextPresets === 'function' ? exportContextPresets : null;
+exportContextPresets = function exportContextPresetsV72(year){
+  const y=Number(year);
+  const extra={
+    1848:{short:'Середина XIX века: дореформенная окружная сетка Западной Сибири с губернским верхним уровнем.', long:'Срез 1848 года показывает дореформенную окружную сетку Западной Сибири до крупных преобразований второй половины XIX века. Для этого слоя подключены геометрии округов и верхнеуровневых губернских принадлежностей; население в исходном слое не задано.'},
+    1855:{short:'Середина XIX века: расширенная сетка округов с включением степных областных структур.', long:'Срез 1855 года фиксирует более детальную конфигурацию округов и областных структур южной части Западной Сибири и сопредельной степной зоны. Население в исходном слое не задано, поэтому аналитика слоя опирается прежде всего на геометрию, площадь и административную принадлежность.'},
+    1876:{short:'Позднеимперская перестройка до переписи 1897 года: округа и области второй половины XIX века.', long:'Срез 1876 года показывает административную сеть второй половины XIX века перед переходом к статистически более насыщенному слою 1897 года. Геометрии адаптированы к общей структуре атласа; демографические поля в исходном слое отсутствуют.'}
+  };
+  if(extra[y]) return extra[y];
+  return v72PriorExportContextPresets ? v72PriorExportContextPresets(year) : {short:'Исторический срез административно-территориального деления Западной Сибири.', long:'Исторический срез административно-территориального деления Западной Сибири.'};
+};
+(function initV72Patch(){
+  const boot=()=>{
+    try{
+      state.timelineCentury = state.timelineCentury || 'all';
+      v72EnsureTimelineControls();
+      buildTimeline();
+      setYearLabels();
+    }catch(e){ console.warn('v72 timeline init skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
+})();
