@@ -1,0 +1,3 @@
+year,features,population,urban_pop,rural_pop,rail_length_total_km,rail_segments_active_intersections,diagnostic_features,delta_features,diagnostic_population,delta_population,diagnostic_urban_pop,delta_urban_pop,diagnostic_rural_pop,delta_rural_pop
+1947,267,8604429,2665903,5938526,7332.0,236,267,0,8604429,0,2665903,0,5938526,0
+1964,163,12038892,6609324,5429568,10082.27,257,163,0,12038892,0,6609324,0,5429568,0
