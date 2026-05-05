@@ -1,0 +1,5 @@
+year,features_before,features_after,removed_or_merged_features,unit_id_duplicate_groups_after,empty_name_features_after
+1970,239,235,4,0,0
+1979,252,247,5,0,0
+1989,271,263,8,0,0
+2021,303,290,13,0,0

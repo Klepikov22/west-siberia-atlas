@@ -1,0 +1,40 @@
+year,name,admin_parent,unit_type,components_before,merge_mode,population_after,urban_pop_after,rural_pop_after,area_km2_after,unit_ids_before
+1989,Карасукский муниципальный район,Новосибирская область,муниципальный район,2,same-name administrative components aggregated: population summed,71409,35242,36167,9126.68,adm_1989_106;adm_1989_219
+1989,Исилькульский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,49121,26430,22691,2777.13,adm_1989_114;adm_1989_263
+1989,Калачинский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,47826,25014,22812,2839.02,adm_1989_115;adm_1989_259
+1989,Барабинский муниципальный район,Новосибирская область,муниципальный район,2,same-name administrative components aggregated: population summed,54780,36501,18279,5226.77,adm_1989_116;adm_1989_264
+1989,Омский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,1262271,1174546,87725,4387.23,adm_1989_119;adm_1989_257
+1989,Татарский муниципальный район,Новосибирская область,муниципальный район,2,same-name administrative components aggregated: population summed,51073,30355,20718,5232.85,adm_1989_123;adm_1989_258
+1989,Топкинский муниципальный округ,Кемеровская область,округ,2,same-name administrative components aggregated: population summed,52592,33574,19018,2766.53,adm_1989_128;adm_1989_260
+1989,Называевский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,36042,14416,21626,5919.86,adm_1989_135;adm_1989_256
+1989,Куйбышевский муниципальный район,Новосибирская область,муниципальный район,2,same-name administrative components aggregated: population summed,72929,51171,21758,8543.52,adm_1989_147;adm_1989_243
+1989,Тюкалинский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,34621,12191,22430,6402.62,adm_1989_152;adm_1989_255
+1989,Ишимский муниципальный район,Тюменская область,муниципальный район,2,same-name administrative components aggregated: population summed,101436,66373,35063,5505.5,adm_1989_156;adm_1989_253
+1989,Мариинский муниципальный район,Кемеровская область,муниципальный район,2,same-name administrative components aggregated: population summed,62993,40956,22037,5603.62,adm_1989_166;adm_1989_248
+1989,Ялуторовский муниципальный район,Тюменская область,муниципальный район,2,same-name administrative components aggregated: population summed,53537,37987,15550,2996.66,adm_1989_172;adm_1989_238
+1989,Томский муниципальный район,Томская область,муниципальный район,2,same-name administrative components aggregated: population summed,595300,537031,58269,10625.95,adm_1989_176;adm_1989_250
+1989,Тюменский муниципальный район,Тюменская область,муниципальный район,2,same-name administrative components aggregated: population summed,616827,517714,99113,4516.07,adm_1989_179;adm_1989_239
+1989,Асиновский муниципальный район,Томская область,муниципальный район,2,same-name administrative components aggregated: population summed,49693,36496,13197,5819.68,adm_1989_182;adm_1989_249
+1989,Тарский муниципальный район,Омская область,муниципальный район,2,same-name administrative components aggregated: population summed,51804,26152,25652,15739.64,adm_1989_190;adm_1989_254
+1989,Тобольский муниципальный район,Тюменская область,муниципальный район,2,same-name administrative components aggregated: population summed,138955,109294,29661,17425.42,adm_1989_192;adm_1989_262
+1989,Колпашевский муниципальный район,Томская область,муниципальный район,2,same-name administrative components aggregated: population summed,54008,40718,13290,16876.31,adm_1989_193;adm_1989_251
+1989,Парабельский муниципальный район,Томская область,муниципальный район,2,same-name administrative components aggregated: population summed,20639,1998,18641,36975.39,adm_1989_194;adm_1989_252
+1989,Александровский муниципальный район,Томская область,муниципальный район,2,same-name administrative components aggregated: population summed,54704,43348,11356,30135.37,adm_1989_197;adm_1989_237
+1989,Нефтеюганский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,2,same-name administrative components aggregated: population summed,155091,139794,15297,25201.97,adm_1989_199;adm_1989_233
+1989,Кондинский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,2,same-name administrative components aggregated: population summed,74567,60364,14203,54846.61,adm_1989_200;adm_1989_236
+1989,Нижневартовский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,5,same-name administrative components aggregated: population summed,397196,388604,8592,116639.22,adm_1989_202;adm_1989_227;adm_1989_228;adm_1989_229;adm_1989_230
+1989,Ханты-Мансийский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,2,same-name administrative components aggregated: population summed,54674,34462,20212,57227.41,adm_1989_203;adm_1989_234
+1989,Сургутский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,3,same-name administrative components aggregated: population summed,367147,351879,15268,96157.28,adm_1989_204;adm_1989_231;adm_1989_232
+1989,Октябрьский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,2,same-name administrative components aggregated: population summed,88800,69107,19693,25391.43,adm_1989_205;adm_1989_235
+1989,Белоярский муниципальный район,Ханты-Мансийский автономный округ,муниципальный район,2,same-name administrative components aggregated: population summed,29461,20534,8927,41141.84,adm_1989_206;adm_1989_225
+1989,Муниципальный округ Пуровский район,Ямало-Ненецкий автономный округ,округ,2,same-name administrative components aggregated: population summed,170670,124824,45846,108552.62,adm_1989_210;adm_1989_226
+1989,Муниципальный округ Надымский район,Ямало-Ненецкий автономный округ,округ,3,same-name administrative components aggregated: population summed,187953,177575,10378,99069.88,adm_1989_211;adm_1989_223;adm_1989_224
+1989,Таштагольский муниципальный район,Кемеровская область,муниципальный район,2,same-name administrative components aggregated: population summed,64090,56175,7915,11487.23,adm_1989_240;adm_1989_53
+1989,Змеиногорский муниципальный район,Алтайский край,муниципальный район,2,same-name administrative components aggregated: population summed,25193,12232,12961,2889.85,adm_1989_241;adm_1989_7
+1989,город Славгород,Алтайский край,район,2,same-name administrative components aggregated: population summed,83921,57641,26280,2899.56,adm_1989_244;adm_1989_54
+1989,Новосибирский муниципальный район,Новосибирская область,муниципальный район,2,same-name administrative components aggregated: population summed,198149,116874,81275,3005.78,adm_1989_245;adm_1989_261
+1989,Алейский муниципальный район,Алтайский край,муниципальный район,2,same-name administrative components aggregated: population summed,51819,30309,21510,3522.89,adm_1989_246;adm_1989_37
+1989,Каменский муниципальный район,Алтайский край,муниципальный район,2,same-name administrative components aggregated: population summed,60395,42483,17912,3663.9,adm_1989_247;adm_1989_75
+1989,Гурьевский муниципальный округ,Кемеровская область,округ,2,same-name administrative components aggregated: population summed,60761,47199,13562,2267.4,adm_1989_265;adm_1989_93
+2021,Чаинский муниципальный район,Томская область,муниципальный район,2,same-name residual fragment: population kept once,11418.0,0.0,11418.0,7088.68,adm_2021_252;adm_2021_586
+2021,Тевризский муниципальный район,Омская область,муниципальный район,2,same-name residual fragment: population kept once,13605.0,6937.0,6668.0,9835.2,adm_2021_254;adm_2021_585

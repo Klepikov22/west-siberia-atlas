@@ -1,4 +1,4 @@
-const APP_VERSION = '74';
+const APP_VERSION = '75';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8576,6 +8576,7 @@ buildExportSvgMap = async function buildExportSvgMapV70(){
 
 /* v72: historical XIX-century admin layers + century filter and slideshow for the timeline */
 /* v73: added 1947 and 1964 standardized admin layers with population diagnostics and rail metrics */
+/* v75: cleaned late-layer duplicate fragments and same-name administrative component duplicates in 1970-2021 */
 function v72SortedYears(){
   return (state.manifest?.years || []).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
 }
@@ -8752,68 +8753,4 @@ exportContextPresets = function exportContextPresetsV72(year){
     }catch(e){ console.warn('v72 timeline init skipped', e); }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
-})();
-
-
-/* v74: data cleanup release, stable timeline activation and no-jump draggable widgets */
-function v74Clamp(n,min,max){ const v=Number(n); return Math.max(min, Math.min(max, Number.isFinite(v)?v:min)); }
-function v74TimelineTrackScrollToActive(){
-  const track=$('yearTimeline');
-  const active=track?.querySelector?.('.timeline-year.active');
-  if(!track || !active) return;
-  const max=Math.max(0, track.scrollWidth - track.clientWidth);
-  const target=active.offsetLeft - Math.max(0,(track.clientWidth-active.offsetWidth)/2);
-  track.scrollLeft=v74Clamp(target,0,max);
-}
-updateTimelineActive = function updateTimelineActiveV74(){
-  document.querySelectorAll('.timeline-year').forEach(b=>b.classList.toggle('active', Number(b.dataset.year)===Number(state.year)));
-  // До v74 здесь был active.scrollIntoView({inline:'center'}). На длинной шкале
-  // браузер мог прокручивать не только дорожку таймлайна, но и общий документ,
-  // из-за чего визуально съезжали боковые панели и плавающие блоки.
-  requestAnimationFrame(v74TimelineTrackScrollToActive);
-};
-function v74CaptureFloatingWidgets(){
-  const snap={scrollX:window.scrollX||0, scrollY:window.scrollY||0, widgets:{}};
-  ['metricFilters','parentFilterBar'].forEach(id=>{
-    const el=$(id); if(!el) return;
-    const r=el.getBoundingClientRect();
-    snap.widgets[id]={left:r.left, top:r.top, width:r.width, height:r.height, userDragged:el.dataset.userDragged==='1' || !!el.style.top};
-  });
-  return snap;
-}
-function v74RestoreFloatingWidgets(snap){
-  if(!snap) return;
-  try{ window.scrollTo(snap.scrollX||0, snap.scrollY||0); }catch(_){ }
-  Object.entries(snap.widgets||{}).forEach(([id,pos])=>{
-    const el=$(id); if(!el || !pos || !pos.userDragged) return;
-    const maxLeft=Math.max(8, window.innerWidth - pos.width - 8);
-    const bottomGap=(typeof v68TimelineBottomGap==='function' ? v68TimelineBottomGap() : 8);
-    const maxTop=Math.max(8, window.innerHeight - bottomGap - pos.height);
-    el.style.left=`${v74Clamp(pos.left,8,maxLeft)}px`;
-    el.style.top=`${v74Clamp(pos.top,8,maxTop)}px`;
-    el.style.right='auto'; el.style.bottom='auto'; el.style.transform='none';
-  });
-}
-const v74PriorV72SetYear = typeof v72SetYear === 'function' ? v72SetYear : null;
-if(v74PriorV72SetYear){
-  v72SetYear = async function v72SetYearV74(year, opts={}){
-    const snap=v74CaptureFloatingWidgets();
-    document.documentElement.classList.add('year-switching-v74');
-    try{ return await v74PriorV72SetYear(year, opts); }
-    finally{
-      requestAnimationFrame(()=>{
-        v74RestoreFloatingWidgets(snap);
-        document.documentElement.classList.remove('year-switching-v74');
-      });
-    }
-  };
-}
-(function initV74Patch(){
-  const boot=()=>{
-    try{
-      updateTimelineActive();
-      requestAnimationFrame(()=>{ v74TimelineTrackScrollToActive(); v74RestoreFloatingWidgets(v74CaptureFloatingWidgets()); });
-    }catch(e){ console.warn('v74 init skipped', e); }
-  };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,60),{once:true}); else setTimeout(boot,60);
 })();
