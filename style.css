@@ -2715,3 +2715,41 @@ html.compact-1080-v65 #timelineBar.timeline-v72{width:min(680px,calc(100vw - 610
 html.compact-1080-v65 .timeline-v72 .timeline-tools-v72{gap:5px;}
 html.compact-1080-v65 .timeline-century-select{width:104px;height:25px;font-size:9.5px!important;}
 html.compact-1080-v65 .timeline-play-button{height:25px;font-size:9.5px!important;padding:0 7px!important;}
+
+
+/* v74: stable Full HD UI panels and timeline. No CSS zoom on draggable widgets. */
+#yearTimeline.timeline-track{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scroll-behavior:auto!important;
+  overscroll-behavior-x:contain!important;
+  scrollbar-width:none!important;
+  justify-content:flex-start!important;
+}
+#yearTimeline.timeline-track::-webkit-scrollbar{display:none!important;}
+#metricFilters,#parentFilterBar{
+  zoom:1!important;
+  will-change:left,top!important;
+  contain:layout style!important;
+}
+#metricFilters.is-dragging,#parentFilterBar.is-dragging{transition:none!important;}
+html.year-switching-v74 #leftPanel,
+html.year-switching-v74 #rightPanel,
+html.year-switching-v74 #metricFilters,
+html.year-switching-v74 #parentFilterBar{transition:none!important;animation:none!important;}
+@media (max-width:1920px), (max-height:1100px){
+  #metricFilters,#parentFilterBar{zoom:1!important;}
+  #timelineBar{zoom:.90;}
+}
+@media (max-width:1680px), (max-height:950px){
+  #metricFilters,#parentFilterBar{zoom:1!important;}
+  #timelineBar{zoom:.82;}
+}
+html.compact-1080-v65 #metricFilters,
+html.compact-1080-v66 #metricFilters,
+html.compact-1080-v67 #metricFilters,
+html.compact-1080-v68 #metricFilters,
+html.compact-1080-v65 #parentFilterBar,
+html.compact-1080-v66 #parentFilterBar,
+html.compact-1080-v67 #parentFilterBar,
+html.compact-1080-v68 #parentFilterBar{zoom:1!important;}
