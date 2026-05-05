@@ -1,4 +1,4 @@
-const APP_VERSION = '75';
+const APP_VERSION = '77';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -8576,7 +8576,7 @@ buildExportSvgMap = async function buildExportSvgMapV70(){
 
 /* v72: historical XIX-century admin layers + century filter and slideshow for the timeline */
 /* v73: added 1947 and 1964 standardized admin layers with population diagnostics and rail metrics */
-/* v75: cleaned late-layer duplicate fragments and same-name administrative component duplicates in 1970-2021 */
+/* v76: cleaned late-layer duplicate fragments and same-name administrative component duplicates in 1970-2021 */
 function v72SortedYears(){
   return (state.manifest?.years || []).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
 }
@@ -8753,4 +8753,98 @@ exportContextPresets = function exportContextPresetsV72(year){
     }catch(e){ console.warn('v72 timeline init skipped', e); }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80),{once:true}); else setTimeout(boot,80);
+})();
+
+/* v77: fixed-width timeline carousel and no page scroll on late-year activation */
+function v77EnsureTimelineCarousel(){
+  const bar = $('timelineBar');
+  const track = $('yearTimeline');
+  if(!bar || !track) return;
+  bar.classList.add('timeline-v77');
+  if(track.parentElement && track.parentElement.classList.contains('timeline-carousel-v77')){
+    v77UpdateTimelineCarouselButtons();
+    return;
+  }
+  const wrapper = document.createElement('div');
+  wrapper.className = 'timeline-carousel-v77';
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.className = 'timeline-carousel-btn-v77 timeline-carousel-prev-v77';
+  prev.setAttribute('aria-label','Предыдущий год');
+  prev.title = 'Предыдущий слой';
+  prev.innerHTML = '‹';
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'timeline-carousel-btn-v77 timeline-carousel-next-v77';
+  next.setAttribute('aria-label','Следующий год');
+  next.title = 'Следующий слой';
+  next.innerHTML = '›';
+  const parent = track.parentNode;
+  parent.insertBefore(wrapper, track);
+  wrapper.appendChild(prev);
+  wrapper.appendChild(track);
+  wrapper.appendChild(next);
+  prev.addEventListener('click', ()=>v77StepTimelineYear(-1));
+  next.addEventListener('click', ()=>v77StepTimelineYear(1));
+  track.addEventListener('scroll', v77UpdateTimelineCarouselButtons, {passive:true});
+  v77UpdateTimelineCarouselButtons();
+}
+function v77StepTimelineYear(direction){
+  const years = v72TimelineScopeYears ? v72TimelineScopeYears() : (state.manifest?.years || []).map(Number).filter(Number.isFinite);
+  if(!years.length) return;
+  const cur = Number(state.year);
+  let idx = years.indexOf(cur);
+  if(idx < 0){
+    idx = years.reduce((bestIdx,y,i)=>Math.abs(y-cur)<Math.abs(years[bestIdx]-cur)?i:bestIdx, 0);
+  }
+  const nextIdx = Math.max(0, Math.min(years.length-1, idx + (Number(direction) < 0 ? -1 : 1)));
+  if(nextIdx !== idx || years[nextIdx] !== cur) v72SetYear(years[nextIdx]);
+}
+function v77ScrollTimelineToActive(opts={}){
+  const track = $('yearTimeline');
+  const active = track ? track.querySelector('.timeline-year.active') : null;
+  if(!track || !active) return;
+  const target = Math.max(0, active.offsetLeft - (track.clientWidth - active.offsetWidth)/2);
+  const behavior = opts.instant ? 'auto' : 'smooth';
+  try{ track.scrollTo({left:target, behavior}); }
+  catch(_){ track.scrollLeft = target; }
+  window.requestAnimationFrame(v77UpdateTimelineCarouselButtons);
+}
+function v77UpdateTimelineCarouselButtons(){
+  const track = $('yearTimeline');
+  const wrap = track?.parentElement?.classList?.contains('timeline-carousel-v77') ? track.parentElement : null;
+  if(!track || !wrap) return;
+  const max = Math.max(0, track.scrollWidth - track.clientWidth - 1);
+  const left = track.scrollLeft || 0;
+  const prev = wrap.querySelector('.timeline-carousel-prev-v77');
+  const next = wrap.querySelector('.timeline-carousel-next-v77');
+  if(prev) prev.disabled = left <= 1;
+  if(next) next.disabled = left >= max;
+  wrap.classList.toggle('has-left-overflow', left > 1);
+  wrap.classList.toggle('has-right-overflow', left < max);
+}
+const v77PriorEnsureTimelineControls = typeof v72EnsureTimelineControls === 'function' ? v72EnsureTimelineControls : null;
+v72EnsureTimelineControls = function v72EnsureTimelineControlsV77(){
+  if(v77PriorEnsureTimelineControls) v77PriorEnsureTimelineControls();
+  v77EnsureTimelineCarousel();
+};
+const v77PriorBuildTimeline = typeof buildTimeline === 'function' ? buildTimeline : null;
+buildTimeline = function buildTimelineV77(){
+  if(v77PriorBuildTimeline) v77PriorBuildTimeline();
+  v77EnsureTimelineCarousel();
+  v77ScrollTimelineToActive({instant:true});
+};
+updateTimelineActive = function updateTimelineActiveV77(){
+  document.querySelectorAll('.timeline-year').forEach(b=>b.classList.toggle('active', Number(b.dataset.year)===Number(state.year)));
+  v77EnsureTimelineCarousel();
+  v77ScrollTimelineToActive();
+};
+(function initV77TimelinePatch(){
+  const boot=()=>{
+    try{
+      v77EnsureTimelineCarousel();
+      v77ScrollTimelineToActive({instant:true});
+    }catch(e){ console.warn('v77 timeline carousel init skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,120),{once:true}); else setTimeout(boot,120);
 })();

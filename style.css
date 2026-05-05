@@ -2715,3 +2715,120 @@ html.compact-1080-v65 #timelineBar.timeline-v72{width:min(680px,calc(100vw - 610
 html.compact-1080-v65 .timeline-v72 .timeline-tools-v72{gap:5px;}
 html.compact-1080-v65 .timeline-century-select{width:104px;height:25px;font-size:9.5px!important;}
 html.compact-1080-v65 .timeline-play-button{height:25px;font-size:9.5px!important;padding:0 7px!important;}
+
+/* v77: fixed-width timeline carousel; prevents page-level horizontal scroll when selecting late layers */
+#timelineBar.timeline-v77{
+  width:760px!important;
+  max-width:calc(100vw - 760px)!important;
+  min-width:390px!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+.timeline-v77 .timeline-head{
+  grid-template-columns:auto auto minmax(0,1fr)!important;
+}
+.timeline-carousel-v77{
+  position:relative;
+  display:grid;
+  grid-template-columns:24px minmax(0,1fr) 24px;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.timeline-carousel-btn-v77{
+  width:24px!important;
+  height:24px!important;
+  min-width:24px!important;
+  padding:0!important;
+  border-radius:999px!important;
+  display:grid!important;
+  place-items:center!important;
+  font-size:18px!important;
+  line-height:1!important;
+  font-weight:900!important;
+  color:var(--accent)!important;
+  background:rgba(255,255,255,.74)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 4px 14px rgba(31,41,51,.10)!important;
+}
+.timeline-carousel-btn-v77:disabled{
+  opacity:.30!important;
+  cursor:default!important;
+  box-shadow:none!important;
+}
+.timeline-v77 .timeline-track{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  scroll-behavior:smooth;
+  justify-content:flex-start!important;
+  gap:9px!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+.timeline-v77 .timeline-year{
+  flex:0 0 auto!important;
+  min-width:34px!important;
+  scroll-snap-align:center;
+}
+.timeline-v77 .timeline-track:before{
+  left:20px!important;
+  right:20px!important;
+}
+.timeline-carousel-v77::before,
+.timeline-carousel-v77::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:26px;
+  z-index:6;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .16s ease;
+}
+.timeline-carousel-v77::before{
+  left:30px;
+  background:linear-gradient(90deg,var(--timeline-bg),rgba(255,255,255,0));
+}
+.timeline-carousel-v77::after{
+  right:30px;
+  background:linear-gradient(270deg,var(--timeline-bg),rgba(255,255,255,0));
+}
+.timeline-carousel-v77.has-left-overflow::before,
+.timeline-carousel-v77.has-right-overflow::after{opacity:1;}
+@media(max-width:1920px), (max-height:1100px){
+  #timelineBar.timeline-v77{width:760px!important;max-width:calc(100vw - 660px)!important;min-width:390px!important;}
+  .timeline-v77 .timeline-track{gap:8px!important;}
+}
+@media(max-width:1680px), (max-height:950px){
+  #timelineBar.timeline-v77{width:720px!important;max-width:calc(100vw - 610px)!important;min-width:360px!important;}
+}
+@media(max-width:1220px){
+  #timelineBar.timeline-v77{width:620px!important;max-width:calc(100vw - 740px)!important;min-width:320px!important;}
+  .timeline-carousel-v77{grid-template-columns:22px minmax(0,1fr) 22px;gap:5px;}
+  .timeline-carousel-btn-v77{width:22px!important;height:22px!important;min-width:22px!important;font-size:16px!important;}
+}
+@media(max-width:980px){
+  #timelineBar.timeline-v77{left:10px!important;right:10px!important;width:auto!important;max-width:none!important;min-width:0!important;}
+}
+html.compact-1080-v65 #timelineBar.timeline-v77,
+html.compact-1080-v66 #timelineBar.timeline-v77,
+html.compact-1080-v67 #timelineBar.timeline-v77,
+html.compact-1080-v68 #timelineBar.timeline-v77{
+  width:760px!important;
+  max-width:calc(100vw - 660px)!important;
+  min-width:390px!important;
+}
+@media(max-width:1680px), (max-height:950px){
+  html.compact-1080-v65 #timelineBar.timeline-v77,
+  html.compact-1080-v66 #timelineBar.timeline-v77,
+  html.compact-1080-v67 #timelineBar.timeline-v77,
+  html.compact-1080-v68 #timelineBar.timeline-v77{
+    width:720px!important;
+    max-width:calc(100vw - 610px)!important;
+    min-width:360px!important;
+  }
+}

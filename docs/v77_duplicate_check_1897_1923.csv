@@ -1,0 +1,5 @@
+﻿year,features,unit_id_duplicate_groups,same_name_parent_type_groups,same_name_parent_groups,original_name_parent_type_groups,applied_operations_v77,manual_review_groups_unique,population_total,urban_pop_total,rural_pop_total,area_km2_sum,note
+1897,29,0,0,0,0,0,0,4727920.0,360292.0,4288544.0,3293535.48,"Дублей по unit_id, name+parent+type и name+parent не найдено."
+1914,28,0,0,0,0,0,0,8544477.0,788274.0,7756203.0,3298137.42,"Дублей по unit_id, name+parent+type и name+parent не найдено."
+1918,52,0,3,3,1,0,3,6545050.0,587300.0,5957750.0,2271772.31,"Чистых дублей unit_id нет. Есть 3 одноимённые группы: фрагменты Тобольской губернии, Томской губернии и нулевые территории, переданные Семипалатинской области; в v77 не объединялись как спорные/уникальные."
+1923,49,0,1,1,1,0,1,6885023.0,591700.0,6293323.0,2200133.94,Чистых дублей unit_id нет. Есть 1 нулевая спорная территория между Ново-Николаевской и Омской губерниями; в v77 не объединялась.
