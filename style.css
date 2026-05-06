@@ -2953,3 +2953,17 @@ html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdro
 .topology-trend-row-v91 .pie-dot{border-color:#1f2937;}
 @media(max-width:1180px){.topology-trend-layout-v91{grid-template-columns:1fr;overflow:auto}.topology-trends-modal-v91 .chart-lightbox-card{left:18px!important;right:18px!important;bottom:52px!important}.topology-trend-controls-v91{overflow:visible}.topology-trend-years-v91{grid-template-columns:repeat(5,1fr);max-height:180px}.topology-trend-main-v91{grid-template-rows:auto auto}.topology-trend-svg-v91{height:auto;}}
 @media(max-width:760px){.topology-trend-years-v91{grid-template-columns:repeat(3,1fr)}.topology-trend-color-grid-v91{grid-template-columns:1fr 48px}.topology-trends-modal-v91 .chart-lightbox-card{left:10px!important;right:10px!important;top:10px!important;bottom:10px!important}.topology-trend-layout-v91{gap:12px}.topology-trend-controls-v91{padding:10px}.topology-trend-head-v91,.topology-trend-row-v91{grid-template-columns:10px 52px 74px minmax(0,1fr)!important;}}
+
+/* v92 topology controls in layer switcher and spaced legend counts */
+.topology-layer-controls-v92{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:8px;grid-column:1 / -1;}
+.topology-layer-title-v92{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:var(--muted);}
+.topology-layer-controls-v92 .topology-inline-field-v92{display:grid;grid-template-columns:1fr;align-items:start;gap:5px;margin:4px 0;min-height:0;cursor:default;}
+.topology-layer-controls-v92 .topology-inline-field-v92 span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:var(--muted);}
+.topology-layer-controls-v92 select{width:100%;min-width:0;font-size:13px;padding:8px 10px;border-radius:10px;}
+.topology-layer-controls-v92 .topology-trends-btn-v88{margin:2px 0 0;}
+.legend-topology-v92 .legend-row-counted-v92{display:grid;grid-template-columns:auto minmax(0,1fr) 50px minmax(44px,auto);gap:8px;align-items:center;}
+.legend-topology-v92 .legend-row-counted-v92 > span:nth-child(2){min-width:0;}
+.legend-count-gap-v92{width:50px;text-align:center;color:var(--muted);opacity:.65;font-weight:500;}
+.legend-count-v92{justify-self:end;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.legend-topology-v92 .legend-row-class-v67 b,.legend-topology-v92 .legend-row b{font-weight:500;color:var(--muted);}
+@media(max-width:980px){.topology-layer-controls-v92{grid-column:1 / -1}.legend-topology-v92 .legend-row-counted-v92{grid-template-columns:auto minmax(0,1fr) 34px minmax(40px,auto)}}
