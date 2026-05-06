@@ -1,4 +1,4 @@
-const APP_VERSION = '81';
+const APP_VERSION = '82';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -4670,8 +4670,7 @@ const V81_POST1939_GROUP_OVERRIDES = {
   'ЯНАО':'Тюменская область',
   'Ямало-Ненецкий автономный округ':'Тюменская область',
   'Горно-Алтайская автономная область':'Алтайский край',
-  'Горно-Алтайская АО':'Алтайский край',
-  'Республика Алтай':'Алтайский край'
+  'Горно-Алтайская АО':'Алтайский край'
 };
 function deriveAdminSuperparent(props){
   const explicit=String(props?.admin_superparent || props?.admin_group || props?.super_parent || '').trim();
@@ -4681,6 +4680,7 @@ function deriveAdminSuperparent(props){
   const key=intermediate || parent;
   const year=Number(props?.year || state.year || 0);
   if(year===1926 && key) return V51_1926_PARENT_GROUPS[key] || V51_1926_PARENT_GROUPS[parent] || '';
+  if(year>=2021 && parent==='Республика Алтай') return parent;
   if(year>=1947 && parent) return V81_POST1939_GROUP_OVERRIDES[parent] || parent;
   return '';
 }
@@ -8600,6 +8600,7 @@ function v72SortedYears(){
 }
 function v72CenturyOfYear(y){
   y=Number(y);
+  if(y>=1701 && y<=1800) return '18';
   if(y>=1801 && y<=1900) return '19';
   if(y>=1901 && y<=2000) return '20';
   if(y>=2001 && y<=2100) return '21';
@@ -8609,14 +8610,14 @@ function v72TimelineScopeYears(){
   const years=v72SortedYears();
   const scope=state.timelineCentury || 'all';
   if(scope==='all') return years;
-  if(scope==='19' || scope==='20' || scope==='21') return years.filter(y=>v72CenturyOfYear(y)===scope);
+  if(scope==='18' || scope==='19' || scope==='20' || scope==='21') return years.filter(y=>v72CenturyOfYear(y)===scope);
   if(scope==='imperial') return years.filter(y=>y<=1914);
   if(scope==='soviet') return years.filter(y=>y>=1918 && y<=1989);
   return years;
 }
 function v72TimelineScopeLabel(){
   const scope=state.timelineCentury || 'all';
-  const labels={all:'Все годы', '19':'XIX век', '20':'XX век', '21':'XXI век', imperial:'Имперский период', soviet:'Советский период'};
+  const labels={all:'Все годы', '18':'XVIII век', '19':'XIX век', '20':'XX век', '21':'XXI век', imperial:'Имперский период', soviet:'Советский период'};
   return labels[scope] || labels.all;
 }
 async function v72SetYear(year, opts={}){
@@ -8655,7 +8656,7 @@ function v72EnsureTimelineControls(){
   if(!tools){
     tools=document.createElement('div');
     tools.className='timeline-tools-v72';
-    tools.innerHTML=`<label class="timeline-century-label" for="timelineCenturySelect">Период</label><select id="timelineCenturySelect" class="timeline-century-select" aria-label="Период таймлайна"><option value="all">Все годы</option><option value="19">XIX век</option><option value="20">XX век</option><option value="21">XXI век</option><option value="imperial">Имперский период</option><option value="soviet">Советский период</option></select><button id="timelinePlayButton" class="timeline-play-button" type="button" aria-pressed="false" title="Запустить слайд-шоу изменения сетки АТД">▶ Слайд-шоу</button>`;
+    tools.innerHTML=`<label class="timeline-century-label" for="timelineCenturySelect">Период</label><select id="timelineCenturySelect" class="timeline-century-select" aria-label="Период таймлайна"><option value="all">Все годы</option><option value="18">XVIII век</option><option value="19">XIX век</option><option value="20">XX век</option><option value="21">XXI век</option><option value="imperial">Имперский период</option><option value="soviet">Советский период</option></select><button id="timelinePlayButton" class="timeline-play-button" type="button" aria-pressed="false" title="Запустить слайд-шоу изменения сетки АТД">▶ Слайд-шоу</button>`;
     head.appendChild(tools);
     const sel=tools.querySelector('#timelineCenturySelect');
     const play=tools.querySelector('#timelinePlayButton');
