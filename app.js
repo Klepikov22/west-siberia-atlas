@@ -1,4 +1,4 @@
-const APP_VERSION = '79';
+const APP_VERSION = '81';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -42,13 +42,13 @@ function chartSliceColor(name, index){
 }
 
 const regionPalettes = {
-  soft:['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9'],
-  paper:['#c7b37a','#9fb17b','#d6a66f','#a9b8b5','#c7967d','#b7a18a','#9da77f','#d8c590','#bfa080','#c8bca3'],
-  thin:['#b6d7c9','#dce9b8','#c7c5df','#e6b7a9','#accbe1','#eac989','#bddaaa','#e4c3d2','#c8b6cf','#d5e4c9'],
-  ink:['#b8c7cf','#d8d4b2','#b3adc8','#c7a493','#9fb5c2','#c6aa78','#a9b28b','#c3a7ba','#a99db6','#c5c4ad'],
-  vivid:['#2dd4bf','#facc15','#a78bfa','#fb7185','#38bdf8','#f59e0b','#84cc16','#f472b6','#c084fc','#22c55e'],
-  contrast:['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#1f78b4','#b2df8a','#fb9a99'],
-  matchaLatte:['#b8d2a0','#efe4bd','#97b989','#d8cda3','#accbb4','#c9b07e','#e6d7b0','#88aa7d','#c4d7a1','#b2c7ad']
+  soft:['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#bc80bd','#ccebc5','#ffed6f','#d9d9d9','#66c2a5','#fc8d62','#8da0cb','#e78ac3','#a6d854','#ffd92f','#e5c494','#b3b3b3'],
+  paper:['#c7b37a','#9fb17b','#d6a66f','#a9b8b5','#c7967d','#b7a18a','#9da77f','#d8c590','#bfa080','#c8bca3','#b8a06a','#91ab76','#c98e65','#98aaa9','#ba8a74','#ad957e','#8f9a72','#d2bd84','#b09272','#b8af98'],
+  thin:['#b6d7c9','#dce9b8','#c7c5df','#e6b7a9','#accbe1','#eac989','#bddaaa','#e4c3d2','#c8b6cf','#d5e4c9','#a9cfbf','#d5e2aa','#bab8d7','#ddb09f','#9ec3db','#dfc081','#b2d39d','#dbb8ca','#beacc7','#cadbbd'],
+  ink:['#b8c7cf','#d8d4b2','#b3adc8','#c7a493','#9fb5c2','#c6aa78','#a9b28b','#c3a7ba','#a99db6','#c5c4ad','#9eb1bc','#c9c39f','#9f97bb','#b89180','#8fa8b7','#b69667','#99a37d','#b393ac','#968cab','#b6b39d'],
+  vivid:['#2dd4bf','#facc15','#a78bfa','#fb7185','#38bdf8','#f59e0b','#84cc16','#f472b6','#c084fc','#22c55e','#14b8a6','#eab308','#8b5cf6','#ef4444','#0ea5e9','#f97316','#65a30d','#ec4899','#a855f7','#10b981'],
+  contrast:['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#1f78b4','#b2df8a','#fb9a99','#33a02c','#ff7f00','#6a3d9a','#a6cee3','#b15928','#cab2d6','#ffff99','#8dd3c7','#bebada','#fb8072'],
+  matchaLatte:['#b8d2a0','#efe4bd','#97b989','#d8cda3','#accbb4','#c9b07e','#e6d7b0','#88aa7d','#c4d7a1','#b2c7ad','#a6c28e','#e5d8aa','#87ad7a','#cfc391','#9dc0a8','#bfa36e','#dccd9e','#7d9c73','#bbcf95','#a7bc9f']
 };
 function regionPalette(){ return regionPalettes[state.regionStyle] || regionPalettes.soft; }
 function regionStyleConfig(){
@@ -649,7 +649,7 @@ async function init(){
 function bindUi(){
   const on = (id, event, handler) => { const el=$(id); if(el) el.addEventListener(event, handler); };
   initSidePanelToggles();
-  on('modeSelect','change', async e=>{state.mode=e.target.value; const seq=state.refreshSeq; await refreshAdmin(seq);});
+  on('modeSelect','change', async e=>{state.mode=e.target.value; state.colors={}; const seq=state.refreshSeq; await refreshAdmin(seq);});
   const themeSelect=$('themeSelect'); if(themeSelect) themeSelect.value=state.theme;
   const pieSelect=$('pieLevelSelect'); if(pieSelect) pieSelect.value=state.pieGrouping;
   const piePaletteSelect=$('piePaletteSelect'); if(piePaletteSelect) piePaletteSelect.value=state.piePalette;
@@ -4653,27 +4653,45 @@ const V51_1926_PARENT_GROUPS = {
   'Курганский округ':'Уральская область',
   'Новосибирский округ':'Сибирский край',
   'Ойратская авт. область':'Сибирский край',
+  'Ойратская АО':'Сибирский край',
   'Омский округ':'Сибирский край',
   'Рубцовский округ':'Сибирский край',
+  'Славгородский':'Сибирский край',
   'Славгородский округ':'Сибирский край',
   'Тарский округ':'Сибирский край',
+  'Тобольский округ':'Уральская область',
   'Томский округ':'Сибирский край',
   'Тюменский округ':'Уральская область',
   'Шадринский округ':'Уральская область'
+};
+const V81_POST1939_GROUP_OVERRIDES = {
+  'ХМАО':'Тюменская область',
+  'Ханты-Мансийский автономный округ':'Тюменская область',
+  'ЯНАО':'Тюменская область',
+  'Ямало-Ненецкий автономный округ':'Тюменская область',
+  'Горно-Алтайская автономная область':'Алтайский край',
+  'Горно-Алтайская АО':'Алтайский край',
+  'Республика Алтай':'Алтайский край'
 };
 function deriveAdminSuperparent(props){
   const explicit=String(props?.admin_superparent || props?.admin_group || props?.super_parent || '').trim();
   if(explicit) return explicit;
   const parent=String(props?.admin_parent || '').trim();
+  const intermediate=String(props?.admin_intermediate || '').trim();
+  const key=intermediate || parent;
   const year=Number(props?.year || state.year || 0);
-  if(year===1926 && parent) return V51_1926_PARENT_GROUPS[parent] || '';
+  if(year===1926 && key) return V51_1926_PARENT_GROUPS[key] || V51_1926_PARENT_GROUPS[parent] || '';
+  if(year>=1947 && parent) return V81_POST1939_GROUP_OVERRIDES[parent] || parent;
   return '';
 }
 function enrichHierarchyProps(gj){
   if(!gj?.features) return gj;
   gj.features.forEach(f=>{
     if(!f.properties) f.properties={};
+    const year=Number(f.properties.year || state.year || 0);
+    if(year===1926 && String(f.properties.admin_parent || '').trim()==='Славгородский') f.properties.admin_parent='Славгородский округ';
     if(!f.properties.admin_intermediate) f.properties.admin_intermediate = String(f.properties.admin_parent || '').trim() || '';
+    if(year===1926 && String(f.properties.admin_intermediate || '').trim()==='Славгородский') f.properties.admin_intermediate='Славгородский округ';
     if(!f.properties.admin_superparent) f.properties.admin_superparent = deriveAdminSuperparent(f.properties) || '';
   });
   return gj;
@@ -8607,6 +8625,7 @@ async function v72SetYear(year, opts={}){
   if(!opts.keepSlideshow && !opts.fromSlideshow) v72StopTimelineSlideshow();
   if(state.year===y){ setYearLabels(); updateTimelineActive(); return; }
   state.year=y;
+  state.colors={};
   setYearLabels();
   updateTimelineActive();
   state.selectedIds.clear();
