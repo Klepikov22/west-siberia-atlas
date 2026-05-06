@@ -1,4 +1,4 @@
-const APP_VERSION = '88';
+const APP_VERSION = '89';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -9474,3 +9474,227 @@ async function renderTopologyTrendChart(){
     return `<div class="chart-legend-row topology-trend-row-v88"><span class="pie-dot"></span><span>${r.year}</span><b>${v88FormatTrendValue(r[metric],metric)}</b><em>${escapeHtml(leader||'—')}</em></div>`;
   }).join('');
 }
+
+
+/* v89: robust synchronized topology graph rendering, numeric legend, edge styles and graph statistics */
+try{
+  v88TopologyModes.add('topo_external_degree');
+  v88TopologyModes.add('topo_external_share');
+  v88TopologyModes.add('topo_bridge_incident_count');
+  v88TopologyMetricLabels.topo_bridge_incident_count='мостовые связи узла';
+}catch(_){ }
+
+v88TrendMetricLabels.bridges='мосты графа';
+function v89IsTopologyMode(){ return v88TopologyModes.has(state.mode); }
+function v89TopologyMetricField(){
+  if(v89IsTopologyMode()) return state.mode;
+  const sel=$('topologyMetricSelect');
+  return (sel && v88TopologyModes.has(sel.value)) ? sel.value : 'topo_degree';
+}
+v88TopologyMetricField = v89TopologyMetricField;
+v88TopologyVisible = function v89TopologyVisible(){ return !!($('toggleTopologyGraph')?.checked || v89IsTopologyMode()); };
+
+function v89EnsureTopologyPanes(){
+  if(!state.map) return;
+  if(!state.map.getPane('topologyEdgePane')){
+    const p=state.map.createPane('topologyEdgePane');
+    p.style.zIndex=690; p.style.pointerEvents='auto';
+  }else{
+    const p=state.map.getPane('topologyEdgePane'); p.style.zIndex=690; p.style.pointerEvents='auto';
+  }
+  if(!state.map.getPane('topologyNodePane')){
+    const p=state.map.createPane('topologyNodePane');
+    p.style.zIndex=740; p.style.pointerEvents='auto';
+  }else{
+    const p=state.map.getPane('topologyNodePane'); p.style.zIndex=740; p.style.pointerEvents='auto';
+  }
+}
+function v89EdgeStyleMode(){ return $('topologyEdgeStyleSelect')?.value || 'relation'; }
+function v89EdgeStyle(f){
+  const km=Number(f.properties?.boundary_km)||1;
+  const w=Math.max(1.8, Math.min(5.5, 1.2+Math.log1p(km)/2.05));
+  const base={weight:w, opacity:.92, lineCap:'round', lineJoin:'round', pane:'topologyEdgePane', className:'topology-edge-path-v89'};
+  if(v89EdgeStyleMode()==='uniform') return {...base, color:'#25313d', opacity:.76, dashArray:null};
+  const rel=f.properties?.relation;
+  if(rel==='same_parent') return {...base, color:'#195f9d', opacity:.75, dashArray:null};
+  if(rel==='same_superparent') return {...base, color:'#7d55b2', opacity:.88, dashArray:'8 5'};
+  if(rel==='cross_parent') return {...base, color:'#c05a16', opacity:.96, dashArray:'3 5'};
+  return {...base, color:'#555b62', opacity:.65, dashArray:'4 6'};
+}
+function v89TopologyRadius(v, vals){
+  const n=Number(v);
+  const scaled=v88TopoScaleValue(Number.isFinite(n)?n:0, vals);
+  return 5.5 + scaled*16.5;
+}
+function v89NodeStyle(val, vals, metric){
+  return {
+    radius:v89TopologyRadius(val, vals),
+    color:'#0c1721',
+    weight:1.9,
+    fillColor:valueColor(Number.isFinite(Number(val))?Number(val):0, vals),
+    fillOpacity:.96,
+    opacity:1,
+    pane:'topologyNodePane',
+    bubblingMouseEvents:false,
+    interactive:true,
+    className:'topology-node-marker-v89'
+  };
+}
+async function v89RenderTopologyGraph(){
+  try{ clearLayer('topologyGraph'); }catch(_){ }
+  state.topologyEdgeStats={year:state.year, counts:{}, total:0};
+  if(!state.map || !state.currentGeoJSON || !v88TopologyVisible()) return;
+  v89EnsureTopologyPanes();
+  const field=v89TopologyMetricField();
+  const features=(state.currentGeoJSON.features||[]);
+  const visibleById=new Map(features.map(f=>[String(featureId(f)),f]));
+  const topoFeatures=features.filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  const vals=topoFeatures.map(f=>Number(f.properties?.[field])).filter(Number.isFinite);
+  const group=L.layerGroup();
+  try{
+    const edges=await v88LoadTopologyEdgesForYear(state.year);
+    const edgeFeatures=(edges.features||[]).filter(e=>visibleById.has(String(e.properties?.source_id)) && visibleById.has(String(e.properties?.target_id)));
+    const counts=edgeFeatures.reduce((acc,e)=>{ const r=e.properties?.relation||'unknown'; acc[r]=(acc[r]||0)+1; if(e.properties?.is_bridge) acc.bridges=(acc.bridges||0)+1; return acc; },{same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0});
+    state.topologyEdgeStats={year:state.year, counts, total:edgeFeatures.length};
+    const edgeLayer=L.geoJSON({type:'FeatureCollection',features:edgeFeatures},{
+      interactive:true,
+      pane:'topologyEdgePane',
+      style:v89EdgeStyle,
+      onEachFeature:(f,l)=>{ const p=f.properties||{}; l.on('mouseover',e=>showHoverLater({title:`${p.source_name} — ${p.target_name}`, subtitle:'ребро топологического графа', extra:`общая граница: ${num1(p.boundary_km)} км · ${escapeHtml(v88EdgeRelationLabels()[p.relation]||p.relation||'тип связи')}${p.is_bridge?' · мост':''}`, delay:250}, e.originalEvent)); l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover); }
+    });
+    group.addLayer(edgeLayer);
+  }catch(e){ console.warn('topology edges skipped', e); }
+  topoFeatures.forEach(f=>{
+    const p=f.properties||{};
+    const c=v88FeatureCenterLatLng(f); if(!c) return;
+    const val=Number(p[field]);
+    const m=L.circleMarker(c, v89NodeStyle(val, vals, field));
+    m.feature=f;
+    m.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел графа · ${v88TopologyMetricLabels[field]||field}`, extra:`значение: ${v88TopoValueLabel(val,field)} · соседей: ${p.topo_degree ?? '—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'} · мостовых: ${p.topo_bridge_incident_count ?? 0}`, delay:250}, e.originalEvent));
+    m.on('mousemove',e=>moveHover(e.originalEvent));
+    m.on('mouseout',hideHover);
+    m.on('click',e=>{ L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f); });
+    group.addLayer(m);
+  });
+  state.layers.topologyGraph=group;
+  group.addTo(state.map);
+  try{ group.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ }
+  if(!state._v89TopologyLegendRefreshing){
+    state._v89TopologyLegendRefreshing=true;
+    try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){ }
+    state._v89TopologyLegendRefreshing=false;
+  }
+}
+v88RenderTopologyGraph = v89RenderTopologyGraph;
+
+function v89GraphStats(features){
+  const source=(features && features.length) ? features : (state.currentGeoJSON?.features||[]);
+  const feats=source.filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  if(!feats.length) return '';
+  const avg=(field)=>feats.reduce((a,f)=>a+(Number(f.properties?.[field])||0),0)/feats.length;
+  const maxBy=(field)=>[...feats].sort((a,b)=>(Number(b.properties?.[field])||0)-(Number(a.properties?.[field])||0))[0];
+  const topDeg=maxBy('topo_degree'); const topBet=maxBy('topo_betweenness'); const topCore=maxBy('topo_k_core');
+  const g=feats[0].properties||{};
+  const art=Number.isFinite(Number(g.topo_graph_articulation_points)) ? Number(g.topo_graph_articulation_points) : feats.filter(f=>!!f.properties?.topo_articulation_point || !!f.properties?.topo_articulation_point_computed).length;
+  const bridges=Number.isFinite(Number(g.topo_graph_bridges)) ? Number(g.topo_graph_bridges) : 0;
+  return `<div class="analytics-block topology-stats-v88 topology-stats-v89"><h3>Топологическая связность АТД</h3>
+    <div class="metric-line"><span>узлов / рёбер графа</span><b>${num(g.topo_graph_nodes)} / ${num(g.topo_graph_edges)}</b></div>
+    <div class="metric-line"><span>компонент связности</span><b>${num(g.topo_graph_components)}</b></div>
+    <div class="metric-line"><span>плотность графа</span><b>${v88TopoNum(g.topo_graph_density)}</b></div>
+    <div class="metric-line"><span>цикломатическое число</span><b>${num(g.topo_graph_cyclomatic)}</b></div>
+    <div class="metric-line"><span>мосты / точки сочленения</span><b>${num(bridges)} / ${num(art)}</b></div>
+    <div class="metric-line"><span>средняя степень</span><b>${v88TopoNum(avg('topo_degree'))}</b></div>
+    <div class="metric-line"><span>средний k-core</span><b>${v88TopoNum(avg('topo_k_core'))}</b></div>
+    <div class="metric-line"><span>лидер по соседям</span><b>${escapeHtml(topDeg?.properties?.name||'—')} · ${num(topDeg?.properties?.topo_degree)}</b></div>
+    <div class="metric-line"><span>главный посредник</span><b>${escapeHtml(topBet?.properties?.name||'—')} · ${v88TopoNum(topBet?.properties?.topo_betweenness)}</b></div>
+    <div class="metric-line"><span>макс. ядро</span><b>${escapeHtml(topCore?.properties?.name||'—')} · k=${num(topCore?.properties?.topo_k_core)}</b></div>
+  </div>`;
+}
+v88TopologyStatsBlock = v89GraphStats;
+
+const v89PriorUpdateStats = updateStats;
+updateStats = function updateStatsV89(features){
+  v89PriorUpdateStats(features);
+  const block=v89GraphStats(features);
+  ['statsBox','rightStatsBox'].forEach(id=>{ const el=$(id); if(!el) return; el.querySelectorAll('.topology-stats-v88,.topology-stats-v89').forEach(x=>x.remove()); if(block) el.insertAdjacentHTML('beforeend', block); });
+};
+
+function v89BinCount(vals, bin, idx, total){
+  return vals.filter(v=>idx===total-1 ? (v>=bin.from && v<=bin.to) : (v>=bin.from && v<bin.to)).length;
+}
+const v89PriorUpdateLegend = updateLegend;
+updateLegend = function updateLegendV89(gj, vals){
+  v89PriorUpdateLegend(gj, vals);
+  const box=$('legendBox'); if(!box || !gj) return;
+  box.querySelectorAll('.legend-topology-v88,.legend-topology-metric-v88,.legend-topology-edges-v88,.legend-topology-v89').forEach(x=>x.remove());
+  const metric=v89TopologyMetricField();
+  const topoVals=(gj.features||[]).filter(f=>!f.properties?.topology_excluded).map(f=>Number(f.properties?.[metric])).filter(Number.isFinite);
+  const showTopo=v89IsTopologyMode() || v88TopologyVisible();
+  if(showTopo){
+    const bins=v88TopoLegendBins(topoVals, metric, 5);
+    const sec=document.createElement('div'); sec.className='legend-topology-v89 legend-topology-metric-v89';
+    sec.innerHTML=`<div class="legend-section">Топология: ${escapeHtml(v88TopologyMetricLabels[metric]||metric)}</div>`+
+      bins.map((b,i)=>`<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${b.color}"></span><span>${escapeHtml(b.label)}</span><b>${num(v89BinCount(topoVals,b,i,bins.length))}</b></div>`).join('')+
+      `<div class="mini-muted legend-scale-note-v67">Диапазон: ${v88TopoValueLabel(topoVals.length?Math.min(...topoVals):null, metric)} — ${v88TopoValueLabel(topoVals.length?Math.max(...topoVals):null, metric)}. Число справа — объектов в классе.</div>`;
+    box.appendChild(sec);
+  }
+  if(v88TopologyVisible()){
+    const labels=v88EdgeRelationLabels();
+    const counts=(state.topologyEdgeStats && state.topologyEdgeStats.year===state.year) ? state.topologyEdgeStats.counts : {};
+    const nodeCount=(gj.features||[]).filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree))).length;
+    const rows = v89EdgeStyleMode()==='uniform'
+      ? `<div class="legend-row"><span class="topology-edge-uniform-v89"></span><span>рёбра графа, единый стиль</span><b>${num(state.topologyEdgeStats?.total||0)}</b></div>`
+      : [['same_parent','topology-edge-same-v89'],['same_superparent','topology-edge-super-v89'],['cross_parent','topology-edge-cross-v89']].map(([k,cls])=>`<div class="legend-row"><span class="${cls}"></span><span>${escapeHtml(labels[k])}</span><b>${num(counts[k]||0)}</b></div>`).join('');
+    const div=document.createElement('div'); div.className='legend-topology-v89 legend-topology-edges-v89';
+    div.innerHTML=`<div class="legend-section">Рёбра и узлы графа</div>${rows}<div class="legend-row"><span class="topology-node-swatch-v89"></span><span>узлы АТЕ, размер/цвет = метрика</span><b>${num(nodeCount)}</b></div><div class="legend-row"><span class="topology-edge-bridge-v89"></span><span>мостовые рёбра</span><b>${num(counts.bridges||0)}</b></div><div class="mini-muted legend-scale-note-v67">Ребро = общая граница ≥ 1 км; спорные зоны, двоеданцы и малые города &lt; 50 км² исключены.</div>`;
+    box.appendChild(div);
+  }
+};
+
+function v89SyncTopologyUiFromMode(){
+  const metric=$('topologyMetricSelect');
+  if(metric && v89IsTopologyMode() && [...metric.options].some(o=>o.value===state.mode)) metric.value=state.mode;
+}
+function v89BindTopologyControls(){
+  v89SyncTopologyUiFromMode();
+  const toggle=$('toggleTopologyGraph');
+  if(toggle && toggle.dataset.v89Bound!=='1'){
+    toggle.dataset.v89Bound='1';
+    toggle.addEventListener('change', async()=>{ await v89RenderTopologyGraph(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+  }
+  const metric=$('topologyMetricSelect');
+  if(metric && metric.dataset.v89Bound!=='1'){
+    metric.dataset.v89Bound='1';
+    metric.addEventListener('change', async()=>{ state.topologyMetric=metric.value; await v89RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+  }
+  const edgeStyle=$('topologyEdgeStyleSelect');
+  if(edgeStyle && edgeStyle.dataset.v89Bound!=='1'){
+    edgeStyle.dataset.v89Bound='1';
+    edgeStyle.addEventListener('change', async()=>{ await v89RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+  }
+  const mode=$('modeSelect');
+  if(mode && mode.dataset.v89TopologyBound!=='1'){
+    mode.dataset.v89TopologyBound='1';
+    mode.addEventListener('change', async()=>{ setTimeout(async()=>{ v89SyncTopologyUiFromMode(); await v89RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); updateStatsAndSelection(); },0); });
+  }
+}
+const v89PriorRefreshAdmin = refreshAdmin;
+refreshAdmin = async function refreshAdminV89(seq){
+  await v89PriorRefreshAdmin(seq);
+  if(isStaleRefresh(seq)) return;
+  v89SyncTopologyUiFromMode();
+  await v89RenderTopologyGraph();
+};
+const v89PriorRefreshVisibility = refreshVisibility;
+refreshVisibility = function refreshVisibilityV89(){
+  v89PriorRefreshVisibility();
+  const layer=state.layers.topologyGraph;
+  if(!state.map || !layer) return;
+  if(v88TopologyVisible()){ if(!state.map.hasLayer(layer)) layer.addTo(state.map); try{ layer.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ } }
+  else if(state.map.hasLayer(layer)) state.map.removeLayer(layer);
+};
+
+(function v89BootTopology(){
+  const boot=()=>{ try{ v89BindTopologyControls(); v89SyncTopologyUiFromMode(); v89RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(e){ console.warn('v89 topology boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,180),{once:true}); else setTimeout(boot,180);
+})();

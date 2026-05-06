@@ -27,7 +27,9 @@
     "max_closeness": 0.517921,
     "max_closeness_name": "Туруханский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Туруханский уезд"
+    "max_k_core_name": "Туруханский уезд",
+    "bridges": 2,
+    "articulation_points_computed": 2
   },
   {
     "year": 1719,
@@ -57,7 +59,9 @@
     "max_closeness": 0.373687,
     "max_closeness_name": "Верхотурский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Иркутская провинция"
+    "max_k_core_name": "Иркутская провинция",
+    "bridges": 3,
+    "articulation_points_computed": 4
   },
   {
     "year": 1724,
@@ -87,7 +91,9 @@
     "max_closeness": 0.373687,
     "max_closeness_name": "Верхотурский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Иркутская провинция"
+    "max_k_core_name": "Иркутская провинция",
+    "bridges": 3,
+    "articulation_points_computed": 4
   },
   {
     "year": 1727,
@@ -117,7 +123,9 @@
     "max_closeness": 0.501961,
     "max_closeness_name": "Сургутский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Иркутская провинция"
+    "max_k_core_name": "Иркутская провинция",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1745,
@@ -147,7 +155,9 @@
     "max_closeness": 0.636364,
     "max_closeness_name": "Сургутский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Мангазейский уезд"
+    "max_k_core_name": "Мангазейский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1765,
@@ -177,7 +187,9 @@
     "max_closeness": 0.615385,
     "max_closeness_name": "Тобольский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Мангазейский уезд"
+    "max_k_core_name": "Мангазейский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1780,
@@ -207,7 +219,9 @@
     "max_closeness": 1.0,
     "max_closeness_name": "Кузнецкий уезд",
     "max_k_core": 2.0,
-    "max_k_core_name": "Барнаульский уезд"
+    "max_k_core_name": "Барнаульский уезд",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1783,
@@ -237,7 +251,9 @@
     "max_closeness": 0.488372,
     "max_closeness_name": "Тарский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Туруханский уезд"
+    "max_k_core_name": "Туруханский уезд",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1798,
@@ -267,7 +283,9 @@
     "max_closeness": 0.566667,
     "max_closeness_name": "Тарский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Туруханский уезд"
+    "max_k_core_name": "Туруханский уезд",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1805,
@@ -297,7 +315,9 @@
     "max_closeness": 0.529412,
     "max_closeness_name": "Березовский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Туруханский уезд"
+    "max_k_core_name": "Туруханский уезд",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1809,
@@ -327,7 +347,9 @@
     "max_closeness": 0.551724,
     "max_closeness_name": "Березовский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Березовский уезд"
+    "max_k_core_name": "Березовский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1821,
@@ -357,7 +379,9 @@
     "max_closeness": 0.533333,
     "max_closeness_name": "Тарский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Туруханский уезд"
+    "max_k_core_name": "Туруханский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1838,
@@ -387,7 +411,9 @@
     "max_closeness": 0.5625,
     "max_closeness_name": "Каинский округ",
     "max_k_core": 3.0,
-    "max_k_core_name": "Берёзовский округ"
+    "max_k_core_name": "Берёзовский округ",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1848,
@@ -417,7 +443,9 @@
     "max_closeness": 0.56,
     "max_closeness_name": "Омский округ",
     "max_k_core": 3.0,
-    "max_k_core_name": "Берёзовский округ"
+    "max_k_core_name": "Берёзовский округ",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1855,
@@ -447,7 +475,9 @@
     "max_closeness": 0.510204,
     "max_closeness_name": "Омский округ",
     "max_k_core": 3.0,
-    "max_k_core_name": "Берёзовский округ"
+    "max_k_core_name": "Берёзовский округ",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1876,
@@ -477,7 +507,9 @@
     "max_closeness": 0.491228,
     "max_closeness_name": "Тюкалинский округ",
     "max_k_core": 3.0,
-    "max_k_core_name": "Сургутский округ"
+    "max_k_core_name": "Сургутский округ",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1897,
@@ -507,7 +539,9 @@
     "max_closeness": 0.5,
     "max_closeness_name": "Тюкалинский округ",
     "max_k_core": 3.0,
-    "max_k_core_name": "Атбасарский уезд"
+    "max_k_core_name": "Атбасарский уезд",
+    "bridges": 3,
+    "articulation_points_computed": 2
   },
   {
     "year": 1914,
@@ -537,7 +571,9 @@
     "max_closeness": 0.472727,
     "max_closeness_name": "Тюкалинский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Кокчетавский уезд"
+    "max_k_core_name": "Кокчетавский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1918,
@@ -567,7 +603,9 @@
     "max_closeness": 0.411387,
     "max_closeness_name": "Каменский уезд",
     "max_k_core": 4.0,
-    "max_k_core_name": "Бухтарминский уезд, переданный в 1920 г. в Семипалатинскую область"
+    "max_k_core_name": "Бухтарминский уезд, переданный в 1920 г. в Семипалатинскую область",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1923,
@@ -597,7 +635,9 @@
     "max_closeness": 0.467742,
     "max_closeness_name": "Нарымский уезд",
     "max_k_core": 3.0,
-    "max_k_core_name": "Сургутский уезд"
+    "max_k_core_name": "Сургутский уезд",
+    "bridges": 0,
+    "articulation_points_computed": 0
   },
   {
     "year": 1926,
@@ -627,7 +667,9 @@
     "max_closeness": 0.157706,
     "max_closeness_name": "Колпашевский",
     "max_k_core": 4.0,
-    "max_k_core_name": "Бащелакский"
+    "max_k_core_name": "Бащелакский",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1930,
@@ -657,7 +699,9 @@
     "max_closeness": 0.199179,
     "max_closeness_name": "Безымянный район №23 (Томский округ)",
     "max_k_core": 4.0,
-    "max_k_core_name": "Безымянный район №1 (Тобольский округ)"
+    "max_k_core_name": "Безымянный район №1 (Тобольский округ)",
+    "bridges": 4,
+    "articulation_points_computed": 4
   },
   {
     "year": 1939,
@@ -687,7 +731,9 @@
     "max_closeness": 0.186089,
     "max_closeness_name": "Пихтовский",
     "max_k_core": 4.0,
-    "max_k_core_name": "Ойрот-Турский (рц в г. Ойрот-Туре)"
+    "max_k_core_name": "Ойрот-Турский (рц в г. Ойрот-Туре)",
+    "bridges": 6,
+    "articulation_points_computed": 6
   },
   {
     "year": 1947,
@@ -717,7 +763,9 @@
     "max_closeness": 0.180688,
     "max_closeness_name": "Михайловский район",
     "max_k_core": 4.0,
-    "max_k_core_name": "Мамонтовский район"
+    "max_k_core_name": "Мамонтовский район",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1959,
@@ -747,7 +795,9 @@
     "max_closeness": 0.180532,
     "max_closeness_name": "Михайловский район (сельское население)",
     "max_k_core": 4.0,
-    "max_k_core_name": "Ленинск-Кузнецкий район (сельское население)"
+    "max_k_core_name": "Ленинск-Кузнецкий район (сельское население)",
+    "bridges": 1,
+    "articulation_points_computed": 1
   },
   {
     "year": 1964,
@@ -777,7 +827,9 @@
     "max_closeness": 0.236295,
     "max_closeness_name": "Куйбышевский район",
     "max_k_core": 3.0,
-    "max_k_core_name": "Кош-Агачский район"
+    "max_k_core_name": "Кош-Агачский район",
+    "bridges": 3,
+    "articulation_points_computed": 3
   },
   {
     "year": 1970,
@@ -807,7 +859,9 @@
     "max_closeness": 0.201893,
     "max_closeness_name": "Колыванский",
     "max_k_core": 4.0,
-    "max_k_core_name": "Тогучинский"
+    "max_k_core_name": "Тогучинский",
+    "bridges": 3,
+    "articulation_points_computed": 3
   },
   {
     "year": 1979,
@@ -837,7 +891,9 @@
     "max_closeness": 0.201389,
     "max_closeness_name": "Колыванский",
     "max_k_core": 3.0,
-    "max_k_core_name": "Кош-Агачский"
+    "max_k_core_name": "Кош-Агачский",
+    "bridges": 5,
+    "articulation_points_computed": 5
   },
   {
     "year": 1989,
@@ -867,7 +923,9 @@
     "max_closeness": 0.195035,
     "max_closeness_name": "Колыванский муниципальный район",
     "max_k_core": 4.0,
-    "max_k_core_name": "Шебалинский район"
+    "max_k_core_name": "Шебалинский район",
+    "bridges": 8,
+    "articulation_points_computed": 7
   },
   {
     "year": 2021,
@@ -897,6 +955,8 @@
     "max_closeness": 0.175693,
     "max_closeness_name": "Каргасокский муниципальный район",
     "max_k_core": 4.0,
-    "max_k_core_name": "Чемальский муниципальный район"
+    "max_k_core_name": "Чемальский муниципальный район",
+    "bridges": 26,
+    "articulation_points_computed": 22
   }
 ]
