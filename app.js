@@ -1,4 +1,4 @@
-const APP_VERSION = '93';
+const APP_VERSION = '94';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10592,7 +10592,7 @@ updateStatsAndSelection = function updateStatsAndSelectionV92(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,380),{once:true}); else setTimeout(boot,380);
 })();
 
-/* v93: visible topology graph from v92 edge/node data, separate edge/node toggles, and full multiyear metric trends */
+/* v94: visible topology graph from v94 edge/node data, separate edge/node toggles, and full multiyear metric trends */
 function v93IsTopologyMode(){ return typeof v91IsTopologyMode==='function' ? v91IsTopologyMode() : (typeof v88TopologyModes!=='undefined' && v88TopologyModes.has(state.mode)); }
 function v93TopologyMasterOn(){ return !!($('toggleTopologyGraph')?.checked || v93IsTopologyMode()); }
 function v93TopologyEdgesOn(){ const el=$('toggleTopologyEdges'); return v93TopologyMasterOn() && (el ? !!el.checked : true); }
@@ -10772,7 +10772,7 @@ function v93BuildTopologyLegend(gj){
       ${edgeRows}
       <div class="legend-row legend-row-counted-v92"><span class="topology-edge-bridge-v90"></span><span>мостовые рёбра</span>${v93LegendCountMarkup(counts.bridges||0)}</div>
       <div class="legend-row legend-row-counted-v92"><span class="topology-node-swatch-v90"></span><span>узлы АТЕ, цвет/размер = метрика</span>${v93LegendCountMarkup(stats.nodes||0)}</div>
-      <div class="mini-muted legend-scale-note-v67">Ребро = общая граница ≥ 1 км. Граф построен по данным v92 и отфильтрован по текущему административному слою/выборке.</div>
+      <div class="mini-muted legend-scale-note-v67">Ребро = общая граница ≥ 1 км. Граф построен по данным v94 и отфильтрован по текущему административному слою/выборке.</div>
     </div>
     ${typeof v90SpecialLegendRows==='function' ? v90SpecialLegendRows(gj) : ''}`;
 }
@@ -10892,7 +10892,7 @@ async function v93OpenMultiyearTrendsModal(){
       <div class="topology-trend-label-grid-v91"><label class="compact-check"><input type="checkbox" id="topologyTrendShowLabelsV91" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize)||11}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize)||11}"></div>
       <div class="topology-trend-buttons-v88 topology-trend-buttons-v91"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
       <div><div class="control-label topology-years-label-v91">Годы наблюдений</div><div id="topologyTrendYearsV90" class="topology-trend-years-v88 topology-trend-years-v91">${years.map(y=>`<label><input type="checkbox" value="${y}" ${selected.has(y)?'checked':''}>${y}</label>`).join('')}</div></div>
-      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям; графовые метрики — по топологическим узлам/рёбрам v92.</div>
+      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям; графовые метрики — по топологическим узлам/рёбрам v94.</div>
     </section>
     <section class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v88 topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v88 topology-trend-table-v91"></div></section>
   </div>`;
