@@ -2842,3 +2842,11 @@ html.compact-1080-v68 #timelineBar.timeline-v77{
 .special-layer-item small{color:var(--muted);font-weight:800;margin-left:4px}
 .special-layer-year-select{margin-top:7px;width:100%;font-size:12px;padding:5px 8px;border-radius:10px;border:1px solid var(--border);background:var(--control-bg);color:var(--text)}
 html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.2)}
+
+/* v85 special reconstruction legend */
+.legend-special-v85{margin-top:8px;padding-top:7px;border-top:1px solid rgba(150,135,110,.25)}
+.special-status-row-v85{align-items:center}
+.special-hatch-v85{
+  background-image:repeating-linear-gradient(45deg, rgba(70,60,45,.35) 0, rgba(70,60,45,.35) 1px, transparent 1px, transparent 6px);
+  background-size:8px 8px;
+}

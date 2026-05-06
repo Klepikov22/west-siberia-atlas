@@ -1,0 +1,13 @@
+﻿special_status_code,special_status,hatch_pattern_code,is_special_reconstruction_area,include_in_analytics,include_in_selection,boundary_confidence_default
+normal,,False,,True,True,normal
+unstable_control,зона неустойчивого / слабого контроля,unstable_control_sparse,True,False,False,low
+low_control_frontier,зона слабого контроля / фронтирная территория,unstable_control_sparse,True,False,False,low
+no_uezd_russian_siberia,территория в составе Российской Сибири без устойчивого уездного деления,russian_siberia_no_uezd,True,False,False,medium
+disputed_affiliation,спорная / неясная принадлежность,disputed_affiliation,True,False,False,low
+disputed_berezov_mangazeya,спорная принадлежность между Берёзовским и Мангазейским уездами,disputed_berezov_mangazeya,True,False,False,low
+double_tax_volosts,двоеданческие волости / зона двойной даннической принадлежности,double_tax_volosts,True,False,False,low
+qing_frontier,пограничная территория Российской империи и империи Цин,qing_frontier,True,False,False,low
+kazakh_steppe,степная территория вне регулярной уездной сети,kazakh_steppe,True,False,False,low
+mining_department,горнозаводское ведомство / специальная ведомственная территория,mining_department,True,False,False,medium
+context_only,контекстная территория вне основного масштаба реконструкции,context_only,True,False,False,low
+external_district_context,внешний округ / контекст степной периферии,external_district_context,True,False,False,medium

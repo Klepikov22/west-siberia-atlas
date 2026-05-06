@@ -1,4 +1,4 @@
-const APP_VERSION = '84';
+const APP_VERSION = '86';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -88,6 +88,42 @@ function num(v){ return v==null||Number.isNaN(Number(v)) ? '—' : fmt.format(Ma
 function num1(v){ return v==null||Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(1).replace('.',','); }
 function pct(v){ return v==null||Number.isNaN(Number(v)) ? '—' : (Number(v)*100).toFixed(1).replace('.',',')+'%'; }
 function escapeHtml(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function isAnalyticsFeature(f){ return f?.properties?.include_in_analytics !== false; }
+function isSelectableFeature(f){ return f?.properties?.include_in_selection !== false; }
+const specialStatusStyleMap = {
+  unstable_control:{color:'#9a6a36', fillOpacity:.12, dashArray:'7 6'},
+  low_control_frontier:{color:'#9a6a36', fillOpacity:.10, dashArray:'3 7'},
+  no_uezd_russian_siberia:{color:'#7f8e61', fillOpacity:.14, dashArray:'9 5'},
+  disputed_affiliation:{color:'#9b8794', fillOpacity:.13, dashArray:'5 5'},
+  disputed_berezov_mangazeya:{color:'#ad7f9a', fillOpacity:.13, dashArray:'4 5 1 5'},
+  double_tax_volosts:{color:'#b18a3d', fillOpacity:.12, dashArray:'2 5'},
+  qing_frontier:{color:'#7c79a8', fillOpacity:.10, dashArray:'10 4 2 4'},
+  kazakh_steppe:{color:'#b89257', fillOpacity:.11, dashArray:'3 8'},
+  mining_department:{color:'#a55e1a', fillOpacity:.15, dashArray:'12 4'},
+  context_only:{color:'#8a8f92', fillOpacity:.07, dashArray:'2 6'},
+  external_district_context:{color:'#728aa1', fillOpacity:.12, dashArray:'8 4'}
+};
+function specialStatusStyle(feature){
+  const code=String(feature?.properties?.special_status_code || '').trim();
+  if(!code || code==='normal') return null;
+  return specialStatusStyleMap[code] || {color:'#8b8580', fillOpacity:.10, dashArray:'5 5'};
+}
+function specialStatusLabel(code){
+  const labels={
+    unstable_control:'зона неустойчивого контроля',
+    low_control_frontier:'зона слабого контроля',
+    no_uezd_russian_siberia:'в составе Российской Сибири без уезда',
+    disputed_affiliation:'спорная / неясная принадлежность',
+    disputed_berezov_mangazeya:'Берёзовско-Мангазейский спорный фрагмент',
+    double_tax_volosts:'двоеданческие волости',
+    qing_frontier:'пограничная зона Россия / Цин',
+    kazakh_steppe:'степная территория вне регулярной уездной сети',
+    mining_department:'горнозаводское ведомство',
+    context_only:'контекстная территория',
+    external_district_context:'внешний округ / степная периферия'
+  };
+  return labels[code] || code;
+}
 function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
 function finiteNumber(v){ const n=Number(v); return Number.isFinite(n) ? n : null; }
 function hasFiniteNumber(v){ return finiteNumber(v) !== null; }
@@ -782,6 +818,10 @@ function adminStyle(feature, vals){
   if(state.mode==='rail_length') fill=valueColor(Number(p.rail_length_km), vals);
   if(state.mode==='rail_density') fill=valueColor(Number(p.rail_density_km_1000), vals);
   const s=styleVars(); const cfg=regionStyleConfig(); const selected=state.selectedIds.has(featureId(feature));
+  const special=specialStatusStyle(feature);
+  if(special && !selected){
+    return {color:special.color, weight:Math.max(1.15,(cfg.weight||1.05)+.25), opacity:.96, dashArray:special.dashArray||'5 5', lineJoin:'round', lineCap:'round', fillColor:fill, fillOpacity:special.fillOpacity};
+  }
   return {color:selected?s.selectedLine:(cfg.line||s.adminLine), weight:selected?(cfg.selectedWeight||2.8):(cfg.weight||1.05), opacity:selected?1:(cfg.opacity??.92), dashArray:selected?null:(cfg.dashArray||null), lineJoin:'round', lineCap:'round', fillColor:fill, fillOpacity:selected?Math.min(.74,(cfg.fillOpacity??s.adminFillOpacity)+.14):(cfg.fillOpacity??s.adminFillOpacity)};
 }
 async function refreshAdmin(seq){
@@ -790,15 +830,15 @@ async function refreshAdmin(seq){
   if(isStaleRefresh(seq)) return;
   state.rawGeoJSON=raw;
   syncVisibleParents(raw);
-  syncFilterRanges(raw.features||[]);
+  syncFilterRanges((raw.features||[]).filter(isAnalyticsFeature));
   const gj=filteredGeoJSON(raw);
   state.currentGeoJSON=gj;
   const visibleIds=new Set(gj.features.map(featureId));
   state.selectedIds = new Set([...state.selectedIds].filter(id=>visibleIds.has(id)));
-  const field=valField(); const vals=field?gj.features.map(f=>Number(f.properties[field])).filter(v=>!Number.isNaN(v)):[]; state._lastVals=vals;
+  const field=valField(); const vals=field?gj.features.filter(isAnalyticsFeature).map(f=>Number(f.properties[field])).filter(v=>!Number.isNaN(v)):[]; state._lastVals=vals;
   const admin=L.geoJSON(gj,{style:f=>adminStyle(f,vals), onEachFeature:(f,l)=>{
     const id=featureId(f); state.adminLayerById.set(id,l);
-    l.on('click',()=>{ if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
+    l.on('click',()=>{ if(state.tool !== 'pan') return; if(isSelectableFeature(f)) toggleSelection(f); showFeature(f);});
     l.on('mouseover',(e)=>{ if(!state.selectedIds.has(id)) l.setStyle({weight:Math.max(1.8,(regionStyleConfig().weight||1.05)+.65), opacity:1}); if(state.tool !== 'pan') return; const pp=f.properties||{}; showHoverLater({title:pp.name, subtitle:[pp.unit_type, pp.admin_parent].filter(Boolean).join(' · '), population:pp.population, area:pp.area_km2, density:pp.density, extra:`год ${pp.year || state.year}`, delay:500}, e.originalEvent); });
     l.on('mousemove',(e)=>moveHover(e.originalEvent));
     l.on('mouseout',()=>{ refreshSelectionStylesFor(id); hideHover(); });
@@ -830,7 +870,7 @@ function populationSymbolSize(pop, vals){
   return min + t*(max-min);
 }
 function populationRadius(pop,maxPop){
-  const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0) || [maxPop||1];
+  const vals=state.currentGeoJSON?.features?.filter(isAnalyticsFeature).map(f=>Number(f.properties?.population)||0).filter(v=>v>0) || [maxPop||1];
   return populationSymbolSize(pop, vals);
 }
 function buildPopulationBarMarker(latlng, f, height, s){
@@ -840,11 +880,11 @@ function buildPopulationBarMarker(latlng, f, height, s){
 }
 function buildCircles(admin, gj){
   clearLayer('circles');
-  const s=styleVars(); const vals=gj.features.map(f=>Number(f.properties.population)||0).filter(v=>v>0);
+  const s=styleVars(); const vals=gj.features.filter(isAnalyticsFeature).map(f=>Number(f.properties.population)||0).filter(v=>v>0);
   const maxPop=Math.max(...vals,1); const minPop=Math.min(...vals, maxPop);
   state.maxPop=maxPop; state.minPop=minPop; state.layers.circles=L.layerGroup();
   admin.eachLayer(layer=>{
-    const f=layer.feature; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
+    const f=layer.feature; if(!isAnalyticsFeature(f)) return; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
     const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop, vals);
     const m=L.circleMarker(c,{radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
     m.feature=f;
@@ -1002,7 +1042,7 @@ function refreshVectorStyles(){
   refreshVisibility();
 }
 
-function toggleSelection(f){ const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); showFeature(f); }
+function toggleSelection(f){ if(!isSelectableFeature(f)) { showFeature(f); return; } const id=featureId(f); if(state.selectedIds.has(id)) state.selectedIds.delete(id); else state.selectedIds.add(id); refreshSelectionStyles(); updateStatsAndSelection(); showFeature(f); }
 function refreshSelectionStyles(){ if(!state.layers.admin) return; state.layers.admin.eachLayer(l=>l.setStyle(adminStyle(l.feature,state._lastVals))); }
 function refreshSelectionStylesFor(id){ const l=state.adminLayerById.get(id); if(l) l.setStyle(adminStyle(l.feature,state._lastVals)); }
 
@@ -1197,7 +1237,7 @@ async function downloadExportPng(){
   document.body.appendChild(a); a.click(); a.remove();
   if(status) status.textContent='PNG готов. Файл сохранён в загрузки браузера.';
 }
-function selectedFeatures(){ if(!state.currentGeoJSON) return []; if(!state.selectedIds.size) return state.currentGeoJSON.features; return state.currentGeoJSON.features.filter(f=>state.selectedIds.has(featureId(f))); }
+function selectedFeatures(){ if(!state.currentGeoJSON) return []; const base=state.currentGeoJSON.features.filter(isAnalyticsFeature); if(!state.selectedIds.size) return base; return base.filter(f=>state.selectedIds.has(featureId(f))); }
 function updateStatsAndSelection(){ if(!state.currentGeoJSON) return; updateStats(selectedFeatures()); updateSelectionBox(); updateLegend(state.currentGeoJSON,state._lastVals); if(state.export.open) renderExportPreviewCard(); }
 function updateStats(features){
   const all=!state.selectedIds.size;
@@ -1386,7 +1426,7 @@ function updateSelectionBox(){
 }
 function objectAttributesHtml(f){
   const props=f?.properties || {};
-  const rows=Object.entries(props).map(([k,v])=>`<div class="info-row attr-object-row"><span>${k}</span><b>${v===null||v===undefined||v===''?'—':String(v)}</b></div>`).join('');
+  const rows=Object.entries(props).map(([k,v])=>`<div class="info-row attr-object-row"><span>${escapeHtml(k)}</span><b>${v===null||v===undefined||v===''?'—':escapeHtml(String(v))}</b></div>`).join('');
   return `<div class="analytics-block object-attrs"><h3>Все атрибуты объекта</h3>${rows}</div>`;
 }
 function updateLegend(gj, vals){
@@ -8985,3 +9025,23 @@ function v84RefreshAllSpecialOverlays(){
     v84RefreshAllSpecialOverlays();
   };
 })();
+
+
+/* v85: special reconstruction statuses — keep on map, exclude from analytics */
+const v85PriorUpdateLegend = typeof updateLegend === 'function' ? updateLegend : null;
+updateLegend = function updateLegendV85(gj, vals){
+  if(v85PriorUpdateLegend) v85PriorUpdateLegend(gj, vals);
+  const box=$('legendBox'); if(!box || !gj) return;
+  const specials=[...new Set((gj.features||[]).map(f=>String(f.properties?.special_status_code||'')).filter(c=>c && c!=='normal'))];
+  if(!specials.length) return;
+  const section=document.createElement('div');
+  section.className='legend-special-v85';
+  section.innerHTML='<div class="legend-section">Особые зоны реконструкции</div>'+
+    specials.slice(0,10).map(code=>{
+      const st=specialStatusStyleMap[code] || {};
+      return `<div class="legend-row special-status-row-v85"><span class="swatch special-hatch-v85" style="border-color:${st.color||'#8b8580'};background-color:rgba(160,150,135,.10)"></span>${escapeHtml(specialStatusLabel(code))}</div>`;
+    }).join('')+
+    '<div class="legend-scale-note-v67">Особые зоны показываются на карте, но не входят в статистику и выборку.</div>';
+  box.appendChild(section);
+};
+
