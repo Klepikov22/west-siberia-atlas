@@ -1,4 +1,4 @@
-const APP_VERSION = '86';
+const APP_VERSION = '87';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -752,7 +752,7 @@ function updateTimelineActive(){ document.querySelectorAll('.timeline-year').for
 function clearLayer(name){ if(state.layers[name]){ state.map.removeLayer(state.layers[name]); state.layers[name]=null; }}
 function isStaleRefresh(seq){ return seq != null && seq !== state.refreshSeq; }
 function clearYearLayers(){
-  ['rivers','water','admin','circles','centers','labels','centerLabels','railways'].forEach(clearLayer);
+  ['rivers','water','admin','circles','centers','labels','centerLabels','railways','topologyGraph'].forEach(clearLayer);
   state.adminLayerById.clear();
   state.selectedCenterLayer=null;
   state.labelItems=[];
@@ -9045,3 +9045,167 @@ updateLegend = function updateLegendV85(gj, vals){
   box.appendChild(section);
 };
 
+
+
+/* v87: topology graph of ATE contiguity and centrality metrics */
+const v87TopologyModes = new Set(['topo_degree','topo_degree_centrality','topo_betweenness','topo_closeness','topo_k_core','topo_external_degree']);
+const v87TopologyMetricLabels = {
+  topo_degree:'число соседей',
+  topo_degree_centrality:'degree centrality',
+  topo_betweenness:'betweenness centrality',
+  topo_closeness:'closeness centrality',
+  topo_k_core:'k-core',
+  topo_external_degree:'межгубернские связи'
+};
+function v87IsTopologyMode(){ return v87TopologyModes.has(state.mode); }
+function v87TopologyMetricField(){
+  if(v87IsTopologyMode()) return state.mode;
+  const sel=$('topologyMetricSelect');
+  return (sel && v87TopologyModes.has(sel.value)) ? sel.value : 'topo_degree';
+}
+const v87PriorValField = valField;
+valField = function valFieldV87(){
+  if(v87IsTopologyMode()) return v87TopologyMetricField();
+  return v87PriorValField();
+};
+const v87PriorAdminStyle = adminStyle;
+adminStyle = function adminStyleV87(feature, vals){
+  const base=v87PriorAdminStyle(feature, vals);
+  if(v87IsTopologyMode()){
+    const p=feature.properties||{}; const field=v87TopologyMetricField();
+    base.fillColor = p.topology_excluded ? '#d7d1c8' : valueColor(Number(p[field]), vals||[]);
+    base.fillOpacity = p.topology_excluded ? 0.16 : Math.max(base.fillOpacity||0.45, 0.56);
+    if(p.topology_excluded){ base.dashArray='3 5'; base.color='#9b958c'; }
+  }
+  return base;
+};
+function v87TopoScaleValue(v, vals){
+  const values=(vals||[]).filter(x=>Number.isFinite(Number(x))).map(Number).sort((a,b)=>a-b);
+  const n=Number(v); if(!Number.isFinite(n) || !values.length) return 0;
+  const min=values[0], max=values[values.length-1]; if(max===min) return .7;
+  return Math.max(0, Math.min(1, (n-min)/(max-min)));
+}
+function v87TopologyRadius(v, vals){ return 4 + v87TopoScaleValue(v, vals)*13; }
+function v87TopologyVisible(){ return $('toggleTopologyGraph')?.checked || v87IsTopologyMode(); }
+async function v87RenderTopologyGraph(){
+  clearLayer('topologyGraph');
+  if(!state.map || !state.currentGeoJSON || !v87TopologyVisible()) return;
+  const topoPath=state.manifest?.layers?.topology?.[String(state.year)];
+  if(!topoPath) return;
+  const field=v87TopologyMetricField();
+  const features=(state.currentGeoJSON.features||[]);
+  const visibleById=new Map(features.map(f=>[featureId(f),f]));
+  const vals=features.filter(f=>!f.properties?.topology_excluded).map(f=>Number(f.properties?.[field])).filter(v=>Number.isFinite(v));
+  const group=L.layerGroup();
+  try{
+    const edges=await loadJson(topoPath);
+    const edgeFeatures=(edges.features||[]).filter(e=>visibleById.has(String(e.properties?.source_id)) && visibleById.has(String(e.properties?.target_id)));
+    const edgeLayer=L.geoJSON({type:'FeatureCollection',features:edgeFeatures},{
+      interactive:true,
+      style:f=>{ const rel=f.properties?.relation; const km=Number(f.properties?.boundary_km)||1; return {color:rel==='same_parent'?'#6f777a':'#9b6b32', weight:Math.max(.7, Math.min(3.2, .55+Math.log1p(km)/2.8)), opacity:rel==='same_parent'?0.42:0.68, dashArray:rel==='same_parent'?null:'5 5', lineCap:'round', lineJoin:'round'}; },
+      onEachFeature:(f,l)=>{ const p=f.properties||{}; l.on('mouseover',e=>showHoverLater({title:`${p.source_name} — ${p.target_name}`, subtitle:'ребро топологического графа', extra:`общая граница: ${num1(p.boundary_km)} км`, delay:250}, e.originalEvent)); l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover); }
+    });
+    group.addLayer(edgeLayer);
+  }catch(e){ console.warn('topology edges skipped', e); }
+  features.forEach(f=>{
+    const p=f.properties||{}; if(p.topology_excluded) return;
+    const layer=state.adminLayerById.get(featureId(f)); if(!layer || !layer.getBounds) return;
+    const c=layer.getBounds().getCenter(); const val=Number(p[field]);
+    const r=v87TopologyRadius(val, vals);
+    const m=L.circleMarker(c,{radius:r, color:'#2f3540', weight:1.15, fillColor:valueColor(val, vals), fillOpacity:.88, opacity:.95, pane:'markerPane'});
+    m.feature=f;
+    m.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`топология: ${v87TopologyMetricLabels[field]||field}`, extra:`соседей: ${p.topo_degree ?? '—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'}`, delay:250}, e.originalEvent));
+    m.on('mousemove',e=>moveHover(e.originalEvent));
+    m.on('mouseout',hideHover);
+    m.on('click',e=>{ L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f); });
+    group.addLayer(m);
+  });
+  state.layers.topologyGraph=group;
+  if(v87TopologyVisible()) group.addTo(state.map);
+}
+const v87PriorRefreshAdmin = refreshAdmin;
+refreshAdmin = async function refreshAdminV87(seq){
+  await v87PriorRefreshAdmin(seq);
+  if(isStaleRefresh(seq)) return;
+  await v87RenderTopologyGraph();
+};
+const v87PriorRefreshVisibility = refreshVisibility;
+refreshVisibility = function refreshVisibilityV87(){
+  v87PriorRefreshVisibility();
+  if(!state.map) return;
+  const layer=state.layers.topologyGraph;
+  if(layer){
+    if(v87TopologyVisible()){ if(!state.map.hasLayer(layer)) layer.addTo(state.map); layer.bringToFront && layer.bringToFront(); }
+    else if(state.map.hasLayer(layer)) state.map.removeLayer(layer);
+  }
+};
+function v87BindTopologyControls(){
+  const toggle=$('toggleTopologyGraph');
+  if(toggle && !toggle.dataset.v87Bound){ toggle.dataset.v87Bound='1'; toggle.addEventListener('change', async()=>{ await v87RenderTopologyGraph(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }); }
+  const metric=$('topologyMetricSelect');
+  if(metric && !metric.dataset.v87Bound){ metric.dataset.v87Bound='1'; metric.addEventListener('change', async()=>{ state.topologyMetric=metric.value; await v87RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }); }
+}
+const v87PriorInit = init;
+init = async function initV87(){
+  await v87PriorInit();
+  v87BindTopologyControls();
+};
+function v87TopoNum(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)<1) return n.toFixed(3).replace('.',','); return n.toFixed(1).replace('.',','); }
+function v87TopologyStatsBlock(features){
+  if(!state.currentGeoJSON) return '';
+  const source=(features && features.length) ? features : (state.currentGeoJSON.features||[]);
+  const feats=source.filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  if(!feats.length) return '';
+  const avg=(field)=>feats.reduce((a,f)=>a+(Number(f.properties?.[field])||0),0)/feats.length;
+  const maxBy=(field)=>[...feats].sort((a,b)=>(Number(b.properties?.[field])||0)-(Number(a.properties?.[field])||0))[0];
+  const topDeg=maxBy('topo_degree'); const topBet=maxBy('topo_betweenness'); const topCore=maxBy('topo_k_core');
+  const graph=feats[0].properties||{};
+  return `<div class="analytics-block topology-stats-v87"><h3>Топологическая связность АТД</h3>
+    <div class="metric-line"><span>узлов / рёбер графа</span><b>${num(graph.topo_graph_nodes)} / ${num(graph.topo_graph_edges)}</b></div>
+    <div class="metric-line"><span>компонент связности</span><b>${num(graph.topo_graph_components)}</b></div>
+    <div class="metric-line"><span>плотность графа</span><b>${v87TopoNum(graph.topo_graph_density)}</b></div>
+    <div class="metric-line"><span>средняя степень</span><b>${v87TopoNum(avg('topo_degree'))}</b></div>
+    <div class="metric-line"><span>средний k-core</span><b>${v87TopoNum(avg('topo_k_core'))}</b></div>
+    <div class="metric-line"><span>лидер по соседям</span><b>${escapeHtml(topDeg?.properties?.name||'—')} · ${num(topDeg?.properties?.topo_degree)}</b></div>
+    <div class="metric-line"><span>главный посредник</span><b>${escapeHtml(topBet?.properties?.name||'—')} · ${v87TopoNum(topBet?.properties?.topo_betweenness)}</b></div>
+    <div class="metric-line"><span>макс. ядро</span><b>${escapeHtml(topCore?.properties?.name||'—')} · k=${num(topCore?.properties?.topo_k_core)}</b></div>
+  </div>`;
+}
+const v87PriorUpdateStats = updateStats;
+updateStats = function updateStatsV87(features){
+  v87PriorUpdateStats(features);
+  const block=v87TopologyStatsBlock(features);
+  if(!block) return;
+  ['statsBox','rightStatsBox'].forEach(id=>{ const el=$(id); if(el && !el.querySelector('.topology-stats-v87')) el.insertAdjacentHTML('beforeend', block); });
+};
+const v87PriorUpdateLegend = updateLegend;
+updateLegend = function updateLegendV87(gj, vals){
+  v87PriorUpdateLegend(gj, vals);
+  const box=$('legendBox'); if(!box || !gj) return;
+  const hasTopo=(gj.features||[]).some(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  if(!hasTopo) return;
+  const metric=v87TopologyMetricField();
+  const checked=v87TopologyVisible();
+  const div=document.createElement('div');
+  div.className='legend-topology-v87';
+  div.innerHTML=`<div class="legend-section">Топологический граф</div>
+    <div class="legend-row"><span class="topology-node-swatch-v87"></span>узел АТЕ${checked?'':' · включается чекбоксом'}</div>
+    <div class="legend-row"><span class="topology-edge-swatch-v87"></span>общая граница ≥ 1 км</div>
+    <div class="legend-scale-note-v67">Метрика: ${escapeHtml(v87TopologyMetricLabels[metric]||metric)}. Спецзоны и малые города &lt; 50 км² исключены.</div>`;
+  box.appendChild(div);
+};
+const v87PriorShowFeature = showFeature;
+showFeature = function showFeatureV87(f){
+  v87PriorShowFeature(f);
+  const p=f?.properties||{}; const box=$('featureInfo');
+  if(!box || p.topology_excluded) return;
+  const html=`<div class="analytics-block topology-object-v87"><h3>Топология объекта</h3>
+    <div class="info-row"><span>соседей</span><b>${num(p.topo_degree)}</b></div>
+    <div class="info-row"><span>degree centrality</span><b>${v87TopoNum(p.topo_degree_centrality)}</b></div>
+    <div class="info-row"><span>betweenness</span><b>${v87TopoNum(p.topo_betweenness)}</b></div>
+    <div class="info-row"><span>closeness</span><b>${v87TopoNum(p.topo_closeness)}</b></div>
+    <div class="info-row"><span>k-core</span><b>${num(p.topo_k_core)}</b></div>
+    <div class="info-row"><span>связи внутри / вовне родителя</span><b>${num(p.topo_internal_degree)} / ${num(p.topo_external_degree)}</b></div>
+  </div>`;
+  box.insertAdjacentHTML('beforeend', html);
+};

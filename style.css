@@ -2850,3 +2850,14 @@ html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdro
   background-image:repeating-linear-gradient(45deg, rgba(70,60,45,.35) 0, rgba(70,60,45,.35) 1px, transparent 1px, transparent 6px);
   background-size:8px 8px;
 }
+
+
+/* v87 topology graph */
+.topology-controls{margin:10px 0 12px;padding:10px;border:1px solid rgba(128,116,92,.24);border-radius:14px;background:rgba(255,255,255,.58);box-shadow:0 5px 16px rgba(40,40,30,.04)}
+.compact-check{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#25313d;margin:6px 0 8px}
+.compact-check input{accent-color:#a37a2c}
+.topology-controls select{width:100%;min-width:0}
+.topology-node-swatch-v87{display:inline-block;width:14px;height:14px;border-radius:50%;background:#f1c744;border:2px solid #2f3540;margin-right:8px;vertical-align:middle}
+.topology-edge-swatch-v87{display:inline-block;width:24px;height:0;border-top:2px solid #6f777a;margin-right:8px;vertical-align:middle}
+.legend-topology-v87{margin-top:8px;border-top:1px solid rgba(120,110,95,.22);padding-top:8px}
+.topology-stats-v87 h3,.topology-object-v87 h3{letter-spacing:.04em}
