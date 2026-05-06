@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=87" />
+  <link rel="stylesheet" href="style.css?v=88" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v87</div>
+      <div class="eyebrow">Дипломный веб-атлас · v88</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -95,12 +95,15 @@
         <label class="control-label" for="topologyMetricSelect">Метрика узлов</label>
         <select id="topologyMetricSelect">
           <option value="topo_degree" selected>Degree: число соседей</option>
+          <option value="topo_degree_centrality">Degree centrality</option>
           <option value="topo_betweenness">Betweenness: посредничество</option>
           <option value="topo_closeness">Closeness: близость</option>
           <option value="topo_k_core">K-core: ядро / периферия</option>
           <option value="topo_external_degree">Межгубернские связи</option>
+          <option value="topo_external_share">Доля внешних связей</option>
         </select>
-        <div class="mini-muted">Граф строится по общей границе АТЕ ≥ 1 км. Спорные зоны и малые города &lt; 50 км² не участвуют.</div>
+        <button id="openTopologyTrends" type="button" class="mini-action topology-trends-btn-v88">Динамика метрик по годам</button>
+        <div class="mini-muted">Граф строится по общей границе АТЕ ≥ 1 км. Спорные зоны и малые города &lt; 50 км² не участвуют. Рёбра и узлы включаются только этим чекбоксом.</div>
       </section>
 
       <label class="control-label" for="regionStyleSelect">Стиль районов</label>
@@ -243,6 +246,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=88"></script>
 </body>
 </html>
