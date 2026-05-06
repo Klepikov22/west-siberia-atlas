@@ -2899,3 +2899,20 @@ html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdro
 .topology-edge-bridge-v89{border-top-color:#111827;border-top-style:double;border-top-width:5px}
 .topology-node-swatch-v89{display:inline-block;width:16px;height:16px;border-radius:50%;background:#f1c744;border:2px solid #0c1721;box-shadow:0 1px 3px rgba(0,0,0,.25);margin-right:8px;vertical-align:middle}
 .topology-stats-v89 .metric-line span{max-width:62%}
+
+
+/* v90 topology graph visibility and numeric legend */
+.topology-edge-path-v90{filter:drop-shadow(0 0 2px rgba(255,255,255,.75));mix-blend-mode:multiply;}
+.topology-node-marker-v90{filter:drop-shadow(0 1px 3px rgba(0,0,0,.38));}
+.topology-edge-same-v90,.topology-edge-super-v90,.topology-edge-cross-v90,.topology-edge-unknown-v90,.topology-edge-uniform-v90,.topology-edge-bridge-v90{display:inline-block;width:34px;height:0;border-top:4px solid #1769aa;border-radius:4px;margin-right:8px;vertical-align:middle;}
+.topology-edge-super-v90{border-top-color:#7c4db2;border-top-style:dashed;}
+.topology-edge-cross-v90{border-top-color:#d85b12;border-top-style:dashed;}
+.topology-edge-unknown-v90{border-top-color:#666f78;border-top-style:dotted;}
+.topology-edge-uniform-v90{border-top-color:#2d3744;}
+.topology-edge-bridge-v90{border-top-color:#111827;border-top-width:5px;box-shadow:0 0 0 2px rgba(255,255,255,.75);}
+.topology-node-swatch-v90{display:inline-block;width:18px;height:18px;border-radius:50%;background:#5ba7d5;border:2px solid #111827;box-shadow:0 1px 3px rgba(0,0,0,.28);margin-right:8px;vertical-align:middle;}
+.legend-topology-v90 .legend-row b,.legend-row-class-v67 b{margin-left:auto;font-weight:800;color:#2a3540;}
+.topology-trend-controls-v90{display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:14px 18px;align-items:start;margin-bottom:14px;}
+.topology-trend-controls-v90 .topology-trend-buttons-v88{grid-column:1 / -1;}
+.topology-trend-svg-v90{width:100%;min-height:320px;}
+@media(max-width:900px){.topology-trend-controls-v90{grid-template-columns:1fr;}}
