@@ -228,8 +228,8 @@
       "1989": "data/topology/topology_nodes_1989.geojson",
       "2021": "data/topology/topology_nodes_2021.geojson"
     },
-    "boundary_stability": "data/stability/boundary_stability_v94.geojson",
-    "boundary_stability_summary": "data/stability/boundary_stability_v94_summary.json"
+    "boundary_stability": "data/stability/boundary_stability_v95.geojson",
+    "boundary_stability_summary": "data/stability/boundary_stability_v95_summary.json"
   },
   "notes": [
     "v3: добавлен слой океана; административные полигоны обрезаны разностью с Ocean.geojson; добавлена выборочная статистика.",

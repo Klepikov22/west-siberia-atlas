@@ -1,4 +1,4 @@
-const APP_VERSION = '94';
+const APP_VERSION = '95';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10592,7 +10592,7 @@ updateStatsAndSelection = function updateStatsAndSelectionV92(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,380),{once:true}); else setTimeout(boot,380);
 })();
 
-/* v94: true shared-boundary geometric stability layer for Western Siberia */
+/* v95: actual boundary stability layer: internal + external/exposed historical contours */
 function v93BoundaryStabilityVisible(){ return !!$('toggleBoundaryStability')?.checked; }
 function v93BoundaryStabilityMin(){ return Number($('boundaryStabilityMinSelect')?.value || 12); }
 function v93BoundaryStabilityStyleMode(){ return $('boundaryStabilityStyleSelect')?.value || 'class'; }
@@ -10609,7 +10609,7 @@ function v93EnsureBoundaryStabilityPane(){
   lp.style.pointerEvents='none';
 }
 async function v93LoadBoundaryStability(){
-  const path=state.manifest?.layers?.boundary_stability || 'data/stability/boundary_stability_v94.geojson';
+  const path=state.manifest?.layers?.boundary_stability || 'data/stability/boundary_stability_v95.geojson';
   try{ return await loadJson(path); }catch(e){ console.warn('boundary stability skipped', e); return {type:'FeatureCollection',features:[],properties:{}}; }
 }
 function v93BoundaryStabilityColor(count){
@@ -10634,7 +10634,9 @@ function v93BoundaryStabilityStyle(feature){
 }
 function v93BoundaryStabilityTooltip(p){
   const yrs=Array.isArray(p.years) ? p.years.join(', ') : String(p.years||'—');
-  return `${num(p.years_count)} из ${num(p.years_total)} срезов · ${pct(p.stability_share)} · допуск ±${num(p.tolerance_km)} км · ср. расстояние линия-к-линии ${num1(p.mean_offset_km)} км<br><span class="mini-muted">настоящая граница: ${escapeHtml(String(p.source_name||'граница'))} — ${escapeHtml(String(p.target_name||'граница'))}</span><br><span class="mini-muted">реф. год: ${escapeHtml(String(p.reference_year||'—'))}; годы совпадения: ${escapeHtml(yrs)}</span>`;
+  const anchor=p.nearest_river ? `${escapeHtml(String(p.natural_anchor||'речной рубеж'))}: ${escapeHtml(String(p.nearest_river))}${p.nearest_river_distance_km!=null?` · ${num1(p.nearest_river_distance_km)} км`:''}` : escapeHtml(String(p.natural_anchor||'реальный рубеж АТЕ'));
+  const scope=p.boundary_scope==='internal_and_external_exposed_contours' ? 'внутренние + внешние/экспонированные контуры' : 'реальные контуры АТЕ';
+  return `${num(p.years_count)} из ${num(p.years_total)} срезов · ${pct(p.stability_share)} · допуск ±${num(p.tolerance_km)} км · ср. смещение ${num1(p.mean_offset_km)} км<br><span class="mini-muted">реальная граница: ${escapeHtml(String(p.source_name||'граница'))}; ${scope}</span><br><span class="mini-muted">привязка: ${anchor}</span><br><span class="mini-muted">реф. год: ${escapeHtml(String(p.reference_year||'—'))}; годы совпадения: ${escapeHtml(yrs)}</span>`;
 }
 function v93BoundaryStabilityLabelHtml(p){
   return `<span class="boundary-stability-label-v93" style="font-size:${v93BoundaryStabilityLabelSize()}px">${num(p.years_count)} срез.</span>`;
@@ -10698,7 +10700,7 @@ function v93BoundaryStabilityLegendHtml(){
     ${row('h','высокая · 8–11 срезов',s.counts?.high,'#c2410c')}
     ${row('m','средняя · 4–7 срезов',s.counts?.medium,'#d97706')}
     ${row('l','низкая · 2–3 среза',s.counts?.low,'#64748b')}
-    <div class="mini-muted legend-scale-note-v67">Показано: ${num(s.visible||0)} настоящих сегм. Мин.: ${num(s.min||v93BoundaryStabilityMin())} срезов. Метод: расстояние линия-к-линии. Допуск: ±15 км севернее 59° с.ш.; ±10 км южнее.</div>`;
+    <div class="mini-muted legend-scale-note-v67">Показано: ${num(s.visible||0)} реальных сегм. Мин.: ${num(s.min||v93BoundaryStabilityMin())} срезов. v95: реальные границы АТЕ, включая внешние/речные/орографические контуры; период 1700–1923. Допуск: ±15 км севернее 59° с.ш.; ±10 км южнее.</div>`;
 }
 const v93PriorUpdateLegend = updateLegend;
 updateLegend = function updateLegendV93(gj, vals){
