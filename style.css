@@ -2916,3 +2916,40 @@ html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdro
 .topology-trend-controls-v90 .topology-trend-buttons-v88{grid-column:1 / -1;}
 .topology-trend-svg-v90{width:100%;min-height:320px;}
 @media(max-width:900px){.topology-trend-controls-v90{grid-template-columns:1fr;}}
+
+/* v91 topology overlay, legend and trend modal refinements */
+.topology-edge-path-v91{filter:drop-shadow(0 0 2px rgba(255,255,255,.86)) drop-shadow(0 1px 2px rgba(0,0,0,.24))!important;mix-blend-mode:normal!important;pointer-events:none;}
+.topology-node-marker-v91{filter:drop-shadow(0 1px 4px rgba(0,0,0,.42));stroke-linejoin:round;}
+.legend-title-v91{font-weight:750;color:var(--text);margin-bottom:6px;}
+.legend-topology-v91 .legend-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;}
+.legend-topology-v91 .legend-row span:nth-child(2){min-width:0;}
+.legend-count-v91{margin-left:auto;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;}
+.legend-topology-v91 .legend-section{letter-spacing:.07em;}
+.legend-topology-v91 .legend-row-class-v67 b{font-weight:500;color:var(--muted);}
+.topology-trends-modal-v91 .chart-lightbox-card{left:max(330px,3vw);right:max(210px,3vw);top:24px;bottom:44px;min-height:520px;}
+.topology-trends-body-v91{height:100%;min-height:0;overflow:hidden;}
+.topology-trend-layout-v91{display:grid;grid-template-columns:minmax(276px,340px) minmax(0,1fr);gap:18px;height:100%;min-height:0;align-items:stretch;}
+.topology-trend-controls-v91{display:grid;gap:12px;align-content:start;overflow:auto;padding:14px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.42);}
+:root[data-theme="dark"] .topology-trend-controls-v91{background:rgba(15,18,24,.34);}
+.topology-trend-controls-v91 .control-label,.topology-trend-head-v91{font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:850;color:var(--muted);}
+.topology-trend-control-v91{display:grid;gap:6px;}
+.topology-trend-control-v91 select,.topology-trend-controls-v91 input[type="range"]{width:100%;}
+.topology-trend-color-grid-v91{display:grid;grid-template-columns:1fr 52px;gap:8px 10px;align-items:center;}
+.topology-trend-color-grid-v91 input[type="color"]{width:52px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:3px;}
+.topology-trend-label-grid-v91{display:grid;gap:8px;padding-top:2px;}
+.topology-trend-buttons-v91{grid-template-columns:1fr!important;}
+.topology-years-label-v91{margin-bottom:6px;}
+.topology-trend-years-v91{grid-template-columns:repeat(3,1fr);max-height:220px;}
+.topology-trend-main-v91{display:grid;grid-template-rows:minmax(320px,1fr) minmax(150px,230px);gap:12px;min-width:0;min-height:0;}
+.topology-trend-chart-v91{min-height:320px;overflow:hidden;}
+.topology-trend-table-v91{max-height:none;overflow:auto;padding-right:4px;}
+.topology-trend-svg-v91{width:100%;height:100%;max-height:none;display:block;}
+.trend-line-v91{stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 3px 5px rgba(80,50,10,.18));}
+.trend-point-v91{stroke:#1f2937;stroke-width:1.4;}
+.trend-point-label-v91{fill:var(--text);font-weight:760;paint-order:stroke;stroke:rgba(255,255,255,.82);stroke-width:3px;stroke-linejoin:round;}
+:root[data-theme="dark"] .trend-point-label-v91{stroke:rgba(15,18,24,.86);}
+.trend-title-v91{text-transform:uppercase;letter-spacing:.08em;font-weight:900;}
+.topology-trend-note-v91{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35;}
+.topology-trend-row-v91 .pie-dot{border-color:#1f2937;}
+@media(max-width:1180px){.topology-trend-layout-v91{grid-template-columns:1fr;overflow:auto}.topology-trends-modal-v91 .chart-lightbox-card{left:18px!important;right:18px!important;bottom:52px!important}.topology-trend-controls-v91{overflow:visible}.topology-trend-years-v91{grid-template-columns:repeat(5,1fr);max-height:180px}.topology-trend-main-v91{grid-template-rows:auto auto}.topology-trend-svg-v91{height:auto;}}
+@media(max-width:760px){.topology-trend-years-v91{grid-template-columns:repeat(3,1fr)}.topology-trend-color-grid-v91{grid-template-columns:1fr 48px}.topology-trends-modal-v91 .chart-lightbox-card{left:10px!important;right:10px!important;top:10px!important;bottom:10px!important}.topology-trend-layout-v91{gap:12px}.topology-trend-controls-v91{padding:10px}.topology-trend-head-v91,.topology-trend-row-v91{grid-template-columns:10px 52px 74px minmax(0,1fr)!important;}}
