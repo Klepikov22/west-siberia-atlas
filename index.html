@@ -149,10 +149,6 @@
         <div class="topology-layer-controls-v92" aria-label="Топологический граф связности АТЕ">
           <div class="topology-layer-title-v92">Топологический граф</div>
           <label><input type="checkbox" id="toggleTopologyGraph"> Рёбра и узлы смежности</label>
-          <div class="topology-layer-subtoggles-v93" aria-label="Раздельное отображение элементов графа">
-            <label><input type="checkbox" id="toggleTopologyEdges" checked> Рёбра</label>
-            <label><input type="checkbox" id="toggleTopologyNodes" checked> Узлы</label>
-          </div>
           <label class="topology-inline-field-v92"><span>Метрика узлов</span>
             <select id="topologyMetricSelect">
               <option value="topo_degree" selected>Degree: число соседей</option>
@@ -171,7 +167,33 @@
             </select>
           </label>
           <button id="openTopologyTrends" type="button" class="mini-action topology-trends-btn-v88">Динамика метрик по годам</button>
-          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Рёбра и узлы можно включать отдельно. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
+          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
+        </div>
+        <div class="boundary-stability-controls-v93" aria-label="Устойчивость границ АТД">
+          <div class="boundary-stability-title-v93">Устойчивость границ</div>
+          <label><input type="checkbox" id="toggleBoundaryStability"> Устойчивые рубежи АТД</label>
+          <label class="topology-inline-field-v92"><span>Минимум срезов</span>
+            <select id="boundaryStabilityMinSelect">
+              <option value="2">2+ среза</option>
+              <option value="4">4+ среза</option>
+              <option value="6">6+ срезов</option>
+              <option value="8">8+ срезов</option>
+              <option value="10">10+ срезов</option>
+              <option value="12" selected>12+ срезов</option>
+            </select>
+          </label>
+          <label class="topology-inline-field-v92"><span>Стиль линий</span>
+            <select id="boundaryStabilityStyleSelect">
+              <option value="class" selected>Класс: цвет + толщина</option>
+              <option value="mono">Монохромная толщина</option>
+              <option value="offset">По среднему смещению</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="toggleBoundaryStabilityLabels"> Подписи устойчивых рубежей</label>
+          <label class="topology-inline-field-v92"><span>Размер подписи</span>
+            <input id="boundaryStabilityLabelSize" type="range" min="9" max="18" step="1" value="11">
+          </label>
+          <div class="mini-muted">Геометрическая устойчивость настоящих общих границ: расстояние линия-к-линии. Допуск: 15 км севернее 59° с.ш., 10 км южнее. Спорные/неясные/двоеданческие/передаваемые территории исключены.</div>
         </div>
       </div>
 
