@@ -1,5 +1,9 @@
 {
   "years": [
+    1745,
+    1765,
+    1780,
+    1783,
     1798,
     1805,
     1809,
@@ -25,6 +29,10 @@
   ],
   "layers": {
     "admin": {
+      "1745": "data/admin/admin_1745.geojson",
+      "1765": "data/admin/admin_1765.geojson",
+      "1780": "data/admin/admin_1780.geojson",
+      "1783": "data/admin/admin_1783.geojson",
       "1798": "data/admin/admin_1798.geojson",
       "1805": "data/admin/admin_1805.geojson",
       "1809": "data/admin/admin_1809.geojson",
@@ -79,6 +87,9 @@
       "1926": "data/urban/urban_polygons_1926.geojson",
       "1930": "data/urban/urban_polygons_1930.geojson",
       "1939": "data/urban/urban_polygons_1939.geojson"
+    },
+    "special_overlays": {
+      "kolyvan_mining_department": "data/special/kolyvan_special_layer.geojson"
     }
   },
   "notes": [
@@ -110,7 +121,7 @@
     "v72: подключены административные срезы 1848, 1855 и 1876 гг.; добавлен фильтр таймлайна по векам и режим слайд-шоу для просмотра изменения сетки АТД.",
     "v73: подключены административные срезы 1947 и 1964 гг.; население сверено по диагностическим таблицам, плотность населения пересчитана, рассчитаны протяжённость ЖД и густота ЖД по активным линиям соответствующего года."
   ],
-  "app_version": "82",
+  "app_version": "83",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,

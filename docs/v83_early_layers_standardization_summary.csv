@@ -1,0 +1,10 @@
+year,source_file,features,special_or_uncertain_features,features_with_population,duplicate_like_groups_kept
+1745,layer_1745.geojson,18,2,0,0
+1765,layer_1765.geojson,19,2,0,0
+1780,layer_1780.geojson,12,5,0,2
+1783,layer_1783.geojson,25,2,0,2
+1798,layer_1798.geojson,23,4,0,4
+1805,layer_1805.geojson,26,7,0,3
+1809,layer_1809.geojson,19,2,0,1
+1821,layer_1821.geojson,26,9,0,2
+1838,layer_1838.geojson,27,2,9,0

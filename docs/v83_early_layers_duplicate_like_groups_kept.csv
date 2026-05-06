@@ -1,0 +1,15 @@
+year,key_name,admin_parent,unit_type,feature_count,operation,unit_ids,statuses
+1780,Кузнецкий уезд,Колыванская область,уезд,2,kept_as_separate_reconstruction_fragments,adm_1780_005|adm_1780_010,выверенная граница
+1780,Волости двоеданцев,Колыванская область,волость,2,kept_as_separate_reconstruction_fragments,adm_1780_009|adm_1780_011,двоеданческие волости / зона двойной даннической принадлежности
+1783,Бийский уезд,Колыванское наместничество,уезд,2,kept_as_separate_reconstruction_fragments,adm_1783_004|adm_1783_022,
+1783,Волости двоеданцев,Колыванская область,волость,2,kept_as_separate_reconstruction_fragments,adm_1783_023|adm_1783_024,двоеданческие волости / зона двойной даннической принадлежности
+1798,Туруханский уезд,Тобольская губерния,уезд,2,kept_as_separate_reconstruction_fragments,adm_1798_001|adm_1798_020,
+1798,Березовский уезд,Тобольская губерния,уезд,2,kept_as_separate_reconstruction_fragments,adm_1798_003|adm_1798_021,
+1798,Томский уезд,Тобольская губерния,уезд,2,kept_as_separate_reconstruction_fragments,adm_1798_015|adm_1798_018,
+1798,Волости двоеданцев,Тобольская губерния,волость,2,kept_as_separate_reconstruction_fragments,adm_1798_022|adm_1798_023,двоеданческие волости / зона двойной даннической принадлежности
+1805,Туруханский уезд,Томская губерния,уезд,2,kept_as_separate_reconstruction_fragments,adm_1805_001|adm_1805_017,
+1805,Неясная принадлежность границ,Неясная принадлежность границ,реконструкционная зона,3,kept_as_separate_reconstruction_fragments,adm_1805_002|adm_1805_003|adm_1805_022,не уточнена принадлежность
+1805,Енисейский уезд,Томская губерния,уезд,2,kept_as_separate_reconstruction_fragments,adm_1805_020|adm_1805_021,
+1809,Волости двоеданцев,Верхний уровень не указан,волость,2,kept_as_separate_reconstruction_fragments,adm_1809_018|adm_1809_019,двоеданческие волости / зона двойной даннической принадлежности
+1821,Неясная принадлежность границ,Неясная принадлежность границ,реконструкционная зона,5,kept_as_separate_reconstruction_fragments,adm_1821_002|adm_1821_003|adm_1821_019|adm_1821_020|adm_1821_022,не уточнена принадлежность
+1821,Волости двоеданцев,Верхний уровень не указан,волость,2,kept_as_separate_reconstruction_fragments,adm_1821_023|adm_1821_026,двоеданческие волости / зона двойной даннической принадлежности
