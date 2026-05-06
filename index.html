@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=83" />
+  <link rel="stylesheet" href="style.css?v=84" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v80</div>
+      <div class="eyebrow">Дипломный веб-атлас · v84</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -140,6 +140,13 @@
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Символы населения</label>
       </div>
+
+
+      <section id="specialLayerPanel" class="special-layer-controls" aria-label="Специальные слои реконструкции">
+        <div class="symbol-controls-title">Специальные слои</div>
+        <div id="specialLayerList" class="special-layer-list">Загрузка списка…</div>
+        <div class="mini-muted">Оверлеи не участвуют в статистике и выборке основных АТЕ.</div>
+      </section>
 
       <section class="population-symbol-controls" aria-label="Настройки символов населения">
         <div class="symbol-controls-title">Символы населения</div>
@@ -218,6 +225,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=83"></script>
+  <script src="app.js?v=84"></script>
 </body>
 </html>

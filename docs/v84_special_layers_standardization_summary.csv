@@ -1,0 +1,4 @@
+key,source,features,years,type
+early_1680_boundaries,layer_1680_17_century.geojson,16,1680,polygon
+ostrogs_17c,ostrogs1700.geojson,15,1600-1699,point
+kolyvan_mining_department,layer_kolyvan_special_layer.geojson,3,"1735,1745,1750",temporal_polygon

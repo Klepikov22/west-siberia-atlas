@@ -1,4 +1,4 @@
-const APP_VERSION = '83';
+const APP_VERSION = '84';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -1573,7 +1573,7 @@ function segmentsIntersect(a,b,c,d){
   return (o1>0)!=(o2>0) && (o3>0)!=(o4>0);
 }
 
-init().catch(err=>{console.error(err); alert('Ошибка загрузки данных: '+err.message);});
+init().then(()=>{ try{ v84RenderSpecialLayerControls(); }catch(e){ console.warn('v84 special controls init failed', e); } }).catch(err=>{console.error(err); alert('Ошибка загрузки данных: '+err.message);});
 
 /* v34 overrides: export map as live vector map, A4 modes, academic templates, circle-only symbols */
 function exportTemplateName(){
@@ -8867,4 +8867,121 @@ updateTimelineActive = function updateTimelineActiveV77(){
     }catch(e){ console.warn('v77 timeline carousel init skipped', e); }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,120),{once:true}); else setTimeout(boot,120);
+})();
+
+
+/* v84: special overlays panel + latest early admin layers */
+function v84EnsureSpecialState(){
+  if(!state.specialOverlays) state.specialOverlays={active:{}, layers:{}, configs:{}, kolyvanYear:'all'};
+  return state.specialOverlays;
+}
+function v84SpecialConfigEntries(){
+  const so=v84EnsureSpecialState();
+  const raw=state.manifest?.layers?.special_overlays || {};
+  return Object.entries(raw).map(([key,cfg])=>{
+    const c=typeof cfg==='string' ? {path:cfg,title:key,type:'polygon',years:[]} : {...cfg};
+    c.key=key; c.path=c.path || c.url || c.href; c.title=c.title || key; c.type=c.type || 'polygon';
+    so.configs[key]=c;
+    return [key,c];
+  });
+}
+function v84RenderSpecialLayerControls(){
+  const box=$('specialLayerList');
+  if(!box || !state.manifest) return;
+  const entries=v84SpecialConfigEntries();
+  if(!entries.length){ box.innerHTML='<div class="mini-muted">Специальных слоёв нет.</div>'; return; }
+  box.innerHTML=entries.map(([key,c])=>{
+    const years=Array.isArray(c.years)&&c.years.length ? ` <small>${c.years.join(' / ')}</small>` : '';
+    const temporal=c.type==='temporal_polygon';
+    return `<div class="special-layer-item" data-special-key="${escapeHtml(key)}">
+      <label><input type="checkbox" data-special-toggle="${escapeHtml(key)}"> <span>${escapeHtml(c.title)}${years}</span></label>
+      ${temporal?`<select class="special-layer-year-select" data-special-year="${escapeHtml(key)}"><option value="all">все срезы</option>${(c.years||[]).map(y=>`<option value="${y}">${y}</option>`).join('')}</select>`:''}
+      <div class="mini-muted">${escapeHtml(c.note || 'Специальный оверлей, не входит в основную аналитику.')}</div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-special-toggle]').forEach(ch=>ch.addEventListener('change', e=>{
+    const so=v84EnsureSpecialState();
+    const key=e.target.dataset.specialToggle;
+    so.active[key]=!!e.target.checked;
+    v84RefreshSpecialOverlay(key);
+  }));
+  box.querySelectorAll('[data-special-year]').forEach(sel=>sel.addEventListener('change', e=>{
+    const key=e.target.dataset.specialYear;
+    if(key==='kolyvan_mining_department') v84EnsureSpecialState().kolyvanYear=e.target.value || 'all';
+    v84RefreshSpecialOverlay(key);
+  }));
+}
+function v84SpecialColor(key, year){
+  if(key==='early_1680_boundaries') return '#7c5cc4';
+  if(key==='ostrogs_17c') return '#8f4f00';
+  if(key==='kolyvan_mining_department'){
+    const pal={1735:'#8b5cf6',1745:'#d97706',1750:'#047857'};
+    return pal[Number(year)] || '#6b7280';
+  }
+  return '#7a5c2e';
+}
+function v84SpecialDash(key, year){
+  if(key==='kolyvan_mining_department'){
+    const y=Number(year);
+    if(y===1735) return '8 5';
+    if(y===1745) return '3 5';
+    if(y===1750) return null;
+  }
+  if(key==='early_1680_boundaries') return '6 4';
+  return null;
+}
+async function v84LoadSpecialGeoJSON(key){
+  const cfg=v84EnsureSpecialState().configs[key] || v84SpecialConfigEntries().find(([k])=>k===key)?.[1];
+  if(!cfg?.path) return null;
+  const gj=await loadJson(cfg.path);
+  if(key==='kolyvan_mining_department'){
+    const yy=v84EnsureSpecialState().kolyvanYear || 'all';
+    if(yy!=='all') return {type:'FeatureCollection', features:(gj.features||[]).filter(f=>String(f.properties?.overlay_year||f.properties?.Year||'')===String(yy))};
+  }
+  return gj;
+}
+function v84SpecialPointToLayer(key, f, latlng){
+  const color=v84SpecialColor(key, f.properties?.overlay_year);
+  return L.circleMarker(latlng,{radius:5.5,color:'#4a2a00',weight:1.4,fillColor:color,fillOpacity:.92,opacity:.98});
+}
+function v84SpecialFeatureStyle(key, f){
+  const year=f.properties?.overlay_year || f.properties?.Year;
+  const color=v84SpecialColor(key, year);
+  return {color, weight:key==='kolyvan_mining_department'?2.2:1.8, opacity:.95, fillColor:color, fillOpacity:key==='early_1680_boundaries'?.10:.14, dashArray:v84SpecialDash(key, year), lineJoin:'round', lineCap:'round'};
+}
+function v84BindSpecialPopup(key, f, layer){
+  const p=f.properties||{};
+  const title=p.name || p.Name || p.special_overlay_title || 'Специальный объект';
+  const rows=[p.special_overlay_title, p.overlay_year?`срез: ${p.overlay_year}`:'', p.unit_type, p.special_status, p.atd_hierarchy].filter(Boolean).map(x=>escapeHtml(x));
+  layer.bindPopup(`<b>${escapeHtml(title)}</b>${rows.map(r=>`<br>${r}`).join('')}<br><span style="color:#667">Не участвует в аналитике основных АТЕ</span>`);
+}
+async function v84RefreshSpecialOverlay(key){
+  const so=v84EnsureSpecialState();
+  if(so.layers[key]){ try{ state.map.removeLayer(so.layers[key]); }catch(_){ } so.layers[key]=null; }
+  if(!so.active[key] || !state.map) return;
+  const gj=await v84LoadSpecialGeoJSON(key);
+  if(!gj) return;
+  const layer=L.geoJSON(gj,{
+    style:f=>v84SpecialFeatureStyle(key,f),
+    pointToLayer:(f,latlng)=>v84SpecialPointToLayer(key,f,latlng),
+    onEachFeature:(f,l)=>v84BindSpecialPopup(key,f,l)
+  }).addTo(state.map);
+  so.layers[key]=layer;
+  layer.bringToFront && layer.bringToFront();
+}
+function v84RefreshAllSpecialOverlays(){
+  const so=v84EnsureSpecialState();
+  Object.keys(so.active||{}).forEach(key=>v84RefreshSpecialOverlay(key));
+}
+(function initV84SpecialOverlayPatch(){
+  const priorInit = init;
+  init = async function initV84(){
+    await priorInit();
+    v84RenderSpecialLayerControls();
+  };
+  const priorRefreshVisibility = refreshVisibility;
+  refreshVisibility = function refreshVisibilityV84(){
+    priorRefreshVisibility();
+    v84RefreshAllSpecialOverlays();
+  };
 })();

@@ -2832,3 +2832,13 @@ html.compact-1080-v68 #timelineBar.timeline-v77{
     min-width:360px!important;
   }
 }
+
+
+/* v84 special overlay controls */
+.special-layer-controls{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:16px;background:var(--panel-soft);box-shadow:var(--shadow-soft)}
+.special-layer-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.special-layer-item{padding:8px 9px;border:1px solid rgba(130,120,98,.22);border-radius:12px;background:rgba(255,255,255,.52)}
+.special-layer-item label{display:flex;align-items:center;gap:7px;font-weight:800;font-size:12px;color:var(--text)}
+.special-layer-item small{color:var(--muted);font-weight:800;margin-left:4px}
+.special-layer-year-select{margin-top:7px;width:100%;font-size:12px;padding:5px 8px;border-radius:10px;border:1px solid var(--border);background:var(--control-bg);color:var(--text)}
+html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdrop-filter:blur(16px) saturate(1.2)}
