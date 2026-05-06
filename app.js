@@ -1,4 +1,4 @@
-const APP_VERSION = '92';
+const APP_VERSION = '93';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10590,4 +10590,148 @@ updateStatsAndSelection = function updateStatsAndSelectionV92(){
 (function v92BootTopology(){
   const boot=()=>{ try{ v91BindTopologyControls(); v92RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(e){ console.warn('v92 topology boot failed', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,380),{once:true}); else setTimeout(boot,380);
+})();
+
+/* v93: geometric boundary stability layer for Western Siberia */
+function v93BoundaryStabilityVisible(){ return !!$('toggleBoundaryStability')?.checked; }
+function v93BoundaryStabilityMin(){ return Number($('boundaryStabilityMinSelect')?.value || 12); }
+function v93BoundaryStabilityStyleMode(){ return $('boundaryStabilityStyleSelect')?.value || 'class'; }
+function v93BoundaryStabilityLabelSize(){ return Math.max(9, Math.min(18, Number($('boundaryStabilityLabelSize')?.value || 11))); }
+function v93EnsureBoundaryStabilityPane(){
+  if(!state.map) return;
+  let p=state.map.getPane('boundaryStabilityPane');
+  if(!p) p=state.map.createPane('boundaryStabilityPane');
+  p.style.zIndex='865';
+  p.style.pointerEvents='auto';
+  let lp=state.map.getPane('boundaryStabilityLabelPane');
+  if(!lp) lp=state.map.createPane('boundaryStabilityLabelPane');
+  lp.style.zIndex='875';
+  lp.style.pointerEvents='none';
+}
+async function v93LoadBoundaryStability(){
+  const path=state.manifest?.layers?.boundary_stability || 'data/stability/boundary_stability_v93.geojson';
+  try{ return await loadJson(path); }catch(e){ console.warn('boundary stability skipped', e); return {type:'FeatureCollection',features:[],properties:{}}; }
+}
+function v93BoundaryStabilityColor(count){
+  const n=Number(count)||0;
+  if(n>=12) return '#7f1d1d';
+  if(n>=8) return '#c2410c';
+  if(n>=4) return '#d97706';
+  return '#64748b';
+}
+function v93BoundaryStabilityStyle(feature){
+  const p=feature.properties||{};
+  const count=Number(p.years_count)||0;
+  const off=Number(p.mean_offset_km)||0;
+  const mode=v93BoundaryStabilityStyleMode();
+  const baseWeight=Math.max(1.35, Math.min(6.2, 1.1 + Math.log1p(count)*1.15));
+  if(mode==='mono') return {pane:'boundaryStabilityPane', color:'#7c2d12', weight:baseWeight, opacity:.82, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
+  if(mode==='offset'){
+    const color=off<=3 ? '#166534' : (off<=7 ? '#a16207' : '#991b1b');
+    return {pane:'boundaryStabilityPane', color, weight:baseWeight, opacity:.82, dashArray:off>7?'5 5':null, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
+  }
+  return {pane:'boundaryStabilityPane', color:v93BoundaryStabilityColor(count), weight:baseWeight, opacity:count>=8?.88:.70, dashArray:count<4?'4 6':null, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
+}
+function v93BoundaryStabilityTooltip(p){
+  const yrs=Array.isArray(p.years) ? p.years.join(', ') : String(p.years||'—');
+  return `${num(p.years_count)} из ${num(p.years_total)} срезов · ${pct(p.stability_share)} · допуск ±${num(p.tolerance_km)} км · ср. смещение ${num1(p.mean_offset_km)} км<br><span class="mini-muted">${escapeHtml(String(p.source_name||'граница'))} — ${escapeHtml(String(p.target_name||'граница'))}</span><br><span class="mini-muted">годы: ${escapeHtml(yrs)}</span>`;
+}
+function v93BoundaryStabilityLabelHtml(p){
+  return `<span class="boundary-stability-label-v93" style="font-size:${v93BoundaryStabilityLabelSize()}px">${num(p.years_count)} срез.</span>`;
+}
+function v93RepresentativeLayerLatLng(layer){
+  try{
+    if(layer.getBounds) return layer.getBounds().getCenter();
+    if(layer.getLatLng) return layer.getLatLng();
+  }catch(_){ }
+  return null;
+}
+async function v93RenderBoundaryStability(){
+  try{ clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
+  state.boundaryStabilityStats={total:0, visible:0, counts:{low:0,medium:0,high:0,veryHigh:0}, min:v93BoundaryStabilityMin()};
+  if(!state.map || !v93BoundaryStabilityVisible()) { try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){} return; }
+  v93EnsureBoundaryStabilityPane();
+  const token=(state._boundaryStabilityTokenV93||0)+1;
+  state._boundaryStabilityTokenV93=token;
+  const gj=await v93LoadBoundaryStability();
+  if(token!==state._boundaryStabilityTokenV93 || !v93BoundaryStabilityVisible()) return;
+  const min=v93BoundaryStabilityMin();
+  const features=(gj.features||[]).filter(f=>Number(f.properties?.years_count)>=min);
+  const stats={total:(gj.features||[]).length, visible:features.length, counts:{low:0,medium:0,high:0,veryHigh:0}, min};
+  features.forEach(f=>{ const n=Number(f.properties?.years_count)||0; if(n>=12) stats.counts.veryHigh++; else if(n>=8) stats.counts.high++; else if(n>=4) stats.counts.medium++; else stats.counts.low++; });
+  state.boundaryStabilityStats=stats;
+  const lineLayer=L.geoJSON({type:'FeatureCollection',features},{
+    interactive:true,
+    pane:'boundaryStabilityPane',
+    style:v93BoundaryStabilityStyle,
+    onEachFeature:(f,l)=>{
+      const p=f.properties||{};
+      l.on('mouseover',e=>showHoverLater({title:'Устойчивый рубеж АТД', subtitle:p.stability_class || 'геометрическая устойчивость', extra:v93BoundaryStabilityTooltip(p), delay:170}, e.originalEvent));
+      l.on('mousemove',e=>moveHover(e.originalEvent));
+      l.on('mouseout',hideHover);
+    }
+  });
+  state.layers.boundaryStability=lineLayer;
+  lineLayer.addTo(state.map);
+  try{ lineLayer.bringToFront(); }catch(_){ }
+  if($('toggleBoundaryStabilityLabels')?.checked){
+    const labelGroup=L.layerGroup();
+    const labelFeatures=features.filter(f=>Number(f.properties?.years_count)>=Math.max(12,min)).slice(0,180);
+    const temp=L.geoJSON({type:'FeatureCollection',features:labelFeatures},{interactive:false, pane:'boundaryStabilityPane'});
+    temp.eachLayer(layer=>{
+      const ll=v93RepresentativeLayerLatLng(layer); if(!ll) return;
+      const p=layer.feature?.properties||{};
+      const marker=L.marker(ll,{interactive:false, pane:'boundaryStabilityLabelPane', icon:L.divIcon({className:'boundary-stability-label-anchor-v93', html:v93BoundaryStabilityLabelHtml(p), iconSize:[60,18], iconAnchor:[30,9]})});
+      labelGroup.addLayer(marker);
+    });
+    state.layers.boundaryStabilityLabels=labelGroup;
+    labelGroup.addTo(state.map);
+  }
+  try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){ }
+}
+function v93BoundaryStabilityLegendHtml(){
+  if(!v93BoundaryStabilityVisible()) return '';
+  const s=state.boundaryStabilityStats || {visible:0,counts:{}};
+  const row=(cls,label,count,color)=>`<div class="legend-row legend-row-counted-v92 boundary-stability-legend-row-v93"><span class="boundary-stability-swatch-v93" style="background:${color}"></span><span>${escapeHtml(label)}</span>${typeof v92LegendCountMarkup==='function'?v92LegendCountMarkup(count||0):`<span></span><span>${num(count||0)} шт.</span>`}</div>`;
+  return `<div class="legend-section boundary-stability-section-v93">Устойчивость границ</div>
+    ${row('vh','очень высокая · 12+ срезов',s.counts?.veryHigh,'#7f1d1d')}
+    ${row('h','высокая · 8–11 срезов',s.counts?.high,'#c2410c')}
+    ${row('m','средняя · 4–7 срезов',s.counts?.medium,'#d97706')}
+    ${row('l','низкая · 2–3 среза',s.counts?.low,'#64748b')}
+    <div class="mini-muted legend-scale-note-v67">Показано: ${num(s.visible||0)} сегм. Мин.: ${num(s.min||v93BoundaryStabilityMin())} срезов. Допуск: ±15 км севернее 59° с.ш.; ±10 км южнее.</div>`;
+}
+const v93PriorUpdateLegend = updateLegend;
+updateLegend = function updateLegendV93(gj, vals){
+  v93PriorUpdateLegend(gj, vals);
+  const box=$('legendBox'); if(!box) return;
+  const html=v93BoundaryStabilityLegendHtml();
+  if(html) box.insertAdjacentHTML('beforeend', html);
+};
+const v93PriorRefreshVisibility = refreshVisibility;
+refreshVisibility = function refreshVisibilityV93(){
+  v93PriorRefreshVisibility();
+  if(v93BoundaryStabilityVisible()){
+    clearTimeout(state._boundaryStabilityTimerV93);
+    state._boundaryStabilityTimerV93=setTimeout(()=>v93RenderBoundaryStability(),25);
+  }else{
+    try{ clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
+  }
+};
+const v93PriorClearYearLayers = clearYearLayers;
+clearYearLayers = function clearYearLayersV93(){
+  v93PriorClearYearLayers();
+  try{ clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
+};
+function v93BindBoundaryStabilityControls(){
+  ['toggleBoundaryStability','boundaryStabilityMinSelect','boundaryStabilityStyleSelect','toggleBoundaryStabilityLabels','boundaryStabilityLabelSize'].forEach(id=>{
+    const el=$(id); if(!el || el.dataset.v93Bound) return;
+    el.dataset.v93Bound='1';
+    const ev=el.tagName==='SELECT' || el.type==='range' ? 'input' : 'change';
+    el.addEventListener(ev,()=>{ clearTimeout(state._boundaryStabilityTimerV93); state._boundaryStabilityTimerV93=setTimeout(()=>v93RenderBoundaryStability(),30); });
+    if(el.tagName==='SELECT') el.addEventListener('change',()=>v93RenderBoundaryStability());
+  });
+}
+(function v93BootBoundaryStability(){
+  const boot=()=>{ try{ v93BindBoundaryStabilityControls(); v93RenderBoundaryStability(); }catch(e){ console.warn('v93 boundary stability boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,460),{once:true}); else setTimeout(boot,460);
 })();
