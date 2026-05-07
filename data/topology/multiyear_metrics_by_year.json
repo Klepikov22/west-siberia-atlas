@@ -47,7 +47,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Туруханский уезд",
     "bridges": 1,
-    "articulation_points_computed": 1
+    "articulation_points_computed": 1,
+    "v100_normal_features": 17,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 1,
+    "parent_ate_count": 1,
+    "avg_lower_units_per_upper_ate": 17.0,
+    "avg_lower_units_per_parent_ate": 17.0,
+    "avg_area_upper_ate_km2": 5308432.528,
+    "avg_area_middle_ate_km2": 5308432.528,
+    "avg_area_parent_ate_km2": 5308432.528,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1719,
@@ -97,7 +107,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Иркутская провинция",
     "bridges": 2,
-    "articulation_points_computed": 3
+    "articulation_points_computed": 3,
+    "v100_normal_features": 25,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 25.0,
+    "avg_lower_units_per_parent_ate": 6.25,
+    "avg_area_upper_ate_km2": 11146077.264,
+    "avg_area_middle_ate_km2": 1649094.777,
+    "avg_area_parent_ate_km2": 2786519.316,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1724,
@@ -147,7 +167,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Иркутская провинция",
     "bridges": 2,
-    "articulation_points_computed": 3
+    "articulation_points_computed": 3,
+    "v100_normal_features": 25,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 4,
+    "parent_ate_count": 5,
+    "avg_lower_units_per_upper_ate": 25.0,
+    "avg_lower_units_per_parent_ate": 5.0,
+    "avg_area_upper_ate_km2": 11146077.264,
+    "avg_area_middle_ate_km2": 1236821.083,
+    "avg_area_parent_ate_km2": 2229215.453,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1727,
@@ -197,7 +227,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Иркутская провинция",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 16,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 2,
+    "parent_ate_count": 3,
+    "avg_lower_units_per_upper_ate": 16.0,
+    "avg_lower_units_per_parent_ate": 5.333333,
+    "avg_area_upper_ate_km2": 10905352.18,
+    "avg_area_middle_ate_km2": 2353279.623,
+    "avg_area_parent_ate_km2": 3635117.393,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1745,
@@ -247,7 +287,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Мангазейский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 15,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 3,
+    "avg_lower_units_per_upper_ate": 15.0,
+    "avg_lower_units_per_parent_ate": 5.0,
+    "avg_area_upper_ate_km2": 5109151.132,
+    "avg_area_middle_ate_km2": 1703050.377,
+    "avg_area_parent_ate_km2": 1703050.377,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1765,
@@ -297,7 +347,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Мангазейский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 17,
+    "upper_ate_count_v100": 3,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 5.666667,
+    "avg_lower_units_per_parent_ate": 4.25,
+    "avg_area_upper_ate_km2": 1703590.163,
+    "avg_area_middle_ate_km2": 1689096.358,
+    "avg_area_parent_ate_km2": 1277692.622,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1780,
@@ -347,7 +407,17 @@
     "max_k_core": 2.0,
     "max_k_core_name": "Барнаульский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 4,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 1,
+    "parent_ate_count": 1,
+    "avg_lower_units_per_upper_ate": 4.0,
+    "avg_lower_units_per_parent_ate": 4.0,
+    "avg_area_upper_ate_km2": 700532.857,
+    "avg_area_middle_ate_km2": 700532.857,
+    "avg_area_parent_ate_km2": 700532.857,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1783,
@@ -397,7 +467,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Туруханский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 21,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 2,
+    "parent_ate_count": 2,
+    "avg_lower_units_per_upper_ate": 10.5,
+    "avg_lower_units_per_parent_ate": 10.5,
+    "avg_area_upper_ate_km2": 2429567.955,
+    "avg_area_middle_ate_km2": 2089012.169,
+    "avg_area_parent_ate_km2": 2429567.955,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1798,
@@ -447,7 +527,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Туруханский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 17,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 1,
+    "avg_lower_units_per_upper_ate": 17.0,
+    "avg_lower_units_per_parent_ate": 17.0,
+    "avg_area_upper_ate_km2": 4849294.941,
+    "avg_area_middle_ate_km2": 1616431.647,
+    "avg_area_parent_ate_km2": 4849294.941,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1805,
@@ -497,7 +587,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Туруханский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 18,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 2,
+    "avg_lower_units_per_upper_ate": 9.0,
+    "avg_lower_units_per_parent_ate": 9.0,
+    "avg_area_upper_ate_km2": 2428389.351,
+    "avg_area_parent_ate_km2": 2428389.351,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1809,
@@ -547,7 +646,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Березовский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 17,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 2,
+    "avg_lower_units_per_upper_ate": 8.5,
+    "avg_lower_units_per_parent_ate": 8.5,
+    "avg_area_upper_ate_km2": 2468744.157,
+    "avg_area_parent_ate_km2": 2468744.157,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1821,
@@ -597,7 +705,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Туруханский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 17,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 2,
+    "avg_lower_units_per_upper_ate": 8.5,
+    "avg_lower_units_per_parent_ate": 8.5,
+    "avg_area_upper_ate_km2": 2420783.839,
+    "avg_area_parent_ate_km2": 2420783.839,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1838,
@@ -647,7 +764,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Берёзовский округ",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 19,
+    "upper_ate_count_v100": 3,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 3,
+    "avg_lower_units_per_upper_ate": 6.333333,
+    "avg_lower_units_per_parent_ate": 6.333333,
+    "avg_area_upper_ate_km2": 786580.928,
+    "avg_area_parent_ate_km2": 786580.928,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1848,
@@ -697,7 +823,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Берёзовский округ",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 15,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 2,
+    "avg_lower_units_per_upper_ate": 7.5,
+    "avg_lower_units_per_parent_ate": 7.5,
+    "avg_area_upper_ate_km2": 1164671.51,
+    "avg_area_parent_ate_km2": 1164671.51,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1855,
@@ -747,7 +882,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Берёзовский округ",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 25,
+    "upper_ate_count_v100": 4,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 6.25,
+    "avg_lower_units_per_parent_ate": 6.25,
+    "avg_area_upper_ate_km2": 892655.693,
+    "avg_area_parent_ate_km2": 892655.693,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1876,
@@ -797,7 +941,16 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Сургутский округ",
     "bridges": 1,
-    "articulation_points_computed": 1
+    "articulation_points_computed": 1,
+    "v100_normal_features": 29,
+    "upper_ate_count_v100": 5,
+    "middle_ate_count_v100": 0,
+    "parent_ate_count": 5,
+    "avg_lower_units_per_upper_ate": 5.8,
+    "avg_lower_units_per_parent_ate": 5.8,
+    "avg_area_upper_ate_km2": 654871.015,
+    "avg_area_parent_ate_km2": 654871.015,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1897,
@@ -847,7 +1000,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Атбасарский уезд",
     "bridges": 3,
-    "articulation_points_computed": 2
+    "articulation_points_computed": 2,
+    "v100_normal_features": 28,
+    "upper_ate_count_v100": 4,
+    "middle_ate_count_v100": 4,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 7.0,
+    "avg_lower_units_per_parent_ate": 7.0,
+    "avg_area_upper_ate_km2": 823311.292,
+    "avg_area_middle_ate_km2": 823311.292,
+    "avg_area_parent_ate_km2": 823311.292,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1914,
@@ -897,7 +1060,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Кокчетавский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 27,
+    "upper_ate_count_v100": 4,
+    "middle_ate_count_v100": 4,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 6.75,
+    "avg_lower_units_per_parent_ate": 6.75,
+    "avg_area_upper_ate_km2": 824534.33,
+    "avg_area_middle_ate_km2": 824534.33,
+    "avg_area_parent_ate_km2": 824534.33,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1918,
@@ -947,7 +1120,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Тобольская губерния",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 26,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 4,
+    "avg_lower_units_per_upper_ate": 26.0,
+    "avg_lower_units_per_parent_ate": 6.5,
+    "avg_area_upper_ate_km2": 2230009.062,
+    "avg_area_middle_ate_km2": 146563.584,
+    "avg_area_parent_ate_km2": 557502.265,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1923,
@@ -997,7 +1180,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Сургутский уезд",
     "bridges": 0,
-    "articulation_points_computed": 0
+    "articulation_points_computed": 0,
+    "v100_normal_features": 27,
+    "upper_ate_count_v100": 1,
+    "middle_ate_count_v100": 5,
+    "parent_ate_count": 6,
+    "avg_lower_units_per_upper_ate": 27.0,
+    "avg_lower_units_per_parent_ate": 4.5,
+    "avg_area_upper_ate_km2": 2188393.25,
+    "avg_area_middle_ate_km2": 419636.332,
+    "avg_area_parent_ate_km2": 364732.208,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1926,
@@ -1047,7 +1240,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Бащелакский",
     "bridges": 1,
-    "articulation_points_computed": 1
+    "articulation_points_computed": 1,
+    "v100_normal_features": 265,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 18,
+    "parent_ate_count": 18,
+    "avg_lower_units_per_upper_ate": 132.5,
+    "avg_lower_units_per_parent_ate": 14.722222,
+    "avg_area_upper_ate_km2": 1171378.375,
+    "avg_area_middle_ate_km2": 130153.153,
+    "avg_area_parent_ate_km2": 130153.153,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1930,
@@ -1097,7 +1300,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Безымянный район №1 (Тобольский округ)",
     "bridges": 4,
-    "articulation_points_computed": 4
+    "articulation_points_computed": 4,
+    "v100_normal_features": 191,
+    "upper_ate_count_v100": 2,
+    "middle_ate_count_v100": 15,
+    "parent_ate_count": 15,
+    "avg_lower_units_per_upper_ate": 95.5,
+    "avg_lower_units_per_parent_ate": 12.733333,
+    "avg_area_upper_ate_km2": 1154580.985,
+    "avg_area_middle_ate_km2": 153944.131,
+    "avg_area_parent_ate_km2": 153944.131,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1939,
@@ -1147,7 +1360,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Ойрот-Турский (рц в г. Ойрот-Туре)",
     "bridges": 6,
-    "articulation_points_computed": 6
+    "articulation_points_computed": 6,
+    "v100_normal_features": 201,
+    "upper_ate_count_v100": 3,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 3,
+    "avg_lower_units_per_upper_ate": 67.0,
+    "avg_lower_units_per_parent_ate": 67.0,
+    "avg_area_upper_ate_km2": 743766.663,
+    "avg_area_middle_ate_km2": 743766.663,
+    "avg_area_parent_ate_km2": 743766.663,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1947,
@@ -1197,7 +1420,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Мамонтовский район",
     "bridges": 1,
-    "articulation_points_computed": 1
+    "articulation_points_computed": 1,
+    "v100_normal_features": 219,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 36.5,
+    "avg_lower_units_per_parent_ate": 24.333333,
+    "avg_area_upper_ate_km2": 396104.04,
+    "avg_area_middle_ate_km2": 444626.343,
+    "avg_area_parent_ate_km2": 264069.36,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1959,
@@ -1247,7 +1480,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Ленинск-Кузнецкий район (сельское население)",
     "bridges": 1,
-    "articulation_points_computed": 1
+    "articulation_points_computed": 1,
+    "v100_normal_features": 218,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 36.333333,
+    "avg_lower_units_per_parent_ate": 24.222222,
+    "avg_area_upper_ate_km2": 394760.023,
+    "avg_area_middle_ate_km2": 446534.403,
+    "avg_area_parent_ate_km2": 263173.349,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1964,
@@ -1297,7 +1540,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Кош-Агачский район",
     "bridges": 3,
-    "articulation_points_computed": 3
+    "articulation_points_computed": 3,
+    "v100_normal_features": 126,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 21.0,
+    "avg_lower_units_per_parent_ate": 14.0,
+    "avg_area_upper_ate_km2": 412786.08,
+    "avg_area_middle_ate_km2": 473517.693,
+    "avg_area_parent_ate_km2": 275190.72,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1970,
@@ -1347,7 +1600,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Тогучинский",
     "bridges": 2,
-    "articulation_points_computed": 2
+    "articulation_points_computed": 2,
+    "v100_normal_features": 191,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 31.833333,
+    "avg_lower_units_per_parent_ate": 21.222222,
+    "avg_area_upper_ate_km2": 394806.522,
+    "avg_area_middle_ate_km2": 437286.14,
+    "avg_area_parent_ate_km2": 263204.348,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1979,
@@ -1397,7 +1660,17 @@
     "max_k_core": 3.0,
     "max_k_core_name": "Кош-Агачский",
     "bridges": 4,
-    "articulation_points_computed": 4
+    "articulation_points_computed": 4,
+    "v100_normal_features": 202,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 33.666667,
+    "avg_lower_units_per_parent_ate": 22.444444,
+    "avg_area_upper_ate_km2": 394797.463,
+    "avg_area_middle_ate_km2": 437330.117,
+    "avg_area_parent_ate_km2": 263198.309,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 1989,
@@ -1447,7 +1720,17 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Шебалинский район",
     "bridges": 8,
-    "articulation_points_computed": 7
+    "articulation_points_computed": 7,
+    "v100_normal_features": 220,
+    "upper_ate_count_v100": 6,
+    "middle_ate_count_v100": 3,
+    "parent_ate_count": 9,
+    "avg_lower_units_per_upper_ate": 36.666667,
+    "avg_lower_units_per_parent_ate": 24.444444,
+    "avg_area_upper_ate_km2": 394878.137,
+    "avg_area_middle_ate_km2": 437375.853,
+    "avg_area_parent_ate_km2": 263252.091,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   },
   {
     "year": 2021,
@@ -1497,6 +1780,16 @@
     "max_k_core": 4.0,
     "max_k_core_name": "Чемальский муниципальный район",
     "bridges": 26,
-    "articulation_points_computed": 22
+    "articulation_points_computed": 22,
+    "v100_normal_features": 278,
+    "upper_ate_count_v100": 8,
+    "middle_ate_count_v100": 2,
+    "parent_ate_count": 10,
+    "avg_lower_units_per_upper_ate": 34.75,
+    "avg_lower_units_per_parent_ate": 27.8,
+    "avg_area_upper_ate_km2": 305065.372,
+    "avg_area_middle_ate_km2": 609361.06,
+    "avg_area_parent_ate_km2": 244052.298,
+    "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys"
   }
 ]

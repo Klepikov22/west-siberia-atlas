@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=99" />
+  <link rel="stylesheet" href="style.css?v=100" />
 </head>
 <body>
   <div id="app">
@@ -147,7 +147,7 @@
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Символы населения</label>
         <label><input type="checkbox" id="toggleTopologyEdgesMain"> Рёбра смежности</label>
-        <label><input type="checkbox" id="toggleTopologyCentroids" checked> Узлы графа / центроиды АТЕ</label>
+        <label><input type="checkbox" id="toggleTopologyCentroids" checked> Узлы графа / JSON-точки</label>
         <div class="topology-layer-controls-v92" aria-label="Настройки топологического графа АТЕ">
           <div class="topology-layer-title-v92">Топологический граф · настройки</div>
           <input type="checkbox" id="toggleTopologyGraph" hidden>
@@ -171,7 +171,7 @@
             </select>
           </label>
           <button id="openTopologyTrends" type="button" class="mini-action topology-trends-btn-v88">Динамика метрик по годам</button>
-          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Узлы показываются отдельным DOM-слоем поверх карты по центроидам АТЕ; рёбра и узлы можно включать отдельно. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
+          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Узлы показываются отдельным DOM-слоем по точкам topology_nodes_YYYY.geojson; рёбра и узлы можно включать отдельно. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
         </div>
       </div>
 
@@ -259,6 +259,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=99"></script>
+  <script src="app.js?v=100"></script>
 </body>
 </html>

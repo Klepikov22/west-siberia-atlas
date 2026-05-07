@@ -3156,3 +3156,51 @@ body.dark .topology-dom-centroid-v97{
   pointer-events:none;
 }
 .export-topology-v99{filter:drop-shadow(0 1px 2px rgba(0,0,0,.24));}
+
+/* v100: topology DOM nodes stay above map content but below UI panels/timeline; legends follow graph style/metric. */
+.topology-dom-centroid-layer-v97,
+.topology-dom-centroid-layer-v100{
+  z-index:820!important;
+  pointer-events:none;
+}
+#timelineBar,
+#metricFilters,
+#parentFilterBar,
+#leftPanel,
+#rightPanel,
+.floating-panel,
+.side-panel-toggle{
+  isolation:isolate;
+}
+.legend-topology-v100 .legend-row-counted-v92,
+.export-legend-wrap-v100 .legend-row-counted-v92{
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+}
+.legend-topology-v100 .topology-node-class-swatch-v100,
+.export-legend-wrap-v100 .topology-node-class-swatch-v100{
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:999px;
+  border:2px solid #fff8e6;
+  box-shadow:0 0 0 1.5px #083344,0 1px 3px rgba(0,0,0,.28);
+  margin-right:8px;
+  vertical-align:middle;
+}
+.legend-topology-v100 .topology-node-bridge-swatch-v100,
+.export-legend-wrap-v100 .topology-node-bridge-swatch-v100{
+  display:inline-block;
+  width:12px;
+  height:12px;
+  border-radius:999px;
+  background:radial-gradient(circle at 50% 50%, #111827 0 34%, #f6c85f 36% 100%);
+  border:2px solid #111827;
+  box-shadow:0 0 0 2px #fff8e6,0 1px 3px rgba(0,0,0,.34);
+  margin-right:8px;
+  vertical-align:middle;
+}
+.topology-dom-centroid-v97.topology-dom-centroid-v98.topology-dom-node-v99.topology-dom-node-v100{
+  transition:transform .08s linear, box-shadow .12s ease, filter .12s ease;
+}
