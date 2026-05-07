@@ -1,6 +1,0 @@
-metric,value
-version,v94
-method,actual_shared_boundary_line_to_line_v94
-source_shared_segments_total,14803
-output_features,13840
-tolerance_rule,15 km north/on 59N; 10 km south

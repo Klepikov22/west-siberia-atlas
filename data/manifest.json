@@ -67,15 +67,15 @@
     "centers": {
       "1897": "data/centers/centers_1897.geojson",
       "1914": "data/centers/centers_1914.geojson",
-      "1918": "data/urban/urban_points_1918.geojson",
-      "1923": "data/urban/urban_points_1923.geojson",
       "1926": "data/centers/centers_1926.geojson",
-      "1930": "data/urban/urban_points_1930.geojson",
       "1939": "data/centers/centers_1939.geojson",
       "1959": "data/centers/centers_1959.geojson",
       "1970": "data/centers/centers_1970.geojson",
       "1979": "data/centers/centers_1979.geojson",
-      "1989": "data/centers/centers_1989.geojson"
+      "1989": "data/centers/centers_1989.geojson",
+      "1918": "data/urban/urban_points_1918.geojson",
+      "1923": "data/urban/urban_points_1923.geojson",
+      "1930": "data/urban/urban_points_1930.geojson"
     },
     "hydro": {
       "rivers": "data/hydro/rivers_full.geojson",
@@ -228,8 +228,7 @@
       "1989": "data/topology/topology_nodes_1989.geojson",
       "2021": "data/topology/topology_nodes_2021.geojson"
     },
-    "boundary_stability": "data/stability/boundary_stability_v95.geojson",
-    "boundary_stability_summary": "data/stability/boundary_stability_v95_summary.json"
+    "multiyear_metrics": "data/topology/multiyear_metrics_by_year.json"
   },
   "notes": [
     "v3: добавлен слой океана; административные полигоны обрезаны разностью с Ocean.geojson; добавлена выборочная статистика.",
