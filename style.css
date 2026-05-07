@@ -3142,3 +3142,17 @@ body.dark .topology-dom-centroid-v97{
 .export-legend-wrap-v98 .legend-section{font-size:11px;margin-top:8px;padding-top:7px;}
 .export-legend-wrap-v98 .legend-row{font-size:11.5px;margin:4px 0;line-height:1.22;}
 .export-topology-v98{filter:drop-shadow(0 1px 2px rgba(0,0,0,.24));}
+
+/* v99: label CSS class for graph nodes loaded from topology_nodes_YYYY.geojson */
+.topology-dom-centroid-v97.topology-dom-centroid-v98.topology-dom-node-v99{
+  outline:1px solid rgba(17,24,39,.12);
+}
+.topology-dom-centroid-v97.topology-dom-centroid-v98.topology-dom-node-v99::before{
+  content:"";
+  position:absolute;
+  inset:35%;
+  border-radius:999px;
+  background:rgba(255,255,255,.75);
+  pointer-events:none;
+}
+.export-topology-v99{filter:drop-shadow(0 1px 2px rgba(0,0,0,.24));}

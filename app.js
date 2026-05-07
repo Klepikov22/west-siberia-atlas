@@ -1,4 +1,4 @@
-const APP_VERSION = '98';
+const APP_VERSION = '99';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -11995,4 +11995,252 @@ if(typeof v69ExportPreviewShellSignature==='function'){
     }catch(e){ console.warn('v98 boot skipped', e); }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,980),{once:true}); else setTimeout(boot,980);
+})();
+
+
+/* v99: topology nodes from topology_nodes_YYYY.geojson, not calculated polygon centroids.
+   Reason: the JSON nodes are the canonical graph coordinates and coincide with edge endpoints.
+   The DOM overlay remains, but positions come from data/topology/topology_nodes_*.geojson. */
+function v99NodeIdsFromProps(p){
+  return [p?.unit_id, p?.topology_node_id, p?.node_id, p?.id]
+    .map(x=>String(x||'').trim())
+    .filter(Boolean);
+}
+function v99IsNormalTopologyProps(p){
+  if(!p) return false;
+  if(p.topology_excluded || p.adjacency_excluded) return false;
+  if(p.include_in_analytics === false) return false;
+  const area=Number(p.area_km2);
+  if(Number.isFinite(area) && area < 50) return false;
+  const code=String(p.special_status_code || '').trim();
+  if(code && code !== 'normal') return false;
+  return true;
+}
+function v99CurrentAllowedAdminById(){
+  const byId=new Map();
+  const selected=(state.selectedIds && state.selectedIds.size) ? state.selectedIds : null;
+  (state.currentGeoJSON?.features||[]).forEach(f=>{
+    const p=f?.properties||{};
+    if(!v99IsNormalTopologyProps(p)) return;
+    const fid=featureId(f);
+    if(selected && !selected.has(fid)) return;
+    [fid, ...v99NodeIdsFromProps(p)].forEach(id=>{ if(id && !byId.has(String(id))) byId.set(String(id), f); });
+  });
+  return byId;
+}
+function v99NodeLatLng(nodeFeature){
+  const p=nodeFeature?.properties||{};
+  let lon=null, lat=null;
+  const c=nodeFeature?.geometry?.coordinates;
+  if(Array.isArray(c) && c.length>=2){ lon=Number(c[0]); lat=Number(c[1]); }
+  if(!Number.isFinite(lon)) lon=Number(p.node_lon);
+  if(!Number.isFinite(lat)) lat=Number(p.node_lat);
+  if(!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  return L.latLng(lat, lon);
+}
+function v99FeatureFromNodeAndAdmin(nodeFeature, adminFeature){
+  const nodeProps=nodeFeature?.properties||{};
+  const adminProps=adminFeature?.properties||{};
+  return {
+    ...(adminFeature||nodeFeature||{}),
+    type:'Feature',
+    properties:{...adminProps, ...nodeProps, topology_node_renderer:'json_topology_nodes_dom_v99'},
+    geometry:adminFeature?.geometry || nodeFeature?.geometry || null
+  };
+}
+async function v99BuildTopologyJsonNodes(){
+  v96SyncLegacyTopologyControls();
+  try{ clearLayer('topologyCentroids'); state.layers.topologyCentroids=null; }catch(_){ }
+  v97EnsureTopologyDomEvents();
+  const layer=v97GetTopologyDomLayer();
+  v97ClearTopologyDomNodes();
+  state._topologyNodeFeaturesV96=[];
+  if(!state.map || !state.currentGeoJSON || !layer){
+    if(layer) layer.style.display='none';
+    return;
+  }
+  const token=(state._topologyNodeRenderTokenV99||0)+1;
+  state._topologyNodeRenderTokenV99=token;
+  const byId=v99CurrentAllowedAdminById();
+  if(!byId.size){
+    v97PositionTopologyDomNodes();
+    const prev=state.topologyEdgeStats||{year:state.year, counts:{}, total:0};
+    state.topologyEdgeStats={...prev, year:state.year, nodes:0, renderer:'json_topology_nodes_dom_v99'};
+    return;
+  }
+  const metric=v96TopologyMetricField();
+  let raw={type:'FeatureCollection',features:[]};
+  try{ raw=await v90LoadTopologyNodes(state.year); }
+  catch(e){ console.warn('v99 topology JSON nodes skipped', e); }
+  if(token!==state._topologyNodeRenderTokenV99) return;
+  const rows=[];
+  (raw.features||[]).forEach(n=>{
+    const np=n?.properties||{};
+    if(!v99IsNormalTopologyProps(np)) return;
+    const ids=v99NodeIdsFromProps(np);
+    const admin=ids.map(id=>byId.get(String(id))).find(Boolean);
+    if(!admin) return;
+    const latlng=v99NodeLatLng(n);
+    if(!latlng) return;
+    rows.push({node:n, admin, feature:v99FeatureFromNodeAndAdmin(n, admin), latlng});
+  });
+  const vals=rows.map(r=>v96NodeMetricValue(r.feature,metric)).filter(Number.isFinite);
+  const nodes=[];
+  const nodeFeatures=[];
+  rows.forEach(r=>{
+    const el=v97BuildDomNodeElement(r.feature, r.latlng, vals, metric);
+    layer.appendChild(el);
+    nodes.push({el, latlng:r.latlng, feature:r.feature, nodeFeature:r.node});
+    const p=r.feature.properties||{};
+    nodeFeatures.push({
+      type:'Feature',
+      properties:{...p, topology_node_renderer:'json_topology_nodes_dom_v99'},
+      geometry:{type:'Point', coordinates:[r.latlng.lng, r.latlng.lat]}
+    });
+  });
+  state._topologyDomNodesV97=nodes;
+  state._topologyNodeFeaturesV96=nodeFeatures;
+  state._topologyNodeFeaturesV95=nodeFeatures;
+  state._topologyNodeFeaturesV93=nodeFeatures;
+  state._topologyNodeFeaturesV92=nodeFeatures;
+  state._topologyNodeFeaturesV91=nodeFeatures;
+  const prev=state.topologyEdgeStats||{year:state.year, counts:{}, total:0};
+  state.topologyEdgeStats={...prev, year:state.year, nodes:nodeFeatures.length, renderer:'json_topology_nodes_dom_v99'};
+  v97PositionTopologyDomNodes();
+  try{ updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []); }catch(_){ }
+}
+
+/* Replace the v97/v98 DOM-node builder with the same visible DOM technique,
+   but its label and click target now refer to the canonical JSON graph node. */
+v97BuildDomNodeElement = function v97BuildDomNodeElementV99(f, latlng, vals, metric){
+  const p=f?.properties||{};
+  const base=(typeof v96CentroidNodeRadius==='function'?v96CentroidNodeRadius(f):10)+2;
+  const r=Math.max(5, Math.min(11, base/2));
+  let colors={fill:'#f6c85f', line:'#fff8e6', outer:'#083344'};
+  try{ colors=v96CentroidNodeColors(f, vals, metric); }catch(_){ }
+  const id=featureId(f);
+  const selected=state.selectedIds?.has(id);
+  const degree=Number(p.topo_degree);
+  const el=document.createElement('button');
+  el.type='button';
+  el.className='topology-dom-centroid-v97 topology-dom-centroid-v98 topology-dom-node-v99'+(selected?' selected':'')+(((Number(p.topo_bridge_incident_count)||0)>0 || p.topo_bridge_endpoint)?' bridge':'');
+  el.dataset.featureId=id;
+  el.dataset.nodeRenderer='json_topology_nodes_dom_v99';
+  el.style.width=`${(r*2).toFixed(1)}px`;
+  el.style.height=`${(r*2).toFixed(1)}px`;
+  el.style.background=colors.fill || '#f6c85f';
+  el.style.borderColor=selected?'#ff2a8a':(colors.line || '#fff8e6');
+  el.style.setProperty('--topology-node-outer', colors.outer || '#083344');
+  el.title=`${p.name||'АТЕ'} — JSON-узел графа; соседей: ${Number.isFinite(degree)?degree:'—'}`;
+  ['mousedown','mouseup','click','dblclick','touchstart','touchend','wheel'].forEach(type=>{
+    el.addEventListener(type, ev=>ev.stopPropagation(), {passive:type==='wheel'?false:undefined});
+  });
+  el.addEventListener('mouseover', ev=>{
+    const metricLabel=typeof v91CleanTopologyMetricLabel==='function' ? v91CleanTopologyMetricLabel(metric) : metric;
+    const metricValue=typeof v90MetricValueLabel==='function' ? v90MetricValueLabel(v96NodeMetricValue(f,metric),metric) : num1(v96NodeMetricValue(f,metric));
+    showHoverLater({
+      title:p.name||'АТЕ',
+      subtitle:'узел графа из topology_nodes JSON · DOM-слой v99',
+      extra:`${escapeHtml(metricLabel)}: ${metricValue} · соседей: ${Number.isFinite(degree)?degree:'—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'}`,
+      population:p.population,
+      area:p.area_km2,
+      density:p.density,
+      delay:60
+    }, ev);
+  });
+  el.addEventListener('mousemove', ev=>moveHover(ev));
+  el.addEventListener('mouseout', hideHover);
+  el.addEventListener('click', ev=>{
+    ev.preventDefault(); ev.stopPropagation();
+    if(state.tool !== 'pan') return;
+    if(isSelectableFeature(f)) toggleSelection(f);
+    showFeature(f);
+    setTimeout(v99BuildTopologyJsonNodes, 0);
+  });
+  return el;
+};
+
+v96BuildTopologyCentroids = v99BuildTopologyJsonNodes;
+v97BuildTopologyCentroids = v99BuildTopologyJsonNodes;
+
+const v99PriorBuildTopologyLegend = v96BuildTopologyLegend;
+v96BuildTopologyLegend = function v96BuildTopologyLegendV99(gj){
+  const base=(typeof v93BuildTopologyLegend==='function') ? v93BuildTopologyLegend(gj) : (v99PriorBuildTopologyLegend ? v99PriorBuildTopologyLegend(gj) : '');
+  const nodes=state._topologyNodeFeaturesV96?.length || state._topologyDomNodesV97?.length || 0;
+  const edges=state.topologyEdgeStats?.total || 0;
+  const note=`<div class="mini-muted legend-scale-note-v67 v96-node-note"><b>v99:</b> узлы берутся из <code>data/topology/topology_nodes_${state.year}.geojson</code>, то есть стоят в канонических координатах графа и совпадают с концами рёбер. Показано узлов: ${num(nodes)}. Рёбра: ${num(edges)}.</div>`;
+  return base ? `${base}${note}` : note;
+};
+
+/* Export topology overlay also uses JSON node coordinates, not polygon bbox centroids. */
+async function v99ExportTopologySvg(){
+  const ex=ensureExportFlags();
+  if(!ex.showTopologyEdges && !ex.showTopologyNodes) return '';
+  const features=(typeof v66ExportSourceFeatures==='function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
+  if(!features?.length) return '';
+  const project=v98BuildExportProjection(features);
+  const byId=new Map();
+  features.forEach(f=>{
+    const p=f?.properties||{};
+    if(!v99IsNormalTopologyProps(p)) return;
+    [featureId(f), ...v99NodeIdsFromProps(p)].forEach(id=>{ if(id && !byId.has(String(id))) byId.set(String(id), f); });
+  });
+  if(!byId.size) return '';
+  let rawNodes={type:'FeatureCollection',features:[]};
+  try{ rawNodes=await v90LoadTopologyNodes(state.year); }catch(e){ console.warn('v99 export topology nodes skipped', e); }
+  const nodeRows=[];
+  const nodeById=new Map();
+  (rawNodes.features||[]).forEach(n=>{
+    const np=n?.properties||{};
+    if(!v99IsNormalTopologyProps(np)) return;
+    const ids=v99NodeIdsFromProps(np);
+    const admin=ids.map(id=>byId.get(String(id))).find(Boolean);
+    if(!admin) return;
+    const latlng=v99NodeLatLng(n); if(!latlng) return;
+    const pt=project(latlng.lng, latlng.lat);
+    const feature=v99FeatureFromNodeAndAdmin(n, admin);
+    const row={feature, node:n, pt, coord:[latlng.lng, latlng.lat]};
+    nodeRows.push(row);
+    ids.forEach(id=>{ if(id && !nodeById.has(String(id))) nodeById.set(String(id), row); });
+  });
+  if(!nodeRows.length) return '';
+  let edgeSvg='';
+  if(ex.showTopologyEdges){
+    let raw={features:[]};
+    try{ raw=await v90LoadTopologyEdges(state.year); }catch(e){ console.warn('v99 export topology edges skipped', e); }
+    const edges=(raw.features||[]).filter(e=>nodeById.has(String(e.properties?.source_id||'')) && nodeById.has(String(e.properties?.target_id||'')));
+    edgeSvg=edges.map(e=>{
+      const p=e.properties||{};
+      const a=nodeById.get(String(p.source_id||'')), b=nodeById.get(String(p.target_id||''));
+      if(!a||!b) return '';
+      const st=v98RelationStroke(p.relation);
+      const dash=st.dash ? ` stroke-dasharray="${st.dash}"` : '';
+      return `<line x1="${a.pt.x.toFixed(1)}" y1="${a.pt.y.toFixed(1)}" x2="${b.pt.x.toFixed(1)}" y2="${b.pt.y.toFixed(1)}" stroke="#fff8e6" stroke-width="7.2" stroke-opacity="0.82" stroke-linecap="round"/><line x1="${a.pt.x.toFixed(1)}" y1="${a.pt.y.toFixed(1)}" x2="${b.pt.x.toFixed(1)}" y2="${b.pt.y.toFixed(1)}" stroke="${st.stroke}" stroke-width="3.2" stroke-opacity="0.96" stroke-linecap="round"${dash}/>`;
+    }).join('');
+  }
+  let nodeSvg='';
+  if(ex.showTopologyNodes){
+    const metric=typeof v96TopologyMetricField==='function' ? v96TopologyMetricField() : 'topo_degree';
+    const vals=nodeRows.map(r=>v96NodeMetricValue(r.feature,metric)).filter(Number.isFinite);
+    nodeSvg=nodeRows.map(r=>{
+      let colors={fill:'#f6c85f', outer:'#083344'};
+      try{ colors=v96CentroidNodeColors(r.feature, vals, metric); }catch(_){ }
+      const selected=state.selectedIds?.has(featureId(r.feature));
+      const rad=selected?4.8:3.8;
+      return `<circle cx="${r.pt.x.toFixed(1)}" cy="${r.pt.y.toFixed(1)}" r="${(rad+2.5).toFixed(1)}" fill="#fff8e6" fill-opacity="0.90" stroke="${selected?'#ff2a8a':'#083344'}" stroke-width="1.25"/><circle cx="${r.pt.x.toFixed(1)}" cy="${r.pt.y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${colors.fill||'#f6c85f'}" stroke="#fff8e6" stroke-width="1.4"/>`;
+    }).join('');
+  }
+  return `<g class="export-topology-v99" pointer-events="none">${edgeSvg}${nodeSvg}</g>`;
+}
+v98ExportTopologySvg = v99ExportTopologySvg;
+
+(function v99BootJsonTopologyNodes(){
+  const boot=()=>{
+    try{
+      v99BuildTopologyJsonNodes();
+      v96ApplyTopologyLayerVisibility();
+      updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
+    }catch(e){ console.warn('v99 topology JSON-node boot failed', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1040),{once:true}); else setTimeout(boot,1040);
 })();
