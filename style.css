@@ -2968,84 +2968,28 @@ html[data-ui="glass"] .special-layer-controls{background:var(--glass-bg);backdro
 .legend-topology-v92 .legend-row-class-v67 b,.legend-topology-v92 .legend-row b{font-weight:500;color:var(--muted);}
 @media(max-width:980px){.topology-layer-controls-v92{grid-column:1 / -1}.legend-topology-v92 .legend-row-counted-v92{grid-template-columns:auto minmax(0,1fr) 34px minmax(40px,auto)}}
 
-/* v93: separate topology graph elements, brighter graph rendering, full metric trends */
-.topology-layer-subtoggles-v93{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:-2px 0 2px 0}
-.topology-layer-subtoggles-v93 label{display:flex;align-items:center;gap:6px;min-height:28px;padding:5px 7px;border:1px solid rgba(128,116,92,.20);border-radius:10px;background:rgba(255,255,255,.32);font-size:12px;font-weight:750;color:var(--text)}
-:root[data-theme="dark"] .topology-layer-subtoggles-v93 label{background:rgba(20,24,30,.34)}
-.topology-edge-path-v93{filter:drop-shadow(0 0 2px rgba(255,255,255,.96)) drop-shadow(0 2px 3px rgba(0,0,0,.30));mix-blend-mode:normal!important;stroke-linecap:round;stroke-linejoin:round}
-.topology-edge-halo-v93{filter:drop-shadow(0 1px 2px rgba(0,0,0,.10));mix-blend-mode:normal!important;pointer-events:none}
-.topology-node-marker-v93{filter:drop-shadow(0 0 2px rgba(255,255,255,.96)) drop-shadow(0 2px 4px rgba(0,0,0,.42));stroke-linejoin:round}
-.legend-topology-v93 .topology-edge-same-v90{border-top-color:#0477bf}.legend-topology-v93 .topology-edge-super-v90{border-top-color:#7c3fb4}.legend-topology-v93 .topology-edge-cross-v90{border-top-color:#e15400}.legend-topology-v93 .topology-node-swatch-v90{border-color:#fff8e6;box-shadow:0 0 0 1px rgba(17,24,39,.65),0 1px 4px rgba(0,0,0,.35)}
-.multiyear-trends-modal-v93 .chart-lightbox-card{left:max(330px,3vw);right:max(210px,3vw);top:24px;bottom:44px;min-height:540px}.multiyear-trends-body-v93{height:100%;min-height:0;overflow:hidden}.multiyear-trend-layout-v93{grid-template-columns:minmax(286px,352px) minmax(0,1fr)}
-@media(max-width:1180px){.multiyear-trend-layout-v93{grid-template-columns:1fr;overflow:auto}.multiyear-trends-modal-v93 .chart-lightbox-card{left:18px!important;right:18px!important;bottom:52px!important}.topology-layer-subtoggles-v93{grid-template-columns:1fr 1fr}}
-@media(max-width:760px){.topology-layer-subtoggles-v93{grid-template-columns:1fr}.multiyear-trends-modal-v93 .chart-lightbox-card{left:10px!important;right:10px!important;top:10px!important;bottom:10px!important}}
+/* v93 boundary stability controls and layer */
+.boundary-stability-controls-v93{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:8px;grid-column:1 / -1;}
+.boundary-stability-title-v93{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:var(--muted);}
+.boundary-stability-controls-v93 select,.boundary-stability-controls-v93 input[type="range"]{width:100%;min-width:0;}
+.boundary-stability-line-v93{filter:drop-shadow(0 1px 2px rgba(255,255,255,.55)) drop-shadow(0 0 2px rgba(255,255,255,.45));}
+.boundary-stability-label-anchor-v93{background:transparent;border:0;}
+.boundary-stability-label-v93{display:inline-flex;align-items:center;justify-content:center;padding:2px 5px;border-radius:999px;background:rgba(255,255,255,.82);border:1px solid rgba(120,53,15,.28);box-shadow:0 1px 3px rgba(40,26,10,.18);color:#7c2d12;font-weight:800;white-space:nowrap;line-height:1;}
+body.theme-dark .boundary-stability-label-v93{background:rgba(30,27,23,.82);border-color:rgba(251,191,36,.28);color:#fed7aa;}
+.boundary-stability-swatch-v93{width:22px;height:4px;border-radius:999px;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.12);}
+.boundary-stability-section-v93{margin-top:12px;}
+.boundary-stability-legend-row-v93 .legend-count-v92{font-weight:500;}
+@media(max-width:980px){.boundary-stability-controls-v93{grid-column:1 / -1;}}
+/* v96 period picker for boundary stability */
+.boundary-stability-period-v96{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;}
+.boundary-stability-period-v96 .topology-inline-field-v92{margin:0;}
+@media(max-width:980px){.boundary-stability-period-v96{grid-template-columns:1fr;}}
 
-
-/* v95: visible topology nodes rendered as independent HTML centroid markers, not SVG circleMarkers */
-.topology-node-html-icon-v95{
-  background:transparent!important;
-  border:none!important;
-  pointer-events:auto!important;
-  overflow:visible!important;
-  z-index:2600!important;
+/* v97: boundary stability visual buffer stroke */
+.boundary-stability-buffer-v97{
+  filter:drop-shadow(0 0 2px rgba(255,255,255,.55));
+  pointer-events:none;
 }
-.topology-node-html-icon-v95 .topology-node-dot-v95{
-  width:var(--node-size,18px);
-  height:var(--node-size,18px);
-  border-radius:999px;
-  background:var(--node-fill,#f2c14e);
-  border:3px solid #fff8e6;
-  box-shadow:0 0 0 2px rgba(17,24,39,.92),0 0 0 6px rgba(255,248,230,.34),0 4px 10px rgba(0,0,0,.42);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#111827;
-  font-weight:900;
-  font-size:10px;
-  line-height:1;
-  transform:translate(8px,8px);
-  transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;
+.boundary-stability-axis-v97{
+  filter:drop-shadow(0 1px 2px rgba(255,255,255,.70));
 }
-.topology-node-html-icon-v95 .topology-node-dot-v95::after{
-  content:'';
-  width:32%;
-  height:32%;
-  border-radius:999px;
-  background:rgba(255,255,255,.92);
-  box-shadow:0 0 0 1px rgba(17,24,39,.35);
-}
-.topology-node-html-icon-v95 .topology-node-dot-v95.bridge{
-  border-color:#111827;
-  box-shadow:0 0 0 3px #fff8e6,0 0 0 7px rgba(17,24,39,.46),0 5px 12px rgba(0,0,0,.48);
-}
-.topology-node-html-icon-v95:hover .topology-node-dot-v95{
-  transform:translate(8px,8px) scale(1.18);
-  box-shadow:0 0 0 3px rgba(255,248,230,.98),0 0 0 8px rgba(4,119,191,.34),0 6px 16px rgba(0,0,0,.52);
-  filter:saturate(1.18) contrast(1.08);
-}
-.legend-topology-v93 .topology-node-swatch-v90{
-  background:radial-gradient(circle at 50% 50%, #fff 0 25%, #5ba7d5 27% 100%);
-  border:3px solid #fff8e6;
-  box-shadow:0 0 0 2px rgba(17,24,39,.9),0 1px 4px rgba(0,0,0,.35);
-}
-
-
-/* v96: ordinary map-element centroid nodes, rendered like population symbols */
-.topology-centroid-node-v96{
-  filter:drop-shadow(0 0 2px rgba(255,248,230,.98)) drop-shadow(0 2px 5px rgba(0,0,0,.48));
-  stroke-linejoin:round;
-}
-.topology-centroid-halo-v96{
-  filter:drop-shadow(0 2px 4px rgba(0,0,0,.34));
-}
-.toggles label:has(#toggleTopologyCentroids),
-.toggles label:has(#toggleTopologyEdgesMain){
-  font-weight:700;
-}
-.toggles label:has(#toggleTopologyCentroids){
-  color:#083344;
-}
-body.dark .toggles label:has(#toggleTopologyCentroids){
-  color:#d8fbff;
-}
-.v96-node-note{margin-top:8px;padding-top:6px;border-top:1px dashed rgba(120,100,70,.28)}

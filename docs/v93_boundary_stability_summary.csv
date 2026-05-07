@@ -1,0 +1,7 @@
+metric,value
+source_edges,6453
+source_length_km,888697.863
+source_pieces,38824
+output_features,36973
+years_total,30
+tolerance_rule,"15 km north of 59N; 10 km south of 59N"
