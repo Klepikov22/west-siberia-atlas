@@ -1,4 +1,4 @@
-const APP_VERSION = '100';
+const APP_VERSION = '101';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10354,14 +10354,17 @@ function v90RenderTopologyTrendChart(data){
   const logFloor=useLog ? Math.min(...positives)/10 : null;
   const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
   const inverseY=y=>useLog ? Math.pow(10,y) : y;
+  const axisPlan=useLog ? v101NiceLogAxis(rawYs, logFloor) : v101NiceLinearAxis(rawYs, 5);
   const ys=rawYs.map(transformY);
-  let ymin=Math.min(...ys), ymax=Math.max(...ys); if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
+  let ymin=axisPlan ? axisPlan.min : Math.min(...ys);
+  let ymax=axisPlan ? axisPlan.max : Math.max(...ys);
+  if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
   const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
   const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
   const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
   const pts=rows.map(r=>`${xScale(Number(r.year)).toFixed(1)},${yScaleRaw(Number(r[metric])).toFixed(1)}`).join(' ');
   const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>Number(r.year));
-  const yTicks=[0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+  const yTicks=axisPlan?.ticks?.length ? axisPlan.ticks : [0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
   const labelsSvg=cfg.showLabels ? rows.map(r=>{
     const x=xScale(Number(r.year));
     const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(Number(r[metric]))-9);
@@ -10856,6 +10859,86 @@ function v93FormatTrendValue(v, key){
   if(Math.abs(n)<10 && !Number.isInteger(n)) return n.toFixed(2).replace('.',',');
   return num(n);
 }
+
+/* v101: rounded, publication-friendly Y-axis ticks for multiyear metrics. */
+function v101CleanNumber(v){
+  const n=Number(v);
+  return Number.isFinite(n) ? Number(n.toPrecision(12)) : n;
+}
+function v101NiceRoundStep(step){
+  const s=Math.abs(Number(step));
+  if(!Number.isFinite(s) || s<=0) return 1;
+  const pow=Math.floor(Math.log10(s));
+  const base=s/Math.pow(10,pow);
+  const niceBase=base<=1 ? 1 : (base<=2 ? 2 : (base<=5 ? 5 : 10));
+  return niceBase*Math.pow(10,pow);
+}
+function v101NiceLinearAxis(values, targetTicks=5){
+  const ys=(values||[]).map(Number).filter(Number.isFinite);
+  if(!ys.length) return null;
+  let lo=Math.min(...ys), hi=Math.max(...ys);
+  if(lo===hi){
+    const spread=v101NiceRoundStep(Math.max(Math.abs(lo),1)/2);
+    lo-=spread; hi+=spread;
+  }
+  const target=Math.max(3, Math.min(7, Number(targetTicks)||5));
+  let step=v101NiceRoundStep((hi-lo)/Math.max(1,target-1));
+  let niceMin=Math.floor(lo/step)*step;
+  let niceMax=Math.ceil(hi/step)*step;
+  if(lo>=0 && niceMin<0) niceMin=0;
+  let ticks=[];
+  const rebuild=()=>{
+    ticks=[];
+    const guard=32;
+    for(let i=0, v=niceMin; i<guard && v<=niceMax+step*0.5; i++, v+=step){
+      ticks.push(v101CleanNumber(v));
+    }
+  };
+  rebuild();
+  while(ticks.length>7){
+    step=v101NiceRoundStep(step*2.1);
+    niceMin=Math.floor(lo/step)*step;
+    niceMax=Math.ceil(hi/step)*step;
+    if(lo>=0 && niceMin<0) niceMin=0;
+    rebuild();
+  }
+  if(ticks.length<2){ ticks=[v101CleanNumber(niceMin), v101CleanNumber(niceMax)]; }
+  return {min:v101CleanNumber(ticks[0]), max:v101CleanNumber(ticks[ticks.length-1]), ticks};
+}
+function v101NiceLogAxis(rawValues, logFloor){
+  const vals=(rawValues||[]).map(Number).filter(Number.isFinite);
+  const positives=vals.filter(v=>v>0);
+  if(!positives.length) return null;
+  const minPositive=Math.min(...positives);
+  const minForAxis=vals.some(v=>v<=0) && Number.isFinite(Number(logFloor)) && Number(logFloor)>0 ? Math.min(minPositive, Number(logFloor)) : minPositive;
+  const maxPositive=Math.max(...positives);
+  let minExp=Math.floor(Math.log10(minForAxis));
+  let maxExp=Math.ceil(Math.log10(maxPositive));
+  if(!Number.isFinite(minExp) || !Number.isFinite(maxExp)) return null;
+  if(minExp===maxExp){ minExp-=1; maxExp+=1; }
+  const span=maxExp-minExp;
+  const expStep=Math.max(1, Math.ceil(span/6));
+  const ticks=[];
+  for(let e=minExp; e<=maxExp; e+=expStep) ticks.push(e);
+  if(ticks[ticks.length-1]!==maxExp) ticks.push(maxExp);
+  return {min:minExp, max:maxExp, ticks};
+}
+function v101CompactAxisNumber(v){
+  const n=Number(v);
+  if(!Number.isFinite(n)) return '—';
+  if(n===0) return '0';
+  const abs=Math.abs(n);
+  if(abs>=1000) return num(Math.round(n));
+  if(Number.isInteger(n)) return String(n).replace('.',',');
+  const decimals=abs>=100 ? 0 : (abs>=10 ? 1 : (abs>=1 ? 2 : Math.min(8, Math.max(2, Math.ceil(-Math.log10(abs))+1))));
+  return n.toFixed(decimals).replace(/\.?0+$/,'').replace('.',',');
+}
+function v101FormatAxisTick(v, metric){
+  const n=Number(v);
+  if(!Number.isFinite(n)) return '—';
+  if(String(metric||'').includes('share')) return v101CompactAxisNumber(n*100)+'%';
+  return v101CompactAxisNumber(n);
+}
 function v93TrendLeader(row, metric){
   if(metric.includes('betweenness')) return row.max_betweenness_name || '—';
   if(metric.includes('closeness')) return row.max_closeness_name || '—';
@@ -10951,7 +11034,7 @@ function v93RenderMultiyearTrendChart(data){
   const yTicks=[0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
   const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(Number(r.year)); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(Number(r[metric]))-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(v93FormatTrendValue(r[metric],metric))}</text>`; }).join('') : '';
   const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
-  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(v93FormatTrendValue(inverseY(t),metric))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(Number(r.year)).toFixed(1)}" cy="${yScaleRaw(Number(r[metric])).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${v93FormatTrendValue(r[metric],metric)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
+  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(v101FormatAxisTick(inverseY(t),metric))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(Number(r.year)).toFixed(1)}" cy="${yScaleRaw(Number(r[metric])).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${v93FormatTrendValue(r[metric],metric)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
   table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>ЛИДЕР / ПРИМЕЧАНИЕ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${v93FormatTrendValue(r[metric],metric)}</b><em>${escapeHtml(v93TrendLeader(r,metric))}</em></div>`).join('');
 }
 try{ v90OpenTopologyTrendsModal=v93OpenMultiyearTrendsModal; openTopologyTrendsModal=v93OpenMultiyearTrendsModal; }catch(_){ }
