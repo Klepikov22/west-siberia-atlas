@@ -1,4 +1,4 @@
-const APP_VERSION = '101';
+const APP_VERSION = '102';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10860,7 +10860,7 @@ function v93FormatTrendValue(v, key){
   return num(n);
 }
 
-/* v101: rounded, publication-friendly Y-axis ticks for multiyear metrics. */
+/* v101/v102: rounded, publication-friendly Y-axis ticks for multiyear metrics. */
 function v101CleanNumber(v){
   const n=Number(v);
   return Number.isFinite(n) ? Number(n.toPrecision(12)) : n;
@@ -10938,6 +10938,106 @@ function v101FormatAxisTick(v, metric){
   if(!Number.isFinite(n)) return '—';
   if(String(metric||'').includes('share')) return v101CompactAxisNumber(n*100)+'%';
   return v101CompactAxisNumber(n);
+}
+
+
+/* v102: strict rounded ticks for the multiyear metrics chart.
+   Linear axes use one significant digit steps: 1 / 2 / 5 × 10^n.
+   Log axes use only powers of ten as major ticks. */
+function v102NiceStepOneDigit(step){
+  const s=Math.abs(Number(step));
+  if(!Number.isFinite(s) || s<=0) return 1;
+  const pow=Math.floor(Math.log10(s));
+  const base=s/Math.pow(10,pow);
+  const niceBase=base<=1 ? 1 : (base<=2 ? 2 : (base<=5 ? 5 : 10));
+  return niceBase*Math.pow(10,pow);
+}
+function v102DecimalsForStep(step){
+  const s=Math.abs(Number(step));
+  if(!Number.isFinite(s) || s<=0 || s>=1) return 0;
+  return Math.min(8, Math.max(0, -Math.floor(Math.log10(s))));
+}
+function v102CleanAxisNumber(v){
+  const n=Number(v);
+  if(!Number.isFinite(n)) return n;
+  return Number(n.toPrecision(14));
+}
+function v102TrimFixedText(txt){
+  const s=String(txt);
+  return s.includes('.') ? s.replace(/\.?0+$/,'') : s;
+}
+function v102NiceLinearAxis(values, targetTicks=5){
+  const ys=(values||[]).map(Number).filter(Number.isFinite);
+  if(!ys.length) return null;
+  let lo=Math.min(...ys), hi=Math.max(...ys);
+  if(lo===hi){
+    const spread=v102NiceStepOneDigit(Math.max(Math.abs(lo),1)/2);
+    lo-=spread; hi+=spread;
+  }
+  const target=Math.max(3, Math.min(6, Number(targetTicks)||5));
+  let step=v102NiceStepOneDigit((hi-lo)/Math.max(1,target-1));
+  let niceMin=Math.floor(lo/step)*step;
+  let niceMax=Math.ceil(hi/step)*step;
+  if(lo>=0 && niceMin<0) niceMin=0;
+  let ticks=[];
+  const rebuild=()=>{
+    ticks=[];
+    const guard=64;
+    for(let i=0, v=niceMin; i<guard && v<=niceMax+step*0.25; i++, v+=step){
+      ticks.push(v102CleanAxisNumber(v));
+    }
+  };
+  rebuild();
+  while(ticks.length>7){
+    step=v102NiceStepOneDigit(step*2.01);
+    niceMin=Math.floor(lo/step)*step;
+    niceMax=Math.ceil(hi/step)*step;
+    if(lo>=0 && niceMin<0) niceMin=0;
+    rebuild();
+  }
+  if(ticks.length<2){
+    ticks=[v102CleanAxisNumber(niceMin), v102CleanAxisNumber(niceMax)];
+  }
+  return {min:v102CleanAxisNumber(ticks[0]), max:v102CleanAxisNumber(ticks[ticks.length-1]), ticks, step:v102CleanAxisNumber(step)};
+}
+function v102NiceLogAxis(rawValues, logFloor){
+  const vals=(rawValues||[]).map(Number).filter(Number.isFinite);
+  const positives=vals.filter(v=>v>0);
+  if(!positives.length) return null;
+  const minPositive=Math.min(...positives);
+  const maxPositive=Math.max(...positives);
+  const floorValue=vals.some(v=>v<=0) && Number.isFinite(Number(logFloor)) && Number(logFloor)>0 ? Number(logFloor) : minPositive;
+  let minExp=Math.floor(Math.log10(Math.min(minPositive, floorValue)));
+  let maxExp=Math.ceil(Math.log10(maxPositive));
+  if(!Number.isFinite(minExp) || !Number.isFinite(maxExp)) return null;
+  if(minExp===maxExp){ minExp-=1; maxExp+=1; }
+  const span=maxExp-minExp;
+  const expStep=Math.max(1, Math.ceil(span/6));
+  const ticks=[];
+  for(let e=minExp; e<=maxExp; e+=expStep) ticks.push(e);
+  if(ticks[ticks.length-1]!==maxExp) ticks.push(maxExp);
+  return {min:minExp, max:maxExp, ticks, step:expStep};
+}
+function v102FormatOneDigitValue(v, metric, step, isLogTick=false){
+  const n=Number(v);
+  if(!Number.isFinite(n)) return '—';
+  const isShare=String(metric||'').includes('share');
+  const value=isShare ? n*100 : n;
+  const unit=isShare ? '%' : '';
+  if(value===0) return '0'+unit;
+  const abs=Math.abs(value);
+  if(isLogTick){
+    if(abs>=1) return num(Math.round(value))+unit;
+    const decimals=Math.min(12, Math.max(1, Math.ceil(-Math.log10(abs))));
+    return v102TrimFixedText(value.toFixed(decimals)).replace('.',',')+unit;
+  }
+  const scaledStep=isShare ? Math.abs(Number(step))*100 : Math.abs(Number(step));
+  const decimals=v102DecimalsForStep(scaledStep || value);
+  if(abs>=1000 && decimals===0) return num(Math.round(value))+unit;
+  return v102TrimFixedText(value.toFixed(decimals)).replace('.',',')+unit;
+}
+function v102FormatAxisTick(t, metric, axisPlan, useLog){
+  return v102FormatOneDigitValue(t, metric, axisPlan?.step, !!useLog);
 }
 function v93TrendLeader(row, metric){
   if(metric.includes('betweenness')) return row.max_betweenness_name || '—';
@@ -11024,17 +11124,19 @@ function v93RenderMultiyearTrendChart(data){
   const logFloor=useLog ? Math.min(...positives)/10 : null;
   const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
   const inverseY=y=>useLog ? Math.pow(10,y) : y;
+  const axisPlan=useLog ? v102NiceLogAxis(rawYs, logFloor) : v102NiceLinearAxis(rawYs, 5);
   const ys=rawYs.map(transformY);
-  let ymin=Math.min(...ys), ymax=Math.max(...ys); if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
+  let ymin=axisPlan ? axisPlan.min : Math.min(...ys), ymax=axisPlan ? axisPlan.max : Math.max(...ys);
+  if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
   const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
   const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
   const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
   const pts=rows.map(r=>`${xScale(Number(r.year)).toFixed(1)},${yScaleRaw(Number(r[metric])).toFixed(1)}`).join(' ');
   const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>Number(r.year));
-  const yTicks=[0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+  const yTicks=axisPlan?.ticks?.length ? axisPlan.ticks : [0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
   const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(Number(r.year)); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(Number(r[metric]))-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(v93FormatTrendValue(r[metric],metric))}</text>`; }).join('') : '';
   const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
-  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(v101FormatAxisTick(inverseY(t),metric))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(Number(r.year)).toFixed(1)}" cy="${yScaleRaw(Number(r[metric])).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${v93FormatTrendValue(r[metric],metric)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
+  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(v102FormatAxisTick(inverseY(t),metric,axisPlan,useLog))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(Number(r.year)).toFixed(1)}" cy="${yScaleRaw(Number(r[metric])).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${v93FormatTrendValue(r[metric],metric)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
   table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>ЛИДЕР / ПРИМЕЧАНИЕ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${v93FormatTrendValue(r[metric],metric)}</b><em>${escapeHtml(v93TrendLeader(r,metric))}</em></div>`).join('');
 }
 try{ v90OpenTopologyTrendsModal=v93OpenMultiyearTrendsModal; openTopologyTrendsModal=v93OpenMultiyearTrendsModal; }catch(_){ }
