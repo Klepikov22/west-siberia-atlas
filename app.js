@@ -1,4 +1,4 @@
-const APP_VERSION = '97';
+const APP_VERSION = '98';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -723,7 +723,7 @@ function bindUi(){
   requestAnimationFrame(()=>positionBottomWidgets());
   on('finishPolygon','click', finishPolygonSelection);
   on('cancelSelectionDraw','click', clearSelectionDrawing);
-  ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles'].forEach(id=>on(id,'change', refreshVisibility));
+  ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles','toggleTopologyEdgesMain','toggleTopologyCentroids'].forEach(id=>on(id,'change', refreshVisibility));
   on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.45, padding:[18,18], maxZoom:MAP_RESET_MAX_ZOOM}));
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
   on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
@@ -752,7 +752,7 @@ function updateTimelineActive(){ document.querySelectorAll('.timeline-year').for
 function clearLayer(name){ if(state.layers[name]){ state.map.removeLayer(state.layers[name]); state.layers[name]=null; }}
 function isStaleRefresh(seq){ return seq != null && seq !== state.refreshSeq; }
 function clearYearLayers(){
-  ['rivers','water','admin','circles','centers','labels','centerLabels','railways','topologyGraph'].forEach(clearLayer);
+  ['rivers','water','admin','circles','centers','labels','centerLabels','railways','topologyGraph','topologyCentroids'].forEach(clearLayer);
   state.adminLayerById.clear();
   state.selectedCenterLayer=null;
   state.labelItems=[];
@@ -10592,192 +10592,1407 @@ updateStatsAndSelection = function updateStatsAndSelectionV92(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,380),{once:true}); else setTimeout(boot,380);
 })();
 
-/* v97: actual boundary stability layer: narrower 3/4 km tolerance and optional visual buffer stroke */
-function v93BoundaryStabilityVisible(){ return !!$('toggleBoundaryStability')?.checked; }
-function v93BoundaryStabilityMin(){ return Number($('boundaryStabilityMinSelect')?.value || 4); }
-function v96BoundaryStabilityAllYears(){ return (state.manifest?.years || []).map(Number).filter(Number.isFinite).sort((a,b)=>a-b); }
-function v96BoundaryStabilityPeriod(){
-  const yrs=v96BoundaryStabilityAllYears();
-  let from=Number($('boundaryStabilityFromYear')?.value || yrs[0] || 1700);
-  let to=Number($('boundaryStabilityToYear')?.value || yrs[yrs.length-1] || 2021);
-  if(from>to){ const t=from; from=to; to=t; }
-  const periodYears=yrs.filter(y=>y>=from && y<=to);
-  return {from,to,years:periodYears,total:periodYears.length || Math.max(1, (to-from+1))};
+/* v94: visible topology graph from v94 edge/node data, separate edge/node toggles, and full multiyear metric trends */
+function v93IsTopologyMode(){ return typeof v91IsTopologyMode==='function' ? v91IsTopologyMode() : (typeof v88TopologyModes!=='undefined' && v88TopologyModes.has(state.mode)); }
+function v93TopologyMasterOn(){ return !!($('toggleTopologyGraph')?.checked || v93IsTopologyMode()); }
+function v93TopologyEdgesOn(){ const el=$('toggleTopologyEdges'); return v93TopologyMasterOn() && (el ? !!el.checked : true); }
+function v93TopologyNodesOn(){ const el=$('toggleTopologyNodes'); return v93TopologyMasterOn() && (el ? !!el.checked : true); }
+function v93TopologyVisible(){ return v93TopologyMasterOn() && (v93TopologyEdgesOn() || v93TopologyNodesOn()); }
+try{ v91TopologyVisible=v93TopologyVisible; v90TopologyVisible=v93TopologyVisible; v89TopologyVisible=v93TopologyVisible; v88TopologyVisible=v93TopologyVisible; }catch(_){ }
+function v93CurrentAllowedTopologyIds(){
+  const ids=new Set();
+  const selected=(state.selectedIds && state.selectedIds.size) ? state.selectedIds : null;
+  (state.currentGeoJSON?.features||[]).forEach(f=>{
+    const p=f.properties||{};
+    if(p.topology_excluded) return;
+    if(selected && !selected.has(featureId(f))) return;
+    [featureId(f), p.unit_id, p.topology_node_id].map(x=>String(x||'')).filter(Boolean).forEach(id=>ids.add(id));
+  });
+  return ids;
 }
-function v96BoundaryStabilityMatchedYears(feature){
-  const p=feature?.properties || {};
-  const source=Array.isArray(p.matched_years) ? p.matched_years : (Array.isArray(p.years) ? p.years : []);
-  return source.map(Number).filter(Number.isFinite);
+function v93AdminPropsById(){
+  const byId=new Map();
+  const selected=(state.selectedIds && state.selectedIds.size) ? state.selectedIds : null;
+  (state.currentGeoJSON?.features||[]).forEach(f=>{
+    const p=f.properties||{};
+    if(p.topology_excluded) return;
+    if(selected && !selected.has(featureId(f))) return;
+    [featureId(f), p.unit_id, p.topology_node_id].map(x=>String(x||'')).filter(Boolean).forEach(id=>{ if(id && !byId.has(id)) byId.set(id,p); });
+  });
+  return byId;
 }
-function v96BoundaryStabilityPeriodCount(feature){
-  const per=v96BoundaryStabilityPeriod();
-  const st=new Set(v96BoundaryStabilityMatchedYears(feature));
-  let n=0; per.years.forEach(y=>{ if(st.has(y)) n++; });
-  return {count:n,total:per.total,share:per.total? n/per.total : 0, period:per, years:per.years.filter(y=>st.has(y))};
+function v93BuildNodeFeaturesFromEdges(nodes, edges, allowedIds){
+  const nodeProps=new Map();
+  const nodeGeom=new Map();
+  (nodes.features||[]).forEach(f=>{
+    const id=String(f?.properties?.unit_id || f?.properties?.topology_node_id || '');
+    if(!id || !allowedIds.has(id)) return;
+    const p={...(f.properties||{})};
+    if(p.topology_excluded) return;
+    nodeProps.set(id,p);
+    if(f.geometry?.type==='Point' && Array.isArray(f.geometry.coordinates)) nodeGeom.set(id,[Number(f.geometry.coordinates[0]),Number(f.geometry.coordinates[1])]);
+  });
+  const endpointById=new Map();
+  const namesById=new Map();
+  (edges.features||[]).forEach(e=>{
+    const p=e.properties||{};
+    const coords=e.geometry?.coordinates||[];
+    if(!coords.length) return;
+    [['source_id','source_name',coords[0]],['target_id','target_name',coords[coords.length-1]]].forEach(([idKey,nameKey,coord])=>{
+      const id=String(p[idKey]||'');
+      if(!id || !allowedIds.has(id) || !Array.isArray(coord) || coord.length<2) return;
+      if(!endpointById.has(id)) endpointById.set(id,[Number(coord[0]),Number(coord[1])]);
+      if(p[nameKey] && !namesById.has(id)) namesById.set(id,p[nameKey]);
+    });
+  });
+  const adminProps=v93AdminPropsById();
+  const ids=new Set([...allowedIds].filter(id=>nodeProps.has(id) || endpointById.has(id) || nodeGeom.has(id)));
+  const features=[];
+  ids.forEach(id=>{
+    const coord=endpointById.get(id) || nodeGeom.get(id);
+    if(!coord || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return;
+    const props={...(adminProps.get(id)||{}), ...(nodeProps.get(id)||{})};
+    if(props.topology_excluded) return;
+    props.unit_id=props.unit_id || id;
+    props.topology_node_id=props.topology_node_id || id;
+    props.name=props.name || namesById.get(id) || id;
+    props.node_lon=coord[0]; props.node_lat=coord[1]; props.topology_has_edges=endpointById.has(id);
+    features.push({type:'Feature', properties:props, geometry:{type:'Point', coordinates:coord}});
+  });
+  return {type:'FeatureCollection', features:features.sort((a,b)=>String(a.properties.name||a.properties.unit_id).localeCompare(String(b.properties.name||b.properties.unit_id),'ru'))};
 }
-function v93BoundaryStabilityStyleMode(){ return $('boundaryStabilityStyleSelect')?.value || 'class'; }
-function v93BoundaryStabilityLabelSize(){ return Math.max(9, Math.min(18, Number($('boundaryStabilityLabelSize')?.value || 11))); }
-function v93EnsureBoundaryStabilityPane(){
-  if(!state.map) return;
-  let bp=state.map.getPane('boundaryStabilityBufferPane');
-  if(!bp) bp=state.map.createPane('boundaryStabilityBufferPane');
-  bp.style.zIndex='862';
-  bp.style.pointerEvents='none';
-  let p=state.map.getPane('boundaryStabilityPane');
-  if(!p) p=state.map.createPane('boundaryStabilityPane');
-  p.style.zIndex='865';
-  p.style.pointerEvents='auto';
-  let lp=state.map.getPane('boundaryStabilityLabelPane');
-  if(!lp) lp=state.map.createPane('boundaryStabilityLabelPane');
-  lp.style.zIndex='875';
-  lp.style.pointerEvents='none';
+function v93EdgeRelationLabel(rel){ const labels=typeof v88EdgeRelationLabels==='function' ? v88EdgeRelationLabels() : {}; return labels[rel] || rel || 'тип связи'; }
+function v93EdgeWeight(feature, extra=0){ const km=Number(feature?.properties?.boundary_km)||1; return Math.max(2.4, Math.min(7.2, 1.9+Math.log1p(km)/1.95)) + extra; }
+function v93EdgeColor(p){
+  if(p?.is_bridge) return '#111827';
+  if(p?.relation==='same_parent') return '#0477bf';
+  if(p?.relation==='same_superparent') return '#7c3fb4';
+  if(p?.relation==='cross_parent') return '#e15400';
+  return '#4b5563';
 }
-async function v93LoadBoundaryStability(){
-  const path=state.manifest?.layers?.boundary_stability || 'data/stability/boundary_stability_v97.geojson';
-  try{ return await loadJson(path); }catch(e){ console.warn('boundary stability skipped', e); return {type:'FeatureCollection',features:[],properties:{}}; }
-}
-function v93BoundaryStabilityColor(count){
-  const n=Number(count)||0;
-  if(n>=12) return '#7f1d1d';
-  if(n>=8) return '#c2410c';
-  if(n>=4) return '#d97706';
-  return '#64748b';
-}
-function v93BoundaryStabilityStyle(feature){
-  const p=feature.properties||{};
-  const pc=v96BoundaryStabilityPeriodCount(feature);
-  const count=pc.count || Number(p.years_count)||0;
-  const off=Number(p.mean_offset_km)||0;
-  const mode=v93BoundaryStabilityStyleMode();
-  const baseWeight=Math.max(1.35, Math.min(6.2, 1.1 + Math.log1p(count)*1.15));
-  if(mode==='buffer') return {pane:'boundaryStabilityPane', color:v93BoundaryStabilityColor(count), weight:Math.max(1.2, baseWeight*.72), opacity:.95, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93 boundary-stability-axis-v97'};
-  if(mode==='mono') return {pane:'boundaryStabilityPane', color:'#7c2d12', weight:baseWeight, opacity:.82, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
-  if(mode==='offset'){
-    const color=off<=3 ? '#166534' : (off<=7 ? '#a16207' : '#991b1b');
-    return {pane:'boundaryStabilityPane', color, weight:baseWeight, opacity:.82, dashArray:off>7?'5 5':null, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
-  }
-  return {pane:'boundaryStabilityPane', color:v93BoundaryStabilityColor(count), weight:baseWeight, opacity:count>=8?.88:.70, dashArray:count<4?'4 6':null, lineCap:'round', lineJoin:'round', className:'boundary-stability-line-v93'};
-}
-function v97BoundaryStabilityBufferStyle(feature){
-  const pc=v96BoundaryStabilityPeriodCount(feature);
-  const count=pc.count || Number(feature?.properties?.years_count)||0;
-  return {pane:'boundaryStabilityBufferPane', color:v93BoundaryStabilityColor(count), weight:Math.max(8, Math.min(18, 7 + Math.log1p(count)*2.05)), opacity:.20, lineCap:'round', lineJoin:'round', className:'boundary-stability-buffer-v97'};
-}
-function v93BoundaryStabilityTooltip(p){
-  const fake={properties:p||{}};
-  const pc=v96BoundaryStabilityPeriodCount(fake);
-  const yrs=pc.years.length ? pc.years.join(', ') : (Array.isArray(p.years) ? p.years.join(', ') : String(p.years||'—'));
-  const anchor=p.nearest_river ? `${escapeHtml(String(p.natural_anchor||'речной рубеж'))}: ${escapeHtml(String(p.nearest_river))}${p.nearest_river_distance_km!=null?` · ${num1(p.nearest_river_distance_km)} км`:''}` : escapeHtml(String(p.natural_anchor||'реальный рубеж АТЕ'));
-  const scope=p.boundary_scope==='internal_and_external_exposed_contours' ? 'внутренние + внешние/экспонированные контуры' : 'реальные контуры АТЕ';
-  return `${num(pc.count)} из ${num(pc.total)} срезов в выбранном периоде · ${pct(pc.share)} · допуск ±${num(p.tolerance_km)} км · ср. смещение ${num1(p.mean_offset_km)} км<br><span class="mini-muted">период: ${num(pc.period.from)}–${num(pc.period.to)}; реальная граница: ${escapeHtml(String(p.source_name||'граница'))}; ${scope}</span><br><span class="mini-muted">привязка: ${anchor}</span><br><span class="mini-muted">реф. год: ${escapeHtml(String(p.reference_year||'—'))}; годы совпадения в периоде: ${escapeHtml(yrs)}</span>`;
-}
-function v93BoundaryStabilityLabelHtml(p){
-  const pc=v96BoundaryStabilityPeriodCount({properties:p||{}});
-  return `<span class="boundary-stability-label-v93" style="font-size:${v93BoundaryStabilityLabelSize()}px">${num(pc.count)} срез.</span>`;
-}
-function v93RepresentativeLayerLatLng(layer){
-  try{
-    if(layer.getBounds) return layer.getBounds().getCenter();
-    if(layer.getLatLng) return layer.getLatLng();
-  }catch(_){ }
+function v93EdgeDash(p){
+  if(p?.is_bridge) return null;
+  if(p?.relation==='same_superparent') return '10 5';
+  if(p?.relation==='cross_parent') return '3 6';
+  if(p?.relation==='unknown') return '4 6';
   return null;
 }
-async function v93RenderBoundaryStability(){
-  try{ clearLayer('boundaryStabilityBuffers'); clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
-  state.boundaryStabilityStats={total:0, visible:0, counts:{low:0,medium:0,high:0,veryHigh:0}, min:v93BoundaryStabilityMin(), period:v96BoundaryStabilityPeriod()};
-  if(!state.map || !v93BoundaryStabilityVisible()) { try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){} return; }
-  v93EnsureBoundaryStabilityPane();
-  const token=(state._boundaryStabilityTokenV93||0)+1;
-  state._boundaryStabilityTokenV93=token;
-  const gj=await v93LoadBoundaryStability();
-  if(token!==state._boundaryStabilityTokenV93 || !v93BoundaryStabilityVisible()) return;
-  const min=v93BoundaryStabilityMin();
-  const period=v96BoundaryStabilityPeriod();
-  const features=(gj.features||[]).filter(f=>v96BoundaryStabilityPeriodCount(f).count>=min);
-  const stats={total:(gj.features||[]).length, visible:features.length, counts:{low:0,medium:0,high:0,veryHigh:0}, min, period};
-  features.forEach(f=>{ const n=v96BoundaryStabilityPeriodCount(f).count; if(n>=12) stats.counts.veryHigh++; else if(n>=8) stats.counts.high++; else if(n>=4) stats.counts.medium++; else stats.counts.low++; });
-  state.boundaryStabilityStats=stats;
-  if(v93BoundaryStabilityStyleMode()==='buffer'){
-    const bufferLayer=L.geoJSON({type:'FeatureCollection',features},{
-      interactive:false,
-      pane:'boundaryStabilityBufferPane',
-      style:v97BoundaryStabilityBufferStyle
-    });
-    state.layers.boundaryStabilityBuffers=bufferLayer;
-    bufferLayer.addTo(state.map);
-  }
-  const lineLayer=L.geoJSON({type:'FeatureCollection',features},{
-    interactive:true,
-    pane:'boundaryStabilityPane',
-    style:v93BoundaryStabilityStyle,
-    onEachFeature:(f,l)=>{
+function v93EdgeStyle(feature){
+  const p=feature.properties||{};
+  if(typeof v90EdgeStyleMode==='function' && v90EdgeStyleMode()==='uniform') return {color:p.is_bridge?'#111827':'#263241', weight:v93EdgeWeight(feature,0), opacity:p.is_bridge?.98:.88, dashArray:null, lineCap:'round', lineJoin:'round', className:'topology-edge-path-v93'};
+  return {color:v93EdgeColor(p), weight:v93EdgeWeight(feature,0), opacity:p.is_bridge?.99:.92, dashArray:v93EdgeDash(p), lineCap:'round', lineJoin:'round', className:'topology-edge-path-v93'};
+}
+function v93EdgeHaloStyle(feature){ return {color:'#fff8e6', weight:v93EdgeWeight(feature,5.2), opacity:.86, dashArray:null, lineCap:'round', lineJoin:'round', interactive:false, className:'topology-edge-halo-v93'}; }
+function v93NodeStyle(feature, vals, metric){
+  const p=feature.properties||{};
+  const val=Number(p[metric]);
+  const bridge=Number(p.topo_bridge_incident_count)||0;
+  const r=(typeof v90NodeRadius==='function' ? v90NodeRadius(val, vals, metric) : (5 + Math.min(10, Number(p.topo_degree)||0)));
+  return {radius:Math.max(6, r), color:bridge>0?'#111827':'#fff8e6', weight:bridge>0?3.8:3.2, fillColor:valueColor(Number.isFinite(val)?val:0, vals), fillOpacity:.97, opacity:1, pane:'markerPane', bubblingMouseEvents:false, interactive:true, className:'topology-node-marker-v93'};
+}
+async function v93RenderTopologyGraph(){
+  const token=(state._topologyRenderTokenV93||0)+1;
+  state._topologyRenderTokenV93=token;
+  try{ clearLayer('topologyGraph'); }catch(_){ }
+  state._topologyNodeFeaturesV93=[];
+  state._topologyNodeFeaturesV92=[];
+  state._topologyNodeFeaturesV91=[];
+  state.topologyEdgeStats={year:state.year, counts:{same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0}, total:0, nodes:0};
+  if(!state.map || !state.currentGeoJSON || !v93TopologyVisible()) return;
+  if(typeof v90EnsureMetricOptions==='function') v90EnsureMetricOptions();
+  const metric=typeof v91TopologyMetricField==='function' ? v91TopologyMetricField() : ($('topologyMetricSelect')?.value || 'topo_degree');
+  const allowedIds=v93CurrentAllowedTopologyIds();
+  if(!allowedIds.size) return;
+  const edgesRaw=await v90LoadTopologyEdges(state.year);
+  if(token!==state._topologyRenderTokenV93 || !v93TopologyVisible()) return;
+  const edgeFeaturesRaw=(edgesRaw.features||[]).filter(e=>allowedIds.has(String(e.properties?.source_id||'')) && allowedIds.has(String(e.properties?.target_id||'')));
+  const edges={type:'FeatureCollection', features:edgeFeaturesRaw};
+  const nodes=await v90LoadTopologyNodes(state.year);
+  if(token!==state._topologyRenderTokenV93 || !v93TopologyVisible()) return;
+  const nodeGJ=v93BuildNodeFeaturesFromEdges(nodes, edges, allowedIds);
+  const nodeIds=new Set((nodeGJ.features||[]).map(f=>String(f.properties?.unit_id || f.properties?.topology_node_id || '')).filter(Boolean));
+  const edgeFeatures=edgeFeaturesRaw.filter(e=>nodeIds.has(String(e.properties?.source_id||'')) && nodeIds.has(String(e.properties?.target_id||'')));
+  const counts=edgeFeatures.reduce((acc,e)=>{ const r=e.properties?.relation || 'unknown'; acc[r]=(acc[r]||0)+1; if(e.properties?.is_bridge) acc.bridges=(acc.bridges||0)+1; return acc; },{same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0});
+  const nodeFeatures=(nodeGJ.features||[]).filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  const vals=nodeFeatures.map(f=>Number(f.properties?.[metric])).filter(Number.isFinite);
+  state._topologyNodeFeaturesV93=nodeFeatures;
+  state._topologyNodeFeaturesV92=nodeFeatures;
+  state._topologyNodeFeaturesV91=nodeFeatures;
+  state.topologyEdgeStats={year:state.year, counts, total:edgeFeatures.length, nodes:nodeFeatures.length};
+  const group=L.layerGroup();
+  if(v93TopologyEdgesOn() && edgeFeatures.length){
+    const fc={type:'FeatureCollection',features:edgeFeatures};
+    group.addLayer(L.geoJSON(fc,{interactive:false, style:v93EdgeHaloStyle}));
+    group.addLayer(L.geoJSON(fc,{interactive:true, style:v93EdgeStyle, onEachFeature:(f,l)=>{
       const p=f.properties||{};
-      l.on('mouseover',e=>showHoverLater({title:'Устойчивый рубеж АТД', subtitle:p.stability_class || 'геометрическая устойчивость', extra:v93BoundaryStabilityTooltip(p), delay:170}, e.originalEvent));
-      l.on('mousemove',e=>moveHover(e.originalEvent));
-      l.on('mouseout',hideHover);
-    }
-  });
-  state.layers.boundaryStability=lineLayer;
-  lineLayer.addTo(state.map);
-  try{ lineLayer.bringToFront(); }catch(_){ }
-  if($('toggleBoundaryStabilityLabels')?.checked){
-    const labelGroup=L.layerGroup();
-    const labelFeatures=features.filter(f=>v96BoundaryStabilityPeriodCount(f).count>=Math.max(8,min)).slice(0,220);
-    const temp=L.geoJSON({type:'FeatureCollection',features:labelFeatures},{interactive:false, pane:'boundaryStabilityPane'});
-    temp.eachLayer(layer=>{
-      const ll=v93RepresentativeLayerLatLng(layer); if(!ll) return;
-      const p=layer.feature?.properties||{};
-      const marker=L.marker(ll,{interactive:false, pane:'boundaryStabilityLabelPane', icon:L.divIcon({className:'boundary-stability-label-anchor-v93', html:v93BoundaryStabilityLabelHtml(p), iconSize:[60,18], iconAnchor:[30,9]})});
-      labelGroup.addLayer(marker);
-    });
-    state.layers.boundaryStabilityLabels=labelGroup;
-    labelGroup.addTo(state.map);
+      l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'ребро топологического графа', extra:`общая граница: ${num1(p.boundary_km)} км · ${escapeHtml(v93EdgeRelationLabel(p.relation))}${p.is_bridge?' · мостовое ребро':''}`, delay:160}, e.originalEvent));
+      l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
+    }}));
   }
+  if(v93TopologyNodesOn() && nodeFeatures.length){
+    group.addLayer(L.geoJSON({type:'FeatureCollection',features:nodeFeatures},{
+      pointToLayer:(f,latlng)=>L.circleMarker(latlng,v93NodeStyle(f,vals,metric)),
+      onEachFeature:(f,l)=>{
+        const p=f.properties||{};
+        l.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел графа · ${v91CleanTopologyMetricLabel(metric)}`, extra:`значение: ${typeof v90MetricValueLabel==='function'?v90MetricValueLabel(p[metric],metric):num1(p[metric])} · соседей: ${p.topo_degree ?? '—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'} · мостовых: ${p.topo_bridge_incident_count ?? 0}`, delay:160}, e.originalEvent));
+        l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
+        l.on('click',e=>{ L.DomEvent.stopPropagation(e); const admin=typeof v90FindAdminFeatureByNode==='function' ? v90FindAdminFeatureByNode(f) : null; if(admin){ if(state.tool === 'pan') toggleSelection(admin); showFeature(admin); } });
+      }
+    }));
+  }
+  if(token!==state._topologyRenderTokenV93 || !v93TopologyVisible()) return;
+  state.layers.topologyGraph=group;
+  group.addTo(state.map);
+  try{ group.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ }
   try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){ }
 }
-function v93BoundaryStabilityLegendHtml(){
-  if(!v93BoundaryStabilityVisible()) return '';
-  const s=state.boundaryStabilityStats || {visible:0,counts:{}};
-  const row=(cls,label,count,color)=>`<div class="legend-row legend-row-counted-v92 boundary-stability-legend-row-v93"><span class="boundary-stability-swatch-v93" style="background:${color}"></span><span>${escapeHtml(label)}</span>${typeof v92LegendCountMarkup==='function'?v92LegendCountMarkup(count||0):`<span></span><span>${num(count||0)} шт.</span>`}</div>`;
-  return `<div class="legend-section boundary-stability-section-v93">Устойчивость границ</div>
-    ${row('vh','очень высокая · 12+ срезов',s.counts?.veryHigh,'#7f1d1d')}
-    ${row('h','высокая · 8–11 срезов',s.counts?.high,'#c2410c')}
-    ${row('m','средняя · 4–7 срезов',s.counts?.medium,'#d97706')}
-    ${row('l','низкая · 2–3 среза',s.counts?.low,'#64748b')}
-    <div class="mini-muted legend-scale-note-v67">Показано: ${num(s.visible||0)} реальных сегм. Мин.: ${num(s.min||v93BoundaryStabilityMin())} срезов. Период: ${num(s.period?.from||v96BoundaryStabilityPeriod().from)}–${num(s.period?.to||v96BoundaryStabilityPeriod().to)}. v97: реальные границы АТЕ; 1700–2021; без K-линий. Допуск сужен: ±4 км севернее 59° с.ш.; ±3 км южнее. Буферный стиль — визуальный широкий ход по той же линии.</div>`;
+try{ v92RenderTopologyGraph=v93RenderTopologyGraph; v91RenderTopologyGraph=v93RenderTopologyGraph; v90RenderTopologyGraph=v93RenderTopologyGraph; v89RenderTopologyGraph=v93RenderTopologyGraph; v88RenderTopologyGraph=v93RenderTopologyGraph; }catch(_){ }
+function v93LegendCountMarkup(count){ return `<span class="legend-count-gap-v92" aria-hidden="true">•</span><span class="legend-count-v92">${num(count)} шт.</span>`; }
+function v93BuildTopologyLegend(gj){
+  const metric=typeof v91TopologyMetricField==='function' ? v91TopologyMetricField() : 'topo_degree';
+  const source=(state._topologyNodeFeaturesV93&&state._topologyNodeFeaturesV93.length) ? state._topologyNodeFeaturesV93 : (gj.features||[]).filter(f=>!f.properties?.topology_excluded);
+  const vals=source.map(f=>Number(f.properties?.[metric])).filter(Number.isFinite);
+  const bins=typeof v90TopologyMetricBins==='function' ? v90TopologyMetricBins(vals,metric) : [];
+  const stats=(state.topologyEdgeStats && state.topologyEdgeStats.year===state.year) ? state.topologyEdgeStats : {counts:{},total:0,nodes:source.length};
+  const counts=stats.counts||{};
+  const labels=typeof v88EdgeRelationLabels==='function' ? v88EdgeRelationLabels() : {};
+  const edgeRows=(typeof v90EdgeStyleMode==='function' && v90EdgeStyleMode()==='uniform')
+    ? `<div class="legend-row legend-row-counted-v92"><span class="topology-edge-uniform-v90"></span><span>рёбра графа, единый стиль</span>${v93LegendCountMarkup(stats.total||0)}</div>`
+    : [['same_parent','topology-edge-same-v90'],['same_superparent','topology-edge-super-v90'],['cross_parent','topology-edge-cross-v90'],['unknown','topology-edge-unknown-v90']]
+      .filter(([k])=>k!=='unknown' || (counts[k]||0)>0)
+      .map(([k,cls])=>`<div class="legend-row legend-row-counted-v92"><span class="${cls}"></span><span>${escapeHtml(labels[k]||'прочие связи')}</span>${v93LegendCountMarkup(counts[k]||0)}</div>`).join('');
+  const min=vals.length?Math.min(...vals):null, max=vals.length?Math.max(...vals):null;
+  const elementsNote=`${v93TopologyEdgesOn()?'рёбра включены':'рёбра скрыты'} · ${v93TopologyNodesOn()?'узлы включены':'узлы скрыты'}`;
+  return `<div class="legend-title-v91">Легенда</div>
+    <div class="legend-topology-v91 legend-topology-v92 legend-topology-v93">
+      <div class="legend-section">Классы узлов · ${escapeHtml(v91CleanTopologyMetricLabel(metric))}</div>
+      ${bins.map(b=>`<div class="legend-row legend-row-class-v67 legend-row-counted-v92"><span class="swatch" style="background:${b.color}"></span><span>${escapeHtml(b.label)}</span>${v93LegendCountMarkup(b.count)}</div>`).join('')}
+      <div class="mini-muted legend-scale-note-v67">Диапазон метрики: ${typeof v90MetricValueLabel==='function'?v90MetricValueLabel(min,metric):num1(min)} — ${typeof v90MetricValueLabel==='function'?v90MetricValueLabel(max,metric):num1(max)}. ${escapeHtml(elementsNote)}.</div>
+      <div class="legend-section">Рёбра и узлы смежности</div>
+      ${edgeRows}
+      <div class="legend-row legend-row-counted-v92"><span class="topology-edge-bridge-v90"></span><span>мостовые рёбра</span>${v93LegendCountMarkup(counts.bridges||0)}</div>
+      <div class="legend-row legend-row-counted-v92"><span class="topology-node-swatch-v90"></span><span>узлы АТЕ, цвет/размер = метрика</span>${v93LegendCountMarkup(stats.nodes||0)}</div>
+      <div class="mini-muted legend-scale-note-v67">Ребро = общая граница ≥ 1 км. Граф построен по данным v94 и отфильтрован по текущему административному слою/выборке.</div>
+    </div>
+    ${typeof v90SpecialLegendRows==='function' ? v90SpecialLegendRows(gj) : ''}`;
 }
 const v93PriorUpdateLegend = updateLegend;
 updateLegend = function updateLegendV93(gj, vals){
+  if((typeof v91IsTopologyMode==='function' && v91IsTopologyMode()) || v93TopologyMasterOn()){
+    const box=$('legendBox'); if(!box || !gj) return;
+    box.innerHTML=v93BuildTopologyLegend(gj);
+    return;
+  }
   v93PriorUpdateLegend(gj, vals);
-  const box=$('legendBox'); if(!box) return;
-  const html=v93BoundaryStabilityLegendHtml();
-  if(html) box.insertAdjacentHTML('beforeend', html);
+};
+function v93SyncTopologySubtogglesFromMaster(){
+  const master=$('toggleTopologyGraph'), e=$('toggleTopologyEdges'), n=$('toggleTopologyNodes');
+  if(master?.checked && e && n && !e.checked && !n.checked){ e.checked=true; n.checked=true; }
+}
+function v93BindTopologyControls(){
+  if(typeof v90EnsureMetricOptions==='function') v90EnsureMetricOptions();
+  const rerender=async()=>{ v93SyncTopologySubtogglesFromMaster(); await v93RenderTopologyGraph(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); };
+  ['toggleTopologyGraph','toggleTopologyEdges','toggleTopologyNodes','topologyMetricSelect','topologyEdgeStyleSelect'].forEach(id=>{
+    const el=$(id); if(!el || el.dataset.v93Bound==='1') return;
+    el.dataset.v93Bound='1'; el.addEventListener('change',()=>{ if(id==='topologyMetricSelect') state.topologyMetric=el.value; rerender(); }, true);
+  });
+  const mode=$('modeSelect');
+  if(mode && mode.dataset.v93TopologyBound!=='1'){
+    mode.dataset.v93TopologyBound='1'; mode.addEventListener('change',()=>setTimeout(()=>{ const m=$('topologyMetricSelect'); if(m && v93IsTopologyMode()) m.value=state.mode; rerender(); },40), true);
+  }
+  const btn=$('openTopologyTrends');
+  if(btn && btn.dataset.v93Bound!=='1'){
+    btn.dataset.v93Bound='1'; btn.textContent='Динамика метрик по годам'; btn.addEventListener('click',e=>{ e.preventDefault(); e.stopImmediatePropagation(); v93OpenMultiyearTrendsModal(); }, true);
+  }
+}
+const v93PriorRefreshAdmin = refreshAdmin;
+refreshAdmin = async function refreshAdminV93(seq){
+  await v93PriorRefreshAdmin(seq);
+  if(typeof isStaleRefresh==='function' && isStaleRefresh(seq)) return;
+  v93BindTopologyControls();
+  if(v93IsTopologyMode()){ const m=$('topologyMetricSelect'); if(m) m.value=state.mode; }
+  await v93RenderTopologyGraph();
 };
 const v93PriorRefreshVisibility = refreshVisibility;
 refreshVisibility = function refreshVisibilityV93(){
   v93PriorRefreshVisibility();
-  if(v93BoundaryStabilityVisible()){
-    clearTimeout(state._boundaryStabilityTimerV93);
-    state._boundaryStabilityTimerV93=setTimeout(()=>v93RenderBoundaryStability(),25);
-  }else{
-    try{ clearLayer('boundaryStabilityBuffers'); clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
+  const layer=state.layers.topologyGraph;
+  if(!state.map || !layer) return;
+  if(v93TopologyVisible()){
+    if(!state.map.hasLayer(layer)) layer.addTo(state.map);
+    try{ layer.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ }
+  }else if(state.map.hasLayer(layer)) state.map.removeLayer(layer);
+};
+const v93TrendGroups={
+  admin:{label:'АТЕ и площадь', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','total_area_km2','avg_area_km2']},
+  population:{label:'Население', metrics:['total_population','avg_population','population_density','urban_population','rural_population','urban_share']},
+  rail:{label:'Железные дороги', metrics:['rail_length_km_total','rail_density_km_1000','rail_segments_count_sum']},
+  adjacency:{label:'Соседство', metrics:['avg_adjacency']},
+  topology:{label:'Граф и топология', metrics:['nodes','edges','components','graph_density','cyclomatic','bridges','articulation_points','avg_degree','avg_degree_centrality','avg_betweenness','avg_closeness','avg_k_core','avg_external_degree','avg_external_share','same_parent_edges','same_superparent_edges','cross_parent_edges']}
+};
+const v93TrendLabels={
+  ate_total_count:'число объектов АТЕ на карте', upper_ate_count:'число АТЕ верхнего уровня', middle_ate_count:'число АТЕ среднего уровня', lower_ate_count:'число АТЕ нижнего уровня', total_area_km2:'суммарная площадь АТЕ, км²', avg_area_km2:'средняя площадь АТЕ, км²',
+  total_population:'суммарное население', avg_population:'среднее население АТЕ', population_density:'плотность населения, чел./км²', urban_population:'городское / несельское население', rural_population:'сельское / прочее население', urban_share:'доля городского / несельского населения',
+  rail_length_km_total:'суммарная длина ЖД, км', rail_density_km_1000:'плотность ЖД, км/1000 км²', rail_segments_count_sum:'число ЖД-сегментов в АТЕ', avg_adjacency:'среднее соседство АТЕ',
+  nodes:'узлы графа', edges:'рёбра графа', components:'компоненты связности', graph_density:'плотность графа', cyclomatic:'цикломатическое число', bridges:'мосты графа', articulation_points:'точки сочленения', avg_degree:'средняя степень / число соседей', avg_degree_centrality:'средняя degree centrality', avg_betweenness:'средняя betweenness', avg_closeness:'средняя closeness', avg_k_core:'средний k-core', avg_external_degree:'средние внешние связи', avg_external_share:'средняя доля внешних связей', same_parent_edges:'рёбра внутри родителя', same_superparent_edges:'рёбра внутри вышестоящей группы', cross_parent_edges:'межродительские рёбра'
+};
+try{ Object.assign(v90TrendLabels, v93TrendLabels); }catch(_){ }
+function v93MetricGroupFor(metric){ return Object.entries(v93TrendGroups).find(([,g])=>g.metrics.includes(metric))?.[0] || 'admin'; }
+function v93TrendMetricOptions(group){ return (v93TrendGroups[group]?.metrics || v93TrendGroups.admin.metrics).filter(k=>v93TrendLabels[k]); }
+async function v93LoadMultiyearMetrics(){
+  if(state._multiyearMetricsV93) return state._multiyearMetricsV93;
+  const path=state.manifest?.layers?.multiyear_metrics || 'data/topology/multiyear_metrics_by_year.json';
+  const data=await loadJson(path);
+  state._multiyearMetricsV93=Array.isArray(data)?data:[];
+  return state._multiyearMetricsV93;
+}
+function v93FormatTrendValue(v, key){
+  const n=Number(v); if(!Number.isFinite(n)) return '—';
+  if(key.includes('share')) return (n*100).toFixed(1).replace('.',',')+'%';
+  if(['graph_density','avg_betweenness','avg_closeness','avg_degree_centrality'].includes(key)) return n.toFixed(3).replace('.',',');
+  if(['population_density','rail_density_km_1000','avg_adjacency','avg_degree','avg_k_core','avg_external_degree'].includes(key)) return n.toFixed(2).replace('.',',');
+  if(['total_area_km2','avg_area_km2','rail_length_km_total'].includes(key)) return n>=100 ? num(n) : n.toFixed(1).replace('.',',');
+  if(key.includes('count') || ['nodes','edges','components','cyclomatic','bridges','articulation_points','rail_segments_count_sum'].includes(key)) return num(n);
+  if(Math.abs(n)<10 && !Number.isInteger(n)) return n.toFixed(2).replace('.',',');
+  return num(n);
+}
+function v93TrendLeader(row, metric){
+  if(metric.includes('betweenness')) return row.max_betweenness_name || '—';
+  if(metric.includes('closeness')) return row.max_closeness_name || '—';
+  if(metric.includes('k_core')) return row.max_k_core_name || '—';
+  if(metric==='nodes' || metric==='edges' || metric.includes('degree')) return row.max_degree_name || `аналитических АТЕ: ${num(row.analytics_features)}`;
+  if(metric.startsWith('rail_')) return row.rail_length_km_total>0 ? `ЖД всего: ${v93FormatTrendValue(row.rail_length_km_total,'rail_length_km_total')} км` : 'ЖД нет / нет данных';
+  if(metric.includes('population') || metric.includes('urban') || metric.includes('rural')) return row.total_population ? `население всего: ${v93FormatTrendValue(row.total_population,'total_population')}` : 'нет данных по населению';
+  if(metric.includes('area')) return row.total_area_km2 ? `площадь всего: ${v93FormatTrendValue(row.total_area_km2,'total_area_km2')} км²` : 'нет данных по площади';
+  return `аналитических АТЕ: ${num(row.analytics_features)}`;
+}
+function v93TrendSettings(){ return typeof v91TrendSettings==='function' ? v91TrendSettings() : {scale:'linear', lineColor:'#9a6a22', pointColor:'#f2c14e', showLabels:false, labelSize:11}; }
+function v93SafeHexColor(v,fallback){ return typeof v91SafeHexColor==='function' ? v91SafeHexColor(v,fallback) : (/^#[0-9a-fA-F]{6}$/.test(String(v||'')) ? String(v) : fallback); }
+async function v93OpenMultiyearTrendsModal(){
+  const modal=ensurePieLightbox();
+  modal.classList.add('topology-trends-modal-v91','multiyear-trends-modal-v93');
+  state.activePieField=null;
+  const title=modal.querySelector('#chartLightboxTitle'), body=modal.querySelector('#chartLightboxBody');
+  if(title) title.textContent='Динамика метрик по годам';
+  const data=await v93LoadMultiyearMetrics();
+  const years=data.map(d=>Number(d.year)).filter(Number.isFinite).sort((a,b)=>a-b);
+  let metric=state._topologyTrendMetric || 'ate_total_count';
+  let group=state._topologyTrendGroup || v93MetricGroupFor(metric);
+  if(!v93TrendMetricOptions(group).includes(metric)) metric=v93TrendMetricOptions(group)[0];
+  const selected=new Set(state._topologyTrendYears?.length ? state._topologyTrendYears.map(Number) : years);
+  const cfg=v93TrendSettings();
+  body.className='chart-lightbox-body topology-trends-body-v91 multiyear-trends-body-v93';
+  const metricSelectHtml=()=>v93TrendMetricOptions(group).map(k=>`<option value="${k}" ${k===metric?'selected':''}>${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+  body.innerHTML=`<div class="topology-trend-layout-v91 multiyear-trend-layout-v93">
+    <section class="topology-trend-controls-v91" aria-label="Параметры графика">
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendGroupV93">Группа показателей</label><select id="topologyTrendGroupV93">${Object.entries(v93TrendGroups).map(([k,g])=>`<option value="${k}" ${k===group?'selected':''}>${escapeHtml(g.label)}</option>`).join('')}</select></div>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendMetricV90">Метрика</label><select id="topologyTrendMetricV90">${metricSelectHtml()}</select></div>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendScaleV91">Шкала значений</label><select id="topologyTrendScaleV91"><option value="linear" ${cfg.scale==='linear'?'selected':''}>Линейная</option><option value="log" ${cfg.scale==='log'?'selected':''}>Логарифмическая log10</option></select></div>
+      <div class="topology-trend-color-grid-v91"><label class="control-label" for="topologyTrendLineColorV91">Цвет линии</label><input id="topologyTrendLineColorV91" type="color" value="${v93SafeHexColor(cfg.lineColor,'#9a6a22')}"><label class="control-label" for="topologyTrendPointColorV91">Цвет точек</label><input id="topologyTrendPointColorV91" type="color" value="${v93SafeHexColor(cfg.pointColor,'#f2c14e')}"></div>
+      <div class="topology-trend-label-grid-v91"><label class="compact-check"><input type="checkbox" id="topologyTrendShowLabelsV91" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize)||11}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize)||11}"></div>
+      <div class="topology-trend-buttons-v88 topology-trend-buttons-v91"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
+      <div><div class="control-label topology-years-label-v91">Годы наблюдений</div><div id="topologyTrendYearsV90" class="topology-trend-years-v88 topology-trend-years-v91">${years.map(y=>`<label><input type="checkbox" value="${y}" ${selected.has(y)?'checked':''}>${y}</label>`).join('')}</div></div>
+      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям; графовые метрики — по топологическим узлам/рёбрам v94.</div>
+    </section>
+    <section class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v88 topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v88 topology-trend-table-v91"></div></section>
+  </div>`;
+  const sync=()=>{
+    group=$('topologyTrendGroupV93')?.value || group;
+    const metricSelect=$('topologyTrendMetricV90');
+    if(metricSelect && !v93TrendMetricOptions(group).includes(metricSelect.value)){
+      metricSelect.innerHTML=v93TrendMetricOptions(group).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+      metricSelect.value=v93TrendMetricOptions(group)[0];
+    }
+    state._topologyTrendGroup=group;
+    state._topologyTrendMetric=metricSelect?.value || v93TrendMetricOptions(group)[0];
+    state._topologyTrendScale=$('topologyTrendScaleV91')?.value || 'linear';
+    state._topologyTrendLineColor=v93SafeHexColor($('topologyTrendLineColorV91')?.value,'#9a6a22');
+    state._topologyTrendPointColor=v93SafeHexColor($('topologyTrendPointColorV91')?.value,'#f2c14e');
+    state._topologyTrendShowLabels=!!$('topologyTrendShowLabelsV91')?.checked;
+    state._topologyTrendLabelSize=Number($('topologyTrendLabelSizeV91')?.value || 11);
+    const labelSizeValue=$('topologyTrendLabelSizeValueV91'); if(labelSizeValue) labelSizeValue.textContent=String(state._topologyTrendLabelSize);
+    state._topologyTrendYears=[...body.querySelectorAll('#topologyTrendYearsV90 input:checked')].map(i=>Number(i.value));
+    v93RenderMultiyearTrendChart(data);
+  };
+  $('topologyTrendGroupV93')?.addEventListener('change',()=>{ const ms=$('topologyTrendMetricV90'); const g=$('topologyTrendGroupV93')?.value || 'admin'; if(ms){ ms.innerHTML=v93TrendMetricOptions(g).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join(''); ms.value=v93TrendMetricOptions(g)[0]; } sync(); });
+  ['topologyTrendMetricV90','topologyTrendScaleV91','topologyTrendLineColorV91','topologyTrendPointColorV91','topologyTrendShowLabelsV91','topologyTrendLabelSizeV91'].forEach(id=>$(id)?.addEventListener('input',sync));
+  ['topologyTrendMetricV90','topologyTrendScaleV91'].forEach(id=>$(id)?.addEventListener('change',sync));
+  body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.addEventListener('change',sync));
+  $('topologyTrendAllV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=true); sync(); });
+  $('topologyTrendClearV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=false); sync(); });
+  $('topologyTrendCoreV90')?.addEventListener('click',()=>{ const core=new Set([1700,1745,1783,1798,1821,1848,1876,1897,1914,1926,1939,1959,1970,1989,2021]); body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=core.has(Number(i.value))); sync(); });
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  sync();
+}
+function v93RenderMultiyearTrendChart(data){
+  const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'); if(!chart || !table) return;
+  const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'ate_total_count';
+  const cfg=v93TrendSettings();
+  const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+  const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+  const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : data.map(d=>Number(d.year))).map(Number));
+  const rows=data.filter(d=>selectedYears.has(Number(d.year)) && Number.isFinite(Number(d[metric]))).sort((a,b)=>Number(a.year)-Number(b.year));
+  if(rows.length<2){ chart.innerHTML='<div class="mini-muted">Для этой метрики выберите минимум два года с числовыми данными.</div>'; table.innerHTML=''; return; }
+  const w=940,h=390,pad={l:88,r:34,t:36,b:54};
+  const xs=rows.map(r=>Number(r.year)), rawYs=rows.map(r=>Number(r[metric]));
+  const xmin=Math.min(...xs), xmax=Math.max(...xs);
+  const positives=rawYs.filter(y=>y>0);
+  const useLog=cfg.scale==='log' && positives.length>0;
+  const logFloor=useLog ? Math.min(...positives)/10 : null;
+  const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
+  const inverseY=y=>useLog ? Math.pow(10,y) : y;
+  const ys=rawYs.map(transformY);
+  let ymin=Math.min(...ys), ymax=Math.max(...ys); if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
+  const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+  const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const pts=rows.map(r=>`${xScale(Number(r.year)).toFixed(1)},${yScaleRaw(Number(r[metric])).toFixed(1)}`).join(' ');
+  const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>Number(r.year));
+  const yTicks=[0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+  const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(Number(r.year)); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(Number(r[metric]))-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(v93FormatTrendValue(r[metric],metric))}</text>`; }).join('') : '';
+  const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
+  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(v93FormatTrendValue(inverseY(t),metric))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(Number(r.year)).toFixed(1)}" cy="${yScaleRaw(Number(r[metric])).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${v93FormatTrendValue(r[metric],metric)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
+  table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>ЛИДЕР / ПРИМЕЧАНИЕ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${v93FormatTrendValue(r[metric],metric)}</b><em>${escapeHtml(v93TrendLeader(r,metric))}</em></div>`).join('');
+}
+try{ v90OpenTopologyTrendsModal=v93OpenMultiyearTrendsModal; openTopologyTrendsModal=v93OpenMultiyearTrendsModal; }catch(_){ }
+(function v93Boot(){
+  const boot=()=>{ try{ v93BindTopologyControls(); v93RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(e){ console.warn('v93 boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,460),{once:true}); else setTimeout(boot,460);
+})();
+
+
+/* v95: topology nodes as independent HTML centroid markers.
+   This bypasses the old SVG circleMarker node renderer: node positions are rebuilt
+   from the currently visible administrative polygons and rendered as Leaflet DivIcon markers. */
+function v95FeatureIds(feature){
+  const p=feature?.properties||{};
+  return [typeof featureId==='function' ? featureId(feature) : null, p.unit_id, p.topology_node_id]
+    .map(x=>String(x||'')).filter(Boolean);
+}
+function v95FeatureMatchesId(feature, id){
+  const s=String(id||'');
+  return !!s && v95FeatureIds(feature).includes(s);
+}
+function v95RingCentroid(ring){
+  if(!Array.isArray(ring) || ring.length<3) return null;
+  let area=0, cx=0, cy=0;
+  for(let i=0;i<ring.length-1;i++){
+    const a=ring[i], b=ring[i+1];
+    if(!Array.isArray(a) || !Array.isArray(b)) continue;
+    const x0=Number(a[0]), y0=Number(a[1]), x1=Number(b[0]), y1=Number(b[1]);
+    if(!Number.isFinite(x0)||!Number.isFinite(y0)||!Number.isFinite(x1)||!Number.isFinite(y1)) continue;
+    const cross=x0*y1-x1*y0;
+    area+=cross; cx+=(x0+x1)*cross; cy+=(y0+y1)*cross;
   }
+  if(Math.abs(area)<1e-12) return null;
+  area*=0.5;
+  return {x:cx/(6*area), y:cy/(6*area), area};
+}
+function v95AverageCoordinate(feature){
+  const pts=[];
+  const walk=(obj)=>{
+    if(!Array.isArray(obj)) return;
+    if(obj.length>=2 && Number.isFinite(Number(obj[0])) && Number.isFinite(Number(obj[1]))){ pts.push([Number(obj[0]),Number(obj[1])]); return; }
+    obj.forEach(walk);
+  };
+  walk(feature?.geometry?.coordinates);
+  if(!pts.length) return null;
+  const sx=pts.reduce((a,p)=>a+p[0],0), sy=pts.reduce((a,p)=>a+p[1],0);
+  return [sx/pts.length, sy/pts.length];
+}
+function v95AdminCentroid(feature){
+  const g=feature?.geometry;
+  if(!g) return null;
+  if(g.type==='Point' && Array.isArray(g.coordinates)){
+    const x=Number(g.coordinates[0]), y=Number(g.coordinates[1]);
+    return Number.isFinite(x)&&Number.isFinite(y) ? [x,y] : null;
+  }
+  const rings=[];
+  if(g.type==='Polygon') rings.push(...(g.coordinates||[]).slice(0,1));
+  if(g.type==='MultiPolygon') (g.coordinates||[]).forEach(poly=>{ if(Array.isArray(poly?.[0])) rings.push(poly[0]); });
+  let sumArea=0, sx=0, sy=0;
+  rings.forEach(r=>{
+    const c=v95RingCentroid(r);
+    if(!c) return;
+    const w=Math.abs(c.area);
+    sumArea+=w; sx+=c.x*w; sy+=c.y*w;
+  });
+  if(sumArea>1e-12) return [sx/sumArea, sy/sumArea];
+  try{
+    const id=typeof featureId==='function' ? featureId(feature) : null;
+    const layer=id && state.adminLayerById ? state.adminLayerById.get(id) : null;
+    const center=layer?.getBounds?.().getCenter?.();
+    if(center && Number.isFinite(center.lng) && Number.isFinite(center.lat)) return [center.lng, center.lat];
+  }catch(_){ }
+  return v95AverageCoordinate(feature);
+}
+function v95AdminFeatureByIdMap(){
+  const byId=new Map();
+  const selected=(state.selectedIds && state.selectedIds.size) ? state.selectedIds : null;
+  (state.currentGeoJSON?.features||[]).forEach(f=>{
+    const p=f.properties||{};
+    if(p.topology_excluded) return;
+    if(selected && !selected.has(featureId(f))) return;
+    const area=Number(p.area_km2);
+    if(Number.isFinite(area) && area>0 && area<50) return;
+    v95FeatureIds(f).forEach(id=>{ if(id && !byId.has(id)) byId.set(id, f); });
+  });
+  return byId;
+}
+function v95BuildCentroidNodes(nodes, edges, allowedIds){
+  const adminById=v95AdminFeatureByIdMap();
+  const nodeProps=new Map();
+  const edgeNames=new Map();
+  const incidentCounts=new Map();
+  const ids=new Set();
+  (nodes.features||[]).forEach(f=>{
+    const id=String(f?.properties?.unit_id || f?.properties?.topology_node_id || '');
+    if(!id || !allowedIds.has(id) || !adminById.has(id)) return;
+    const p={...(f.properties||{})};
+    if(p.topology_excluded) return;
+    nodeProps.set(id,p); ids.add(id);
+  });
+  (edges.features||[]).forEach(e=>{
+    const p=e.properties||{};
+    [['source_id','source_name'],['target_id','target_name']].forEach(([idKey,nameKey])=>{
+      const id=String(p[idKey]||'');
+      if(!id || !allowedIds.has(id) || !adminById.has(id)) return;
+      ids.add(id);
+      incidentCounts.set(id,(incidentCounts.get(id)||0)+1);
+      if(p[nameKey] && !edgeNames.has(id)) edgeNames.set(id,p[nameKey]);
+    });
+  });
+  const features=[];
+  ids.forEach(id=>{
+    const admin=adminById.get(id);
+    if(!admin) return;
+    const coord=v95AdminCentroid(admin);
+    if(!coord || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return;
+    const ap=admin.properties||{};
+    const np=nodeProps.get(id)||{};
+    const props={...ap, ...np};
+    if(props.topology_excluded) return;
+    props.unit_id=props.unit_id || id;
+    props.topology_node_id=props.topology_node_id || id;
+    props.name=props.name || ap.name || edgeNames.get(id) || id;
+    if(!Number.isFinite(Number(props.topo_degree))) props.topo_degree=incidentCounts.get(id)||0;
+    props.node_lon=coord[0]; props.node_lat=coord[1];
+    props.topology_has_edges=(incidentCounts.get(id)||0)>0;
+    props.topology_node_renderer='html_centroid_v95';
+    props._admin_feature_id=typeof featureId==='function' ? featureId(admin) : id;
+    features.push({type:'Feature', properties:props, geometry:{type:'Point', coordinates:coord}});
+  });
+  return {type:'FeatureCollection', features:features.sort((a,b)=>String(a.properties.name||a.properties.unit_id).localeCompare(String(b.properties.name||b.properties.unit_id),'ru'))};
+}
+function v95FindAdminFeatureForNode(nodeFeature){
+  const p=nodeFeature?.properties||{};
+  const direct=String(p._admin_feature_id||'');
+  if(direct){
+    const found=(state.currentGeoJSON?.features||[]).find(f=>String(featureId(f))===direct);
+    if(found) return found;
+  }
+  const id=String(p.unit_id || p.topology_node_id || '');
+  return (state.currentGeoJSON?.features||[]).find(f=>v95FeatureMatchesId(f,id)) || null;
+}
+function v95NodeRadius(feature, vals, metric){
+  const p=feature.properties||{};
+  const val=Number(p[metric]);
+  const base=(typeof v90NodeRadius==='function') ? v90NodeRadius(val, vals, metric) : (6 + Math.min(14, Number(p.topo_degree)||0));
+  return Math.max(13, Math.min(34, base*1.45));
+}
+function v95NodeFill(feature, vals, metric){
+  const val=Number(feature?.properties?.[metric]);
+  try{ return valueColor(Number.isFinite(val)?val:0, vals); }catch(_){ return '#f2c14e'; }
+}
+function v95NodeHtml(feature, vals, metric){
+  const p=feature.properties||{};
+  const size=v95NodeRadius(feature, vals, metric);
+  const fill=v95NodeFill(feature, vals, metric);
+  const bridge=(Number(p.topo_bridge_incident_count)||0)>0;
+  const degree=Number.isFinite(Number(p.topo_degree)) ? Number(p.topo_degree) : '';
+  const cls=bridge ? 'topology-node-dot-v95 bridge' : 'topology-node-dot-v95';
+  return `<span class="${cls}" style="--node-size:${size}px;--node-fill:${fill};" data-degree="${degree}"></span>`;
+}
+function v95MakeNodeMarker(feature, vals, metric){
+  const c=feature.geometry?.coordinates||[];
+  const lat=Number(c[1]), lng=Number(c[0]);
+  const size=v95NodeRadius(feature, vals, metric);
+  const iconSize=Math.round(size+16);
+  const marker=L.marker([lat,lng],{
+    pane:'markerPane',
+    interactive:true,
+    keyboard:false,
+    riseOnHover:true,
+    zIndexOffset:2600,
+    icon:L.divIcon({
+      className:'topology-node-html-icon-v95',
+      html:v95NodeHtml(feature, vals, metric),
+      iconSize:[iconSize,iconSize],
+      iconAnchor:[iconSize/2,iconSize/2]
+    })
+  });
+  marker.feature=feature;
+  const p=feature.properties||{};
+  marker.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел графа · ${typeof v91CleanTopologyMetricLabel==='function'?v91CleanTopologyMetricLabel(metric):metric} · HTML-центроид`, extra:`значение: ${typeof v90MetricValueLabel==='function'?v90MetricValueLabel(p[metric],metric):num1(p[metric])} · соседей: ${p.topo_degree ?? '—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'} · мостовых: ${p.topo_bridge_incident_count ?? 0}`, delay:120}, e.originalEvent));
+  marker.on('mousemove',e=>moveHover(e.originalEvent));
+  marker.on('mouseout',hideHover);
+  marker.on('click',e=>{ L.DomEvent.stopPropagation(e); const admin=v95FindAdminFeatureForNode(feature); if(admin){ if(state.tool==='pan') toggleSelection(admin); showFeature(admin); } });
+  return marker;
+}
+async function v95RenderTopologyGraph(){
+  const token=(state._topologyRenderTokenV95||0)+1;
+  state._topologyRenderTokenV95=token;
+  try{ clearLayer('topologyGraph'); }catch(_){ }
+  state._topologyNodeFeaturesV95=[];
+  state._topologyNodeFeaturesV93=[]; state._topologyNodeFeaturesV92=[]; state._topologyNodeFeaturesV91=[];
+  state.topologyEdgeStats={year:state.year, counts:{same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0}, total:0, nodes:0, renderer:'html_centroid_v95'};
+  if(!state.map || !state.currentGeoJSON || !v93TopologyVisible()) return;
+  if(typeof v90EnsureMetricOptions==='function') v90EnsureMetricOptions();
+  const metric=typeof v91TopologyMetricField==='function' ? v91TopologyMetricField() : ($('topologyMetricSelect')?.value || 'topo_degree');
+  const allowedIds=typeof v93CurrentAllowedTopologyIds==='function' ? v93CurrentAllowedTopologyIds() : new Set((state.currentGeoJSON.features||[]).flatMap(v95FeatureIds));
+  if(!allowedIds.size) return;
+  const edgesRaw=await v90LoadTopologyEdges(state.year);
+  if(token!==state._topologyRenderTokenV95 || !v93TopologyVisible()) return;
+  const edgeFeaturesRaw=(edgesRaw.features||[]).filter(e=>allowedIds.has(String(e.properties?.source_id||'')) && allowedIds.has(String(e.properties?.target_id||'')));
+  const nodesRaw=await v90LoadTopologyNodes(state.year);
+  if(token!==state._topologyRenderTokenV95 || !v93TopologyVisible()) return;
+  const nodeGJ=v95BuildCentroidNodes(nodesRaw, {type:'FeatureCollection',features:edgeFeaturesRaw}, allowedIds);
+  const nodeIds=new Set((nodeGJ.features||[]).map(f=>String(f.properties?.unit_id || f.properties?.topology_node_id || '')).filter(Boolean));
+  const edgeFeatures=edgeFeaturesRaw.filter(e=>nodeIds.has(String(e.properties?.source_id||'')) && nodeIds.has(String(e.properties?.target_id||'')));
+  const counts=edgeFeatures.reduce((acc,e)=>{ const r=e.properties?.relation || 'unknown'; acc[r]=(acc[r]||0)+1; if(e.properties?.is_bridge) acc.bridges=(acc.bridges||0)+1; return acc; },{same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0});
+  const nodeFeatures=(nodeGJ.features||[]).filter(f=>!f.properties?.topology_excluded && Number.isFinite(Number(f.properties?.topo_degree)));
+  const vals=nodeFeatures.map(f=>Number(f.properties?.[metric])).filter(Number.isFinite);
+  state._topologyNodeFeaturesV95=nodeFeatures;
+  state._topologyNodeFeaturesV93=nodeFeatures; state._topologyNodeFeaturesV92=nodeFeatures; state._topologyNodeFeaturesV91=nodeFeatures;
+  state.topologyEdgeStats={year:state.year, counts, total:edgeFeatures.length, nodes:nodeFeatures.length, renderer:'html_centroid_v95'};
+  const group=L.layerGroup();
+  if(v93TopologyEdgesOn() && edgeFeatures.length){
+    const fc={type:'FeatureCollection',features:edgeFeatures};
+    group.addLayer(L.geoJSON(fc,{interactive:false, style:typeof v93EdgeHaloStyle==='function'?v93EdgeHaloStyle:undefined}));
+    group.addLayer(L.geoJSON(fc,{interactive:true, style:typeof v93EdgeStyle==='function'?v93EdgeStyle:undefined, onEachFeature:(f,l)=>{
+      const p=f.properties||{};
+      l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'ребро топологического графа', extra:`общая граница: ${num1(p.boundary_km)} км · ${escapeHtml(typeof v93EdgeRelationLabel==='function'?v93EdgeRelationLabel(p.relation):(p.relation||'тип связи'))}${p.is_bridge?' · мостовое ребро':''}`, delay:140}, e.originalEvent));
+      l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
+    }}));
+  }
+  if(v93TopologyNodesOn() && nodeFeatures.length){
+    const nodeGroup=L.layerGroup();
+    nodeFeatures.forEach(f=>nodeGroup.addLayer(v95MakeNodeMarker(f, vals, metric)));
+    group.addLayer(nodeGroup);
+  }
+  if(token!==state._topologyRenderTokenV95 || !v93TopologyVisible()) return;
+  state.layers.topologyGraph=group;
+  group.addTo(state.map);
+  try{ group.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ }
+  try{ updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(_){ }
+}
+try{ v93RenderTopologyGraph=v95RenderTopologyGraph; v92RenderTopologyGraph=v95RenderTopologyGraph; v91RenderTopologyGraph=v95RenderTopologyGraph; v90RenderTopologyGraph=v95RenderTopologyGraph; v89RenderTopologyGraph=v95RenderTopologyGraph; v88RenderTopologyGraph=v95RenderTopologyGraph; }catch(_){ }
+const v95PriorBuildTopologyLegend = typeof v93BuildTopologyLegend==='function' ? v93BuildTopologyLegend : null;
+if(v95PriorBuildTopologyLegend){
+  v93BuildTopologyLegend = function v95BuildTopologyLegend(gj){
+    const html=v95PriorBuildTopologyLegend(gj);
+    return html.replace('Граф построен по данным v94 и отфильтрован по текущему административному слою/выборке.', 'Граф построен по данным v94; узлы отрисованы заново как HTML-центроиды текущих административных полигонов и отфильтрованы по текущему слою/выборке.');
+  };
+}
+(function v95BootTopology(){
+  const boot=()=>{ try{ if(typeof v93BindTopologyControls==='function') v93BindTopologyControls(); v95RenderTopologyGraph(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }catch(e){ console.warn('v95 topology boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,520),{once:true}); else setTimeout(boot,520);
+})();
+
+
+/* v96: hard topology centroid layer as an ordinary map element.
+   The old topology node renderer is bypassed: nodes are rebuilt from the current
+   admin polygons and displayed in their own Leaflet layer, like population circles. */
+function v96TopologyEdgesOn(){ return !!$('toggleTopologyEdgesMain')?.checked; }
+function v96TopologyCentroidsOn(){ return !!$('toggleTopologyCentroids')?.checked; }
+function v96TopologyAnythingOn(){ return v96TopologyEdgesOn() || v96TopologyCentroidsOn(); }
+function v96SyncLegacyTopologyControls(){
+  const master=$('toggleTopologyGraph'), edges=$('toggleTopologyEdges'), nodes=$('toggleTopologyNodes');
+  if(master) master.checked=v96TopologyAnythingOn();
+  if(edges) edges.checked=v96TopologyEdgesOn();
+  if(nodes) nodes.checked=v96TopologyCentroidsOn();
+}
+function v96TopologyMetricField(){
+  const el=$('topologyMetricSelect');
+  return el?.value || state.topologyMetric || 'topo_degree';
+}
+function v96IsNormalTopologyFeature(f){
+  const p=f?.properties||{};
+  if(p.topology_excluded || p.adjacency_excluded) return false;
+  if(p.include_in_analytics === false) return false;
+  const area=Number(p.area_km2);
+  if(Number.isFinite(area) && area < 50) return false;
+  const code=String(p.special_status_code || '').trim();
+  if(code && code !== 'normal') return false;
+  const selected=(state.selectedIds && state.selectedIds.size) ? state.selectedIds : null;
+  if(selected && !selected.has(featureId(f))) return false;
+  return true;
+}
+function v96CentroidForAdminLayer(layer){
+  try{
+    const c=layer?.getBounds?.().getCenter?.();
+    if(c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) return c;
+  }catch(_){ }
+  return null;
+}
+function v96NodeMetricValue(f, metric){
+  const p=f?.properties||{};
+  const n=Number(p[metric]);
+  if(Number.isFinite(n)) return n;
+  const d=Number(p.topo_degree);
+  return Number.isFinite(d) ? d : 0;
+}
+function v96CentroidNodeRadius(f){
+  const p=f?.properties||{};
+  const degree=Number(p.topo_degree);
+  const kcore=Number(p.topo_k_core);
+  const d=Number.isFinite(degree) ? degree : 1;
+  const k=Number.isFinite(kcore) ? kcore : 0;
+  return Math.max(8, Math.min(18, 8 + d*0.85 + k*0.65));
+}
+function v96CentroidNodeColors(f, vals, metric){
+  const p=f?.properties||{};
+  const v=v96NodeMetricValue(f,metric);
+  let fill='#f6c85f';
+  try{ fill=valueColor(v, vals && vals.length ? vals : [0,1]); }catch(_){ }
+  const bridge=(Number(p.topo_bridge_incident_count)||0)>0 || !!p.topo_bridge_endpoint;
+  return {fill, line:bridge?'#111827':'#fff8e6', outer:bridge?'#111827':'#083344'};
+}
+function v96CentroidNodeStyle(f, vals, metric){
+  const colors=v96CentroidNodeColors(f,vals,metric);
+  const selected=state.selectedIds?.has(featureId(f));
+  return {
+    pane:'overlayPane',
+    radius:v96CentroidNodeRadius(f),
+    color:selected?'#ff2a8a':colors.line,
+    weight:selected?5:3.2,
+    fillColor:colors.fill,
+    fillOpacity:.98,
+    opacity:1,
+    lineCap:'round',
+    lineJoin:'round',
+    interactive:true,
+    bubblingMouseEvents:false,
+    className:'topology-centroid-node-v96'
+  };
+}
+function v96CentroidHaloStyle(f){
+  const selected=state.selectedIds?.has(featureId(f));
+  return {
+    pane:'overlayPane',
+    radius:v96CentroidNodeRadius(f)+6,
+    color:selected?'#ff2a8a':'#111827',
+    weight:selected?2.8:2.2,
+    fillColor:'#fff8e6',
+    fillOpacity:selected?.34:.28,
+    opacity:selected?.92:.72,
+    interactive:false,
+    bubblingMouseEvents:false,
+    className:'topology-centroid-halo-v96'
+  };
+}
+function v96BuildTopologyCentroids(){
+  v96SyncLegacyTopologyControls();
+  try{ clearLayer('topologyCentroids'); }catch(_){ }
+  state._topologyNodeFeaturesV96=[];
+  if(!state.map || !state.layers.admin || !state.currentGeoJSON) return;
+  const metric=v96TopologyMetricField();
+  const candidates=(state.currentGeoJSON.features||[]).filter(v96IsNormalTopologyFeature);
+  const vals=candidates.map(f=>v96NodeMetricValue(f,metric)).filter(Number.isFinite);
+  const group=L.layerGroup();
+  state.layers.admin.eachLayer(layer=>{
+    const f=layer.feature;
+    if(!v96IsNormalTopologyFeature(f)) return;
+    const p=f.properties||{};
+    const degree=Number(p.topo_degree);
+    // Для слоёв без топологических атрибутов всё равно показываем центроид,
+    // но для пересчитанных слоёв это именно узел графа.
+    const c=v96CentroidForAdminLayer(layer);
+    if(!c) return;
+    const halo=L.circleMarker(c, v96CentroidHaloStyle(f));
+    const node=L.circleMarker(c, v96CentroidNodeStyle(f, vals, metric));
+    halo.feature=f; node.feature=f;
+    const metricLabel=typeof v91CleanTopologyMetricLabel==='function' ? v91CleanTopologyMetricLabel(metric) : metric;
+    const metricValue=typeof v90MetricValueLabel==='function' ? v90MetricValueLabel(v96NodeMetricValue(f,metric),metric) : num1(v96NodeMetricValue(f,metric));
+    node.on('mouseover', e=>showHoverLater({
+      title:p.name||'АТЕ',
+      subtitle:'узел графа / центроид АТЕ',
+      extra:`${escapeHtml(metricLabel)}: ${metricValue} · соседей: ${Number.isFinite(degree)?degree:'—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'}`,
+      population:p.population,
+      area:p.area_km2,
+      density:p.density,
+      delay:80
+    }, e.originalEvent));
+    node.on('mousemove', e=>moveHover(e.originalEvent));
+    node.on('mouseout', hideHover);
+    node.on('click', e=>{ L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; if(isSelectableFeature(f)) toggleSelection(f); showFeature(f); });
+    group.addLayer(halo);
+    group.addLayer(node);
+    state._topologyNodeFeaturesV96.push({type:'Feature', properties:{...p, topology_node_renderer:'ordinary_centroid_layer_v96'}, geometry:{type:'Point', coordinates:[c.lng,c.lat]}});
+  });
+  state.layers.topologyCentroids=group;
+  state._topologyNodeFeaturesV95=state._topologyNodeFeaturesV96;
+  state._topologyNodeFeaturesV93=state._topologyNodeFeaturesV96;
+  state._topologyNodeFeaturesV92=state._topologyNodeFeaturesV96;
+  state._topologyNodeFeaturesV91=state._topologyNodeFeaturesV96;
+  const prev=state.topologyEdgeStats||{year:state.year, counts:{}, total:0};
+  state.topologyEdgeStats={...prev, year:state.year, nodes:state._topologyNodeFeaturesV96.length, renderer:'ordinary_centroid_layer_v96'};
+}
+async function v96RenderTopologyGraph(){
+  v96SyncLegacyTopologyControls();
+  const token=(state._topologyRenderTokenV96||0)+1;
+  state._topologyRenderTokenV96=token;
+  try{ clearLayer('topologyGraph'); }catch(_){ }
+  const emptyCounts={same_parent:0,same_superparent:0,cross_parent:0,unknown:0,bridges:0};
+  state.topologyEdgeStats={year:state.year, counts:emptyCounts, total:0, nodes:state._topologyNodeFeaturesV96?.length||0, renderer:'ordinary_centroid_layer_v96'};
+  if(!state.map || !state.currentGeoJSON || !v96TopologyEdgesOn()) return;
+  const allowedIds=typeof v93CurrentAllowedTopologyIds==='function' ? v93CurrentAllowedTopologyIds() : new Set((state.currentGeoJSON.features||[]).filter(v96IsNormalTopologyFeature).map(f=>String(f.properties?.unit_id || featureId(f))));
+  if(!allowedIds.size) return;
+  let edgesRaw=null;
+  try{ edgesRaw=await v90LoadTopologyEdges(state.year); }catch(e){ console.warn('v96 topology edges skipped', e); return; }
+  if(token!==state._topologyRenderTokenV96 || !v96TopologyEdgesOn()) return;
+  const edgeFeatures=(edgesRaw.features||[]).filter(e=>allowedIds.has(String(e.properties?.source_id||'')) && allowedIds.has(String(e.properties?.target_id||'')));
+  const counts=edgeFeatures.reduce((acc,e)=>{ const r=e.properties?.relation || 'unknown'; acc[r]=(acc[r]||0)+1; if(e.properties?.is_bridge) acc.bridges=(acc.bridges||0)+1; return acc; },{...emptyCounts});
+  state.topologyEdgeStats={year:state.year, counts, total:edgeFeatures.length, nodes:state._topologyNodeFeaturesV96?.length||0, renderer:'ordinary_centroid_layer_v96'};
+  if(!edgeFeatures.length) return;
+  const fc={type:'FeatureCollection', features:edgeFeatures};
+  const group=L.layerGroup();
+  group.addLayer(L.geoJSON(fc,{interactive:false, style:typeof v93EdgeHaloStyle==='function'?v93EdgeHaloStyle:(()=>({color:'#fff8e6',weight:8,opacity:.8}))}));
+  group.addLayer(L.geoJSON(fc,{interactive:true, style:typeof v93EdgeStyle==='function'?v93EdgeStyle:(()=>({color:'#0477bf',weight:4,opacity:.9})), onEachFeature:(f,l)=>{
+    const p=f.properties||{};
+    l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'ребро смежности', extra:`общая граница: ${num1(p.boundary_km)} км · ${escapeHtml(typeof v93EdgeRelationLabel==='function'?v93EdgeRelationLabel(p.relation):(p.relation||'тип связи'))}${p.is_bridge?' · мостовое ребро':''}`, delay:120}, e.originalEvent));
+    l.on('mousemove',e=>moveHover(e.originalEvent));
+    l.on('mouseout',hideHover);
+  }}));
+  if(token!==state._topologyRenderTokenV96 || !v96TopologyEdgesOn()) return;
+  state.layers.topologyGraph=group;
+}
+function v96ApplyTopologyLayerVisibility(){
+  v96SyncLegacyTopologyControls();
+  if(!state.map) return;
+  const edges=state.layers.topologyGraph;
+  if(edges){
+    if(v96TopologyEdgesOn()){ if(!state.map.hasLayer(edges)) edges.addTo(state.map); bringLayerGroupToFront(edges); }
+    else if(state.map.hasLayer(edges)) state.map.removeLayer(edges);
+  }
+  const nodes=state.layers.topologyCentroids;
+  if(nodes){
+    if(v96TopologyCentroidsOn()){ if(!state.map.hasLayer(nodes)) nodes.addTo(state.map); bringLayerGroupToFront(nodes); }
+    else if(state.map.hasLayer(nodes)) state.map.removeLayer(nodes);
+  }
+}
+function v96BuildTopologyLegend(gj){
+  v96SyncLegacyTopologyControls();
+  const base=(typeof v93BuildTopologyLegend==='function') ? v93BuildTopologyLegend(gj) : '';
+  const nodes=state._topologyNodeFeaturesV96?.length || 0;
+  const edges=state.topologyEdgeStats?.total || 0;
+  const note=`<div class="mini-muted legend-scale-note-v67 v96-node-note"><b>v96:</b> узлы выводятся отдельным обычным слоем карты, как круги населения: ${num(nodes)} центроидов АТЕ. Рёбра: ${num(edges)}. Старый SVG/HTML‑рендер узлов больше не используется.</div>`;
+  return base ? `${base}${note}` : note;
+}
+const v96PriorUpdateLegend = updateLegend;
+updateLegend = function updateLegendV96(gj, vals){
+  if(v96TopologyAnythingOn()){
+    const box=$('legendBox'); if(!box || !gj) return;
+    box.innerHTML=v96BuildTopologyLegend(gj);
+    return;
+  }
+  v96PriorUpdateLegend(gj, vals);
 };
-const v93PriorClearYearLayers = clearYearLayers;
-clearYearLayers = function clearYearLayersV93(){
-  v93PriorClearYearLayers();
-  try{ clearLayer('boundaryStabilityBuffers'); clearLayer('boundaryStability'); clearLayer('boundaryStabilityLabels'); }catch(_){ }
+const v96PriorRefreshVisibility = refreshVisibility;
+refreshVisibility = function refreshVisibilityV96(){
+  v96PriorRefreshVisibility();
+  v96ApplyTopologyLayerVisibility();
+  if(v96TopologyAnythingOn()) updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
 };
-function v93BindBoundaryStabilityControls(){
-  ['toggleBoundaryStability','boundaryStabilityFromYear','boundaryStabilityToYear','boundaryStabilityMinSelect','boundaryStabilityStyleSelect','toggleBoundaryStabilityLabels','boundaryStabilityLabelSize'].forEach(id=>{
-    const el=$(id); if(!el || el.dataset.v93Bound) return;
-    el.dataset.v93Bound='1';
-    const ev=el.tagName==='SELECT' || el.type==='range' ? 'input' : 'change';
-    el.addEventListener(ev,()=>{ clearTimeout(state._boundaryStabilityTimerV93); state._boundaryStabilityTimerV93=setTimeout(()=>v93RenderBoundaryStability(),30); });
-    if(el.tagName==='SELECT') el.addEventListener('change',()=>v93RenderBoundaryStability());
+function v96RefreshTopologyOverlays(){
+  v96BuildTopologyCentroids();
+  v96RenderTopologyGraph().then(()=>{ v96ApplyTopologyLayerVisibility(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []); }).catch(e=>console.warn('v96 topology overlay refresh failed', e));
+  v96ApplyTopologyLayerVisibility();
+}
+function v96BindTopologyOverlayControls(){
+  const ids=['toggleTopologyEdgesMain','toggleTopologyCentroids','topologyMetricSelect'];
+  ids.forEach(id=>{
+    const el=$(id); if(!el || el.dataset.v96Bound==='1') return;
+    el.dataset.v96Bound='1';
+    el.addEventListener('change',()=>{ if(id==='topologyMetricSelect') state.topologyMetric=el.value; v96RefreshTopologyOverlays(); }, true);
+  });
+  const mode=$('modeSelect');
+  if(mode && mode.dataset.v96TopologyBound!=='1'){
+    mode.dataset.v96TopologyBound='1'; mode.addEventListener('change',()=>setTimeout(v96RefreshTopologyOverlays,60), true);
+  }
+}
+const v96PriorRefreshAdmin = refreshAdmin;
+refreshAdmin = async function refreshAdminV96(seq){
+  await v96PriorRefreshAdmin(seq);
+  if(typeof isStaleRefresh==='function' && isStaleRefresh(seq)) return;
+  v96BindTopologyOverlayControls();
+  v96RefreshTopologyOverlays();
+};
+const v96PriorUpdateStatsAndSelection = updateStatsAndSelection;
+updateStatsAndSelection = function updateStatsAndSelectionV96(){
+  v96PriorUpdateStatsAndSelection();
+  clearTimeout(state._topologySelectionRenderTimerV96);
+  state._topologySelectionRenderTimerV96=setTimeout(v96RefreshTopologyOverlays,45);
+};
+try{ v93RenderTopologyGraph=v96RenderTopologyGraph; v92RenderTopologyGraph=v96RenderTopologyGraph; v91RenderTopologyGraph=v96RenderTopologyGraph; v90RenderTopologyGraph=v96RenderTopologyGraph; v89RenderTopologyGraph=v96RenderTopologyGraph; v88RenderTopologyGraph=v96RenderTopologyGraph; }catch(_){ }
+(function v96BootTopology(){
+  const boot=()=>{ try{ v96BindTopologyOverlayControls(); v96RefreshTopologyOverlays(); }catch(e){ console.warn('v96 topology boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,700),{once:true}); else setTimeout(boot,700);
+})();
+
+
+/* v97: emergency-visible topology centroids as a plain DOM overlay.
+   This intentionally bypasses Leaflet SVG/canvas/vector panes and L.circleMarker.
+   Nodes are ordinary absolutely-positioned HTML buttons over the map container. */
+function v97GetTopologyDomLayer(){
+  if(!state.map) return null;
+  const container=state.map.getContainer?.();
+  if(!container) return null;
+  let layer=state._topologyDomLayerV97 || container.querySelector('#topologyCentroidDomLayerV97');
+  if(!layer){
+    layer=document.createElement('div');
+    layer.id='topologyCentroidDomLayerV97';
+    layer.className='topology-dom-centroid-layer-v97';
+    layer.setAttribute('aria-label','Узлы графа / центроиды АТЕ');
+    container.appendChild(layer);
+  }
+  state._topologyDomLayerV97=layer;
+  return layer;
+}
+function v97EnsureTopologyDomEvents(){
+  if(!state.map || state._topologyDomEventsBoundV97) return;
+  state._topologyDomEventsBoundV97=true;
+  const schedule=()=>{
+    cancelAnimationFrame(state._topologyDomPositionRafV97);
+    state._topologyDomPositionRafV97=requestAnimationFrame(v97PositionTopologyDomNodes);
+  };
+  state.map.on('move zoom zoomend moveend viewreset resize', schedule);
+  window.addEventListener('resize', schedule, {passive:true});
+}
+function v97PositionTopologyDomNodes(){
+  const layer=state._topologyDomLayerV97;
+  if(!layer || !state.map) return;
+  const on=!!$('toggleTopologyCentroids')?.checked;
+  layer.style.display=on?'block':'none';
+  if(!on) return;
+  (state._topologyDomNodesV97||[]).forEach(item=>{
+    const pt=state.map.latLngToContainerPoint(item.latlng);
+    item.el.style.transform=`translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%)`;
   });
 }
-(function v93BootBoundaryStability(){
-  const boot=()=>{ try{ v93BindBoundaryStabilityControls(); v93RenderBoundaryStability(); }catch(e){ console.warn('v93 boundary stability boot failed', e); } };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,460),{once:true}); else setTimeout(boot,460);
+function v97ClearTopologyDomNodes(){
+  const layer=state._topologyDomLayerV97 || document.getElementById('topologyCentroidDomLayerV97');
+  if(layer) layer.replaceChildren();
+  state._topologyDomNodesV97=[];
+}
+function v97BuildDomNodeElement(f, latlng, vals, metric){
+  const p=f?.properties||{};
+  const r=Math.max(10, Math.min(22, (typeof v96CentroidNodeRadius==='function'?v96CentroidNodeRadius(f):10)+2));
+  let colors={fill:'#f6c85f', line:'#fff8e6', outer:'#083344'};
+  try{ colors=v96CentroidNodeColors(f, vals, metric); }catch(_){ }
+  const id=featureId(f);
+  const selected=state.selectedIds?.has(id);
+  const degree=Number(p.topo_degree);
+  const el=document.createElement('button');
+  el.type='button';
+  el.className='topology-dom-centroid-v97'+(selected?' selected':'')+(((Number(p.topo_bridge_incident_count)||0)>0 || p.topo_bridge_endpoint)?' bridge':'');
+  el.dataset.featureId=id;
+  el.style.width=`${r*2}px`;
+  el.style.height=`${r*2}px`;
+  el.style.background=colors.fill || '#f6c85f';
+  el.style.borderColor=selected?'#ff2a8a':(colors.line || '#fff8e6');
+  el.style.setProperty('--topology-node-outer', colors.outer || '#083344');
+  el.title=`${p.name||'АТЕ'} — узел графа / центроид; соседей: ${Number.isFinite(degree)?degree:'—'}`;
+  ['mousedown','mouseup','click','dblclick','touchstart','touchend','wheel'].forEach(type=>{
+    el.addEventListener(type, ev=>ev.stopPropagation(), {passive:type==='wheel'?false:undefined});
+  });
+  el.addEventListener('mouseover', ev=>{
+    const metricLabel=typeof v91CleanTopologyMetricLabel==='function' ? v91CleanTopologyMetricLabel(metric) : metric;
+    const metricValue=typeof v90MetricValueLabel==='function' ? v90MetricValueLabel(v96NodeMetricValue(f,metric),metric) : num1(v96NodeMetricValue(f,metric));
+    showHoverLater({
+      title:p.name||'АТЕ',
+      subtitle:'узел графа / центроид АТЕ · DOM-слой v97',
+      extra:`${escapeHtml(metricLabel)}: ${metricValue} · соседей: ${Number.isFinite(degree)?degree:'—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'}`,
+      population:p.population,
+      area:p.area_km2,
+      density:p.density,
+      delay:60
+    }, ev);
+  });
+  el.addEventListener('mousemove', ev=>moveHover(ev));
+  el.addEventListener('mouseout', hideHover);
+  el.addEventListener('click', ev=>{
+    ev.preventDefault(); ev.stopPropagation();
+    if(state.tool !== 'pan') return;
+    if(isSelectableFeature(f)) toggleSelection(f);
+    showFeature(f);
+    setTimeout(v97BuildTopologyCentroids, 0);
+  });
+  return el;
+}
+function v97BuildTopologyCentroids(){
+  v96SyncLegacyTopologyControls();
+  try{ clearLayer('topologyCentroids'); state.layers.topologyCentroids=null; }catch(_){ }
+  v97EnsureTopologyDomEvents();
+  const layer=v97GetTopologyDomLayer();
+  v97ClearTopologyDomNodes();
+  state._topologyNodeFeaturesV96=[];
+  if(!state.map || !state.layers.admin || !state.currentGeoJSON || !layer){
+    if(layer) layer.style.display='none';
+    return;
+  }
+  const metric=v96TopologyMetricField();
+  const candidates=(state.currentGeoJSON.features||[]).filter(v96IsNormalTopologyFeature);
+  const vals=candidates.map(f=>v96NodeMetricValue(f,metric)).filter(Number.isFinite);
+  const nodes=[];
+  const nodeFeatures=[];
+  state.layers.admin.eachLayer(layerAdmin=>{
+    const f=layerAdmin.feature;
+    if(!v96IsNormalTopologyFeature(f)) return;
+    const p=f.properties||{};
+    const latlng=v96CentroidForAdminLayer(layerAdmin);
+    if(!latlng) return;
+    const el=v97BuildDomNodeElement(f, latlng, vals, metric);
+    layer.appendChild(el);
+    nodes.push({el, latlng, feature:f});
+    nodeFeatures.push({type:'Feature', properties:{...p, topology_node_renderer:'plain_dom_overlay_v97'}, geometry:{type:'Point', coordinates:[latlng.lng,latlng.lat]}});
+  });
+  state._topologyDomNodesV97=nodes;
+  state._topologyNodeFeaturesV96=nodeFeatures;
+  state._topologyNodeFeaturesV95=nodeFeatures;
+  state._topologyNodeFeaturesV93=nodeFeatures;
+  state._topologyNodeFeaturesV92=nodeFeatures;
+  state._topologyNodeFeaturesV91=nodeFeatures;
+  const prev=state.topologyEdgeStats||{year:state.year, counts:{}, total:0};
+  state.topologyEdgeStats={...prev, year:state.year, nodes:nodeFeatures.length, renderer:'plain_dom_overlay_v97'};
+  v97PositionTopologyDomNodes();
+}
+function v97ApplyTopologyDomVisibility(){
+  const layer=v97GetTopologyDomLayer();
+  if(!layer) return;
+  layer.style.display=$('toggleTopologyCentroids')?.checked?'block':'none';
+  v97PositionTopologyDomNodes();
+}
+const v97PriorApplyTopologyLayerVisibility = v96ApplyTopologyLayerVisibility;
+v96ApplyTopologyLayerVisibility = function v96ApplyTopologyLayerVisibilityV97(){
+  try{ v97PriorApplyTopologyLayerVisibility(); }catch(_){ }
+  v97ApplyTopologyDomVisibility();
+};
+v96BuildTopologyCentroids = v97BuildTopologyCentroids;
+const v97PriorBuildTopologyLegend = v96BuildTopologyLegend;
+v96BuildTopologyLegend = function v96BuildTopologyLegendV97(gj){
+  const base=(typeof v93BuildTopologyLegend==='function') ? v93BuildTopologyLegend(gj) : (v97PriorBuildTopologyLegend ? v97PriorBuildTopologyLegend(gj) : '');
+  const nodes=state._topologyNodeFeaturesV96?.length || state._topologyDomNodesV97?.length || 0;
+  const edges=state.topologyEdgeStats?.total || 0;
+  const note=`<div class="mini-muted legend-scale-note-v67 v96-node-note"><b>v97:</b> узлы выведены не через Leaflet SVG/canvas, а обычными HTML‑точками поверх карты: ${num(nodes)} центроидов АТЕ. Рёбра: ${num(edges)}.</div>`;
+  return base ? `${base}${note}` : note;
+};
+(function v97BootTopologyDomLayer(){
+  const boot=()=>{ try{ v96BuildTopologyCentroids(); v96ApplyTopologyLayerVisibility(); updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []); }catch(e){ console.warn('v97 topology DOM boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,900),{once:true}); else setTimeout(boot,900);
+})();
+
+
+/* v98: smaller DOM centroid nodes + export/topology-aware legend controls.
+   Key change: legend is no longer copied blindly from the interactive panel.
+   It is rebuilt from actually enabled layer toggles and from explicit export legend checkboxes. */
+function v98Checked(id, fallback=false){
+  const el=$(id);
+  return el ? !!el.checked : !!fallback;
+}
+function v98ExportOrInteractiveLayerOn(key, exportMode=false){
+  const ex=state.export || {};
+  if(exportMode){
+    if(key==='admin') return !!ex.showAdmin;
+    if(key==='hydro') return !!ex.showHydro;
+    if(key==='railways') return !!ex.showRailways;
+    if(key==='population') return !!ex.showPopulation;
+    if(key==='topologyEdges') return !!ex.showTopologyEdges;
+    if(key==='topologyNodes') return !!ex.showTopologyNodes;
+    return false;
+  }
+  if(key==='admin') return v98Checked('toggleAdmin', true);
+  if(key==='hydro') return v98Checked('toggleHydro', true);
+  if(key==='railways') return v98Checked('toggleRailways', true);
+  if(key==='population') return v98Checked('toggleCircles', true);
+  if(key==='centers') return v98Checked('toggleCenters', false);
+  if(key==='topologyEdges') return v98Checked('toggleTopologyEdgesMain', false);
+  if(key==='topologyNodes') return v98Checked('toggleTopologyCentroids', true);
+  return false;
+}
+function v98DefaultLegendItems(){
+  return {
+    admin:v98ExportOrInteractiveLayerOn('admin',false),
+    hydro:v98ExportOrInteractiveLayerOn('hydro',false),
+    railways:v98ExportOrInteractiveLayerOn('railways',false),
+    population:v98ExportOrInteractiveLayerOn('population',false),
+    centers:v98ExportOrInteractiveLayerOn('centers',false),
+    topologyEdges:v98ExportOrInteractiveLayerOn('topologyEdges',false),
+    topologyNodes:v98ExportOrInteractiveLayerOn('topologyNodes',false)
+  };
+}
+function v98SyncExportLayerDefaultsFromInteractive(forceLegend=true){
+  if(!state.export || typeof state.export!=='object') state.export={};
+  const ex=state.export;
+  ex.showHydro=v98Checked('toggleHydro', true);
+  ex.showAdmin=v98Checked('toggleAdmin', true);
+  ex.showRailways=v98Checked('toggleRailways', true);
+  ex.showPopulation=v98Checked('toggleCircles', true);
+  ex.showTopologyEdges=v98Checked('toggleTopologyEdgesMain', false);
+  ex.showTopologyNodes=v98Checked('toggleTopologyCentroids', true);
+  if(forceLegend || !ex.legendItems || typeof ex.legendItems!=='object') ex.legendItems=v98DefaultLegendItems();
+  if(ex.legendItems){
+    ex.legendItems.admin=!!ex.showAdmin && v98Checked('toggleAdmin', true);
+    ex.legendItems.hydro=!!ex.showHydro && v98Checked('toggleHydro', true);
+    ex.legendItems.railways=!!ex.showRailways && v98Checked('toggleRailways', true);
+    ex.legendItems.population=!!ex.showPopulation && v98Checked('toggleCircles', true);
+    ex.legendItems.centers=false; // centers are not drawn in the SVG export map yet
+    ex.legendItems.topologyEdges=!!ex.showTopologyEdges && v98Checked('toggleTopologyEdgesMain', false);
+    ex.legendItems.topologyNodes=!!ex.showTopologyNodes && v98Checked('toggleTopologyCentroids', true);
+  }
+}
+const v98PriorEnsureExportFlags = typeof ensureExportFlags==='function' ? ensureExportFlags : null;
+ensureExportFlags = function ensureExportFlagsV98(){
+  const ex=v98PriorEnsureExportFlags ? v98PriorEnsureExportFlags() : (state.export || (state.export={}));
+  if(typeof ex.showTopologyEdges !== 'boolean') ex.showTopologyEdges=v98Checked('toggleTopologyEdgesMain', false);
+  if(typeof ex.showTopologyNodes !== 'boolean') ex.showTopologyNodes=v98Checked('toggleTopologyCentroids', true);
+  if(!ex.legendItems || typeof ex.legendItems!=='object') ex.legendItems=v98DefaultLegendItems();
+  const defs=v98DefaultLegendItems();
+  Object.keys(defs).forEach(k=>{ if(typeof ex.legendItems[k] !== 'boolean') ex.legendItems[k]=!!defs[k]; });
+  if(typeof ex.legendRespectInteractive !== 'boolean') ex.legendRespectInteractive=true;
+  return ex;
+};
+
+function v98FeatureValuesForMode(features){
+  const field=typeof valField==='function' ? valField() : null;
+  return field ? (features||[]).map(f=>Number(f.properties?.[field])).filter(v=>Number.isFinite(v)) : [];
+}
+function v98LegendAdminHtml(features, vals){
+  let html='';
+  const mode=state.mode;
+  const categorical = mode==='admin_parent'||mode==='admin_intermediate'||mode==='admin_superparent'||mode==='unit_type';
+  if(categorical){
+    const cats=[...new Set((features||[]).map(f=>f.properties?.[mode]).filter(Boolean))].slice(0,14);
+    if(cats.length){
+      html += '<div class="legend-section">Административный слой</div>';
+      cats.forEach(c=>{ html += `<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${escapeHtml(c)}</div>`; });
+    }
+  }else{
+    const desc=(typeof v67ClassDescriptor==='function') ? v67ClassDescriptor(vals||[], mode) : null;
+    html += `<div class="legend-section">${escapeHtml(typeof v67ChoroplethTitle==='function' ? v67ChoroplethTitle() : 'Значение показателя')}</div>`;
+    if(desc){
+      const count=desc.thresholds.length+1;
+      desc.labels.forEach((label,i)=>{ html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      const modeLabel = desc.method==='fixed' ? 'фиксированные классы'
+        : desc.method==='linear' ? 'линейная шкала, округление до 10/50 км'
+        : desc.method==='quantile' ? 'квантили, округлены'
+        : 'геометрическая шкала, округлена';
+      html += `<div class="mini-muted legend-scale-note-v67">${modeLabel}</div>`;
+    }else{
+      activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+    }
+  }
+  return html;
+}
+function v98LegendHydroHtml(){
+  return '<div class="legend-section">Гидрография и океан</div><div class="legend-row"><span class="water-swatch swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>';
+}
+function v98LegendRailHtml(){
+  return '<div class="legend-section">Железные дороги</div><div class="legend-row"><span class="rail-swatch-v98"></span>железные дороги</div>';
+}
+function v98LegendPopulationHtml(features){
+  const vals=(features||[]).map(f=>Number(f.properties?.population)||0).filter(v=>v>0);
+  if(!vals.length) return '';
+  const max=Math.max(...vals), mid=max/4;
+  let html='<div class="legend-section">Символы населения</div>';
+  [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{
+    const size=Math.max(8, typeof populationSymbolSize==='function' ? populationSymbolSize(v, vals) : 12);
+    html += `<div class="legend-row"><span class="circle-swatch" style="width:${(size*1.15).toFixed(1)}px;height:${(size*1.15).toFixed(1)}px"></span>${label}: ${num(v)}</div>`;
+  });
+  const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol?.scale]||state.populationSymbol?.scale||'sqrt';
+  html += `<div class="mini-muted">Нормирование: ${escapeHtml(scaleName)}.</div>`;
+  return html;
+}
+function v98LegendCentersHtml(features){
+  if(!(features||[]).length) return '';
+  return '<div class="legend-section">Центры</div><div class="legend-row"><span class="center-circle-swatch" style="width:15px;height:15px"></span>административные центры</div>';
+}
+function v98TopologyLegendHtml(items, exportMode=false){
+  let html='';
+  if(items.topologyEdges && v98ExportOrInteractiveLayerOn('topologyEdges', exportMode)){
+    html += '<div class="legend-section">Рёбра смежности</div>';
+    html += '<div class="legend-row"><span class="topology-edge-same-v90"></span>внутри одного верхнего уровня</div>';
+    html += '<div class="legend-row"><span class="topology-edge-super-v90"></span>внутри одного надуровня</div>';
+    html += '<div class="legend-row"><span class="topology-edge-cross-v90"></span>между разными губерниями/областями</div>';
+  }
+  if(items.topologyNodes && v98ExportOrInteractiveLayerOn('topologyNodes', exportMode)){
+    const nodes=state._topologyNodeFeaturesV96?.length || state._topologyDomNodesV97?.length || 0;
+    html += '<div class="legend-section">Узлы графа</div>';
+    html += `<div class="legend-row"><span class="topology-node-swatch-v98"></span>центроиды АТЕ${nodes?` · ${num(nodes)}`:''}</div>`;
+  }
+  return html;
+}
+function v98BuildLegendHtml(options={}){
+  const exportMode=!!options.exportMode;
+  const ex=ensureExportFlags();
+  const items=exportMode ? (ex.legendItems||{}) : v98DefaultLegendItems();
+  const features=options.features || (exportMode ? exportScopeFeatures() : (state.currentGeoJSON?.features||[]));
+  const vals=options.vals || v98FeatureValuesForMode(features);
+  let html=options.includeTitle===false ? '' : '<b>Легенда</b>';
+  if(items.admin && v98ExportOrInteractiveLayerOn('admin', exportMode)) html += v98LegendAdminHtml(features, vals);
+  if(items.hydro && v98ExportOrInteractiveLayerOn('hydro', exportMode)) html += v98LegendHydroHtml();
+  if(items.railways && v98ExportOrInteractiveLayerOn('railways', exportMode)) html += v98LegendRailHtml();
+  if(items.population && v98ExportOrInteractiveLayerOn('population', exportMode)) html += v98LegendPopulationHtml(features);
+  if(!exportMode && items.centers && v98ExportOrInteractiveLayerOn('centers', false)) html += v98LegendCentersHtml(features);
+  html += v98TopologyLegendHtml(items, exportMode);
+  if(!html.replace(/<[^>]+>/g,'').trim()) html='<b>Легенда</b><div class="mini-muted">Нет включённых элементов для легенды.</div>';
+  return html;
+}
+updateLegend = function updateLegendV98(gj, vals){
+  const box=$('legendBox'); if(!box) return;
+  const features=gj?.features || state.currentGeoJSON?.features || [];
+  box.innerHTML=v98BuildLegendHtml({exportMode:false, features, vals:vals||v98FeatureValuesForMode(features)});
+};
+exportLegendHtml = function exportLegendHtmlV98(){
+  return `<div class="export-legend-wrap export-legend-wrap-v98">${v98BuildLegendHtml({exportMode:true, includeTitle:false})}</div>`;
+};
+
+function v98LegendControlDefs(){
+  return [
+    ['admin','Административная заливка', 'admin'],
+    ['hydro','Гидрография и океан', 'hydro'],
+    ['railways','Железные дороги', 'railways'],
+    ['population','Символы населения', 'population'],
+    ['topologyEdges','Рёбра смежности', 'topologyEdges'],
+    ['topologyNodes','Узлы графа / центроиды', 'topologyNodes']
+  ];
+}
+function v98RenderExportLegendControls(){
+  const box=$('exportLegendItemsBoxV98');
+  if(!box) return;
+  const ex=ensureExportFlags();
+  box.innerHTML=v98LegendControlDefs().map(([key,label,layerKey])=>{
+    const layerOn=v98ExportOrInteractiveLayerOn(layerKey, true);
+    const disabled=layerOn ? '' : 'disabled';
+    const muted=layerOn ? '' : ' <span class="mini-muted">(слой выключен в экспорте)</span>';
+    return `<label class="export-legend-item-v98"><input type="checkbox" data-export-legend-item="${key}" ${ex.legendItems?.[key]?'checked':''} ${disabled}> ${escapeHtml(label)}${muted}</label>`;
+  }).join('') + '<div class="mini-muted">По умолчанию легенда берёт только включённые слои интерактивной карты. Здесь можно дополнительно убрать лишние пункты из экспортного макета.</div>';
+  box.querySelectorAll('input[data-export-legend-item]').forEach(input=>{
+    if(input.dataset.boundV98==='1') return;
+    input.dataset.boundV98='1';
+    input.addEventListener('change', e=>{
+      const key=e.target.dataset.exportLegendItem;
+      ensureExportFlags().legendItems[key]=!!e.target.checked;
+      try{ v68FullSvgCache?.clear?.(); }catch(_){ }
+      renderExportPreviewCard();
+    });
+  });
+}
+function v98InstallExportLegendControls(modal){
+  if(!modal || modal.dataset.v98LegendControls==='1') return;
+  const grid=modal.querySelector('.export-layer-grid, .export-layer-grid-v50, .export-layer-grid-v49');
+  if(grid){
+    if(!$('exportShowTopologyEdges')) grid.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="exportShowTopologyEdges"> Рёбра смежности</label>');
+    if(!$('exportShowTopologyNodes')) grid.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="exportShowTopologyNodes"> Узлы графа / центроиды</label>');
+  }
+  const anchor=$('exportStatsFieldsBox')?.closest('details') || $('exportContextDetails') || grid;
+  if(anchor && !$('exportLegendDetailsV98')){
+    anchor.insertAdjacentHTML('afterend', `<details id="exportLegendDetailsV98" class="export-context-box export-legend-details-v98" open><summary>Содержание легенды</summary><div class="button-row export-legend-buttons-v98"><button type="button" id="exportLegendResetFromMapV98">Взять из включённых слоёв карты</button><button type="button" id="exportLegendAllOffV98">Снять всё</button></div><div id="exportLegendItemsBoxV98" class="export-legend-items-v98"></div></details>`);
+  }
+  [['Admin','admin'],['Hydro','hydro'],['Railways','railways'],['Population','population'],['TopologyEdges','topologyEdges'],['TopologyNodes','topologyNodes']].forEach(([name,key])=>{
+    const el=$(`exportShow${name}`);
+    if(el && el.dataset.boundV98!=='1'){
+      el.dataset.boundV98='1';
+      el.addEventListener('change', e=>{
+        const ex=ensureExportFlags();
+        ex[`show${name}`]=!!e.target.checked;
+        if(ex.legendItems) ex.legendItems[key]=!!e.target.checked;
+        try{ v68FullSvgCache?.clear?.(); }catch(_){ }
+        v98RenderExportLegendControls();
+        renderExportPreviewCard();
+      });
+    }
+  });
+  $('exportLegendResetFromMapV98')?.addEventListener('click', ()=>{
+    v98SyncExportLayerDefaultsFromInteractive(true);
+    syncExportDefaults(false);
+    try{ v68FullSvgCache?.clear?.(); }catch(_){ }
+    renderExportPreviewCard();
+  });
+  $('exportLegendAllOffV98')?.addEventListener('click', ()=>{
+    const ex=ensureExportFlags();
+    Object.keys(ex.legendItems||{}).forEach(k=>ex.legendItems[k]=false);
+    v98RenderExportLegendControls();
+    renderExportPreviewCard();
+  });
+  modal.dataset.v98LegendControls='1';
+  v98RenderExportLegendControls();
+}
+const v98PriorEnsureExportModal = typeof ensureExportModal==='function' ? ensureExportModal : null;
+ensureExportModal = function ensureExportModalV98(){
+  const modal=v98PriorEnsureExportModal ? v98PriorEnsureExportModal() : null;
+  v98InstallExportLegendControls(modal);
+  return modal;
+};
+const v98PriorSyncExportDefaults = typeof syncExportDefaults==='function' ? syncExportDefaults : null;
+syncExportDefaults = function syncExportDefaultsV98(resetTitle){
+  if(v98PriorSyncExportDefaults) v98PriorSyncExportDefaults(resetTitle);
+  const ex=ensureExportFlags();
+  const C=(id,val)=>{ const el=$(id); if(el) el.checked=!!val; };
+  C('exportShowTopologyEdges', ex.showTopologyEdges);
+  C('exportShowTopologyNodes', ex.showTopologyNodes);
+  v98RenderExportLegendControls();
+};
+const v98PriorOpenExportMode = typeof openExportMode==='function' ? openExportMode : null;
+openExportMode = async function openExportModeV98(){
+  v98SyncExportLayerDefaultsFromInteractive(true);
+  return v98PriorOpenExportMode ? await v98PriorOpenExportMode() : undefined;
+};
+
+/* Smaller DOM nodes: exactly about half the v97 diameter, with scaled stroke/halo. */
+v97BuildDomNodeElement = function v97BuildDomNodeElementV98(f, latlng, vals, metric){
+  const p=f?.properties||{};
+  const base=(typeof v96CentroidNodeRadius==='function'?v96CentroidNodeRadius(f):10)+2;
+  const r=Math.max(5, Math.min(11, base/2));
+  let colors={fill:'#f6c85f', line:'#fff8e6', outer:'#083344'};
+  try{ colors=v96CentroidNodeColors(f, vals, metric); }catch(_){ }
+  const id=featureId(f);
+  const selected=state.selectedIds?.has(id);
+  const degree=Number(p.topo_degree);
+  const el=document.createElement('button');
+  el.type='button';
+  el.className='topology-dom-centroid-v97 topology-dom-centroid-v98'+(selected?' selected':'')+(((Number(p.topo_bridge_incident_count)||0)>0 || p.topo_bridge_endpoint)?' bridge':'');
+  el.dataset.featureId=id;
+  el.style.width=`${(r*2).toFixed(1)}px`;
+  el.style.height=`${(r*2).toFixed(1)}px`;
+  el.style.background=colors.fill || '#f6c85f';
+  el.style.borderColor=selected?'#ff2a8a':(colors.line || '#fff8e6');
+  el.style.setProperty('--topology-node-outer', colors.outer || '#083344');
+  el.title=`${p.name||'АТЕ'} — узел графа / центроид; соседей: ${Number.isFinite(degree)?degree:'—'}`;
+  ['mousedown','mouseup','click','dblclick','touchstart','touchend','wheel'].forEach(type=>{
+    el.addEventListener(type, ev=>ev.stopPropagation(), {passive:type==='wheel'?false:undefined});
+  });
+  el.addEventListener('mouseover', ev=>{
+    const metricLabel=typeof v91CleanTopologyMetricLabel==='function' ? v91CleanTopologyMetricLabel(metric) : metric;
+    const metricValue=typeof v90MetricValueLabel==='function' ? v90MetricValueLabel(v96NodeMetricValue(f,metric),metric) : num1(v96NodeMetricValue(f,metric));
+    showHoverLater({title:p.name||'АТЕ', subtitle:'узел графа / центроид АТЕ · DOM-слой v98', extra:`${escapeHtml(metricLabel)}: ${metricValue} · соседей: ${Number.isFinite(degree)?degree:'—'} · k-core: ${p.topo_k_core ?? '—'} · внешних связей: ${p.topo_external_degree ?? '—'}`, population:p.population, area:p.area_km2, density:p.density, delay:60}, ev);
+  });
+  el.addEventListener('mousemove', ev=>moveHover(ev));
+  el.addEventListener('mouseout', hideHover);
+  el.addEventListener('click', ev=>{
+    ev.preventDefault(); ev.stopPropagation();
+    if(state.tool !== 'pan') return;
+    if(isSelectableFeature(f)) toggleSelection(f);
+    showFeature(f);
+    setTimeout(v97BuildTopologyCentroids, 0);
+  });
+  return el;
+};
+
+/* Optional topology rendering in export SVG, so legend items can correspond to actual export layers. */
+function v98ExportFeatureIds(feature){
+  if(typeof v95FeatureIds==='function') return v95FeatureIds(feature);
+  const p=feature?.properties||{};
+  return [featureId(feature), p.unit_id, p.topology_node_id].map(x=>String(x||'')).filter(Boolean);
+}
+function v98ExportCentroid(feature){
+  if(typeof v95AdminCentroid==='function'){
+    const c=v95AdminCentroid(feature); if(c) return c;
+  }
+  const b=geoBBoxFromFeatures([feature]);
+  return [(b[0]+b[2])/2, (b[1]+b[3])/2];
+}
+function v98BuildExportProjection(features){
+  const ex=ensureExportFlags();
+  const {w,h}=exportMapSize();
+  const fieldRect=exportMapFieldRect(w,h);
+  const sourceBBox=geoBBoxFromFeatures(features);
+  const base=(typeof v66MakeFeatureFitProjection==='function')
+    ? v66MakeFeatureFitProjection(features, sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx)||10)
+    : makeExportProjection(sourceBBox, fieldRect.w, fieldRect.h, Number(ex.minLayerPaddingPx)||10);
+  return (lon,lat)=>{ const p=base(lon,lat); return {x:p.x+fieldRect.x, y:p.y+fieldRect.y}; };
+}
+function v98RelationStroke(relation){
+  if(relation==='same_parent') return {stroke:'#0477bf', dash:''};
+  if(relation==='same_superparent') return {stroke:'#7c3fb4', dash:'10 7'};
+  if(relation==='cross_parent') return {stroke:'#e15400', dash:'3 7'};
+  return {stroke:'#4b5563', dash:'4 6'};
+}
+async function v98ExportTopologySvg(){
+  const ex=ensureExportFlags();
+  if(!ex.showTopologyEdges && !ex.showTopologyNodes) return '';
+  const features=(typeof v66ExportSourceFeatures==='function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
+  if(!features?.length) return '';
+  const project=v98BuildExportProjection(features);
+  const byId=new Map();
+  const nodeRows=[];
+  features.forEach(f=>{
+    if(!v96IsNormalTopologyFeature(f)) return;
+    const c=v98ExportCentroid(f); if(!c) return;
+    const pt=project(c[0],c[1]);
+    const row={feature:f, coord:c, pt};
+    nodeRows.push(row);
+    v98ExportFeatureIds(f).forEach(id=>{ if(id && !byId.has(id)) byId.set(String(id), row); });
+  });
+  if(!nodeRows.length) return '';
+  let edgeSvg='';
+  if(ex.showTopologyEdges){
+    let raw={features:[]};
+    try{ raw=await v90LoadTopologyEdges(state.year); }catch(e){ console.warn('v98 export topology edges skipped', e); }
+    const edges=(raw.features||[]).filter(e=>byId.has(String(e.properties?.source_id||'')) && byId.has(String(e.properties?.target_id||'')));
+    edgeSvg=edges.map(e=>{
+      const p=e.properties||{};
+      const a=byId.get(String(p.source_id||'')), b=byId.get(String(p.target_id||''));
+      if(!a||!b) return '';
+      const st=v98RelationStroke(p.relation);
+      const dash=st.dash ? ` stroke-dasharray="${st.dash}"` : '';
+      return `<line x1="${a.pt.x.toFixed(1)}" y1="${a.pt.y.toFixed(1)}" x2="${b.pt.x.toFixed(1)}" y2="${b.pt.y.toFixed(1)}" stroke="#fff8e6" stroke-width="7.2" stroke-opacity="0.82" stroke-linecap="round"/><line x1="${a.pt.x.toFixed(1)}" y1="${a.pt.y.toFixed(1)}" x2="${b.pt.x.toFixed(1)}" y2="${b.pt.y.toFixed(1)}" stroke="${st.stroke}" stroke-width="3.2" stroke-opacity="0.96" stroke-linecap="round"${dash}/>`;
+    }).join('');
+  }
+  let nodeSvg='';
+  if(ex.showTopologyNodes){
+    const metric=typeof v96TopologyMetricField==='function' ? v96TopologyMetricField() : 'topo_degree';
+    const vals=nodeRows.map(r=>v96NodeMetricValue(r.feature,metric)).filter(Number.isFinite);
+    nodeSvg=nodeRows.map(r=>{
+      let colors={fill:'#f6c85f', outer:'#083344'};
+      try{ colors=v96CentroidNodeColors(r.feature, vals, metric); }catch(_){ }
+      const selected=state.selectedIds?.has(featureId(r.feature));
+      const rad=selected?4.8:3.8;
+      return `<circle cx="${r.pt.x.toFixed(1)}" cy="${r.pt.y.toFixed(1)}" r="${(rad+2.5).toFixed(1)}" fill="#fff8e6" fill-opacity="0.90" stroke="${selected?'#ff2a8a':'#083344'}" stroke-width="1.25"/><circle cx="${r.pt.x.toFixed(1)}" cy="${r.pt.y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${colors.fill||'#f6c85f'}" stroke="#fff8e6" stroke-width="1.4"/>`;
+    }).join('');
+  }
+  return `<g class="export-topology-v98" pointer-events="none">${edgeSvg}${nodeSvg}</g>`;
+}
+const v98PriorBuildExportSvgMap = typeof buildExportSvgMap==='function' ? buildExportSvgMap : null;
+buildExportSvgMap = async function buildExportSvgMapV98(){
+  let svg=v98PriorBuildExportSvgMap ? await v98PriorBuildExportSvgMap() : '';
+  try{
+    const topo=await v98ExportTopologySvg();
+    if(topo) svg=svg.replace('</g></g>', `${topo}</g></g>`);
+  }catch(e){ console.warn('v98 export topology injection skipped', e); }
+  return svg;
+};
+const v98PriorExportMapCacheKey = typeof v68ExportMapCacheKey==='function' ? v68ExportMapCacheKey : null;
+v68ExportMapCacheKey = function v68ExportMapCacheKeyV98(){
+  const base=v98PriorExportMapCacheKey ? v98PriorExportMapCacheKey() : String(Date.now());
+  const ex=ensureExportFlags();
+  const legend=Object.keys(ex.legendItems||{}).sort().map(k=>`${k}:${ex.legendItems[k]?'1':'0'}`).join(',');
+  return `${base}§topology:${ex.showTopologyEdges?'E1':'E0'}${ex.showTopologyNodes?'N1':'N0'}§legend:${legend}`;
+};
+if(typeof v69ExportPreviewShellSignature==='function'){
+  const v98PriorShellSignature = v69ExportPreviewShellSignature;
+  v69ExportPreviewShellSignature = function v69ExportPreviewShellSignatureV98(features,w,h){
+    const ex=ensureExportFlags();
+    const legend=Object.keys(ex.legendItems||{}).sort().map(k=>`${k}:${ex.legendItems[k]?'1':'0'}`).join(',');
+    return `${v98PriorShellSignature(features,w,h)}§${ex.showTopologyEdges?'E1':'E0'}${ex.showTopologyNodes?'N1':'N0'}§${legend}`;
+  };
+}
+(function v98Boot(){
+  const boot=()=>{
+    try{
+      v97BuildTopologyCentroids?.();
+      updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
+    }catch(e){ console.warn('v98 boot skipped', e); }
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,980),{once:true}); else setTimeout(boot,980);
 })();

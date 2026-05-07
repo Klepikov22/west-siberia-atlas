@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=97" />
+  <link rel="stylesheet" href="style.css?v=98" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v97</div>
+      <div class="eyebrow">Дипломный веб-атлас · v98</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -146,9 +146,13 @@
         <label><input type="checkbox" id="toggleCenters"> Центры</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
         <label><input type="checkbox" id="toggleCircles" checked> Символы населения</label>
-        <div class="topology-layer-controls-v92" aria-label="Топологический граф связности АТЕ">
-          <div class="topology-layer-title-v92">Топологический граф</div>
-          <label><input type="checkbox" id="toggleTopologyGraph"> Рёбра и узлы смежности</label>
+        <label><input type="checkbox" id="toggleTopologyEdgesMain"> Рёбра смежности</label>
+        <label><input type="checkbox" id="toggleTopologyCentroids" checked> Узлы графа / центроиды АТЕ</label>
+        <div class="topology-layer-controls-v92" aria-label="Настройки топологического графа АТЕ">
+          <div class="topology-layer-title-v92">Топологический граф · настройки</div>
+          <input type="checkbox" id="toggleTopologyGraph" hidden>
+          <input type="checkbox" id="toggleTopologyEdges" checked hidden>
+          <input type="checkbox" id="toggleTopologyNodes" checked hidden>
           <label class="topology-inline-field-v92"><span>Метрика узлов</span>
             <select id="topologyMetricSelect">
               <option value="topo_degree" selected>Degree: число соседей</option>
@@ -167,42 +171,7 @@
             </select>
           </label>
           <button id="openTopologyTrends" type="button" class="mini-action topology-trends-btn-v88">Динамика метрик по годам</button>
-          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
-        </div>
-        <div class="boundary-stability-controls-v93" aria-label="Устойчивость границ АТД">
-          <div class="boundary-stability-title-v93">Устойчивость границ</div>
-          <label><input type="checkbox" id="toggleBoundaryStability"> Устойчивые рубежи АТД</label>
-          <div class="boundary-stability-period-v96">
-            <label class="topology-inline-field-v92"><span>Период от</span>
-              <select id="boundaryStabilityFromYear"><option value="1700" selected>1700</option><option value="1719">1719</option><option value="1724">1724</option><option value="1727">1727</option><option value="1745">1745</option><option value="1765">1765</option><option value="1780">1780</option><option value="1783">1783</option><option value="1798">1798</option><option value="1805">1805</option><option value="1809">1809</option><option value="1821">1821</option><option value="1838">1838</option><option value="1848">1848</option><option value="1855">1855</option><option value="1876">1876</option><option value="1897">1897</option><option value="1914">1914</option><option value="1918">1918</option><option value="1923">1923</option><option value="1926">1926</option><option value="1930">1930</option><option value="1939">1939</option><option value="1947">1947</option><option value="1959">1959</option><option value="1964">1964</option><option value="1970">1970</option><option value="1979">1979</option><option value="1989">1989</option><option value="2021">2021</option></select>
-            </label>
-            <label class="topology-inline-field-v92"><span>до</span>
-              <select id="boundaryStabilityToYear"><option value="1700">1700</option><option value="1719">1719</option><option value="1724">1724</option><option value="1727">1727</option><option value="1745">1745</option><option value="1765">1765</option><option value="1780">1780</option><option value="1783">1783</option><option value="1798">1798</option><option value="1805">1805</option><option value="1809">1809</option><option value="1821">1821</option><option value="1838">1838</option><option value="1848">1848</option><option value="1855">1855</option><option value="1876">1876</option><option value="1897">1897</option><option value="1914">1914</option><option value="1918">1918</option><option value="1923">1923</option><option value="1926">1926</option><option value="1930">1930</option><option value="1939">1939</option><option value="1947">1947</option><option value="1959">1959</option><option value="1964">1964</option><option value="1970">1970</option><option value="1979">1979</option><option value="1989">1989</option><option value="2021" selected>2021</option></select>
-            </label>
-          </div>
-          <label class="topology-inline-field-v92"><span>Минимум срезов</span>
-            <select id="boundaryStabilityMinSelect">
-              <option value="2" selected>2+ среза</option>
-              <option value="4">4+ среза</option>
-              <option value="6">6+ срезов</option>
-              <option value="8">8+ срезов</option>
-              <option value="10">10+ срезов</option>
-              <option value="12">12+ срезов</option>
-            </select>
-          </label>
-          <label class="topology-inline-field-v92"><span>Стиль отображения</span>
-            <select id="boundaryStabilityStyleSelect">
-              <option value="buffer" selected>Буфер-коридор + ось</option>
-              <option value="class">Класс: цвет + толщина</option>
-              <option value="mono">Монохромная толщина</option>
-              <option value="offset">По среднему смещению</option>
-            </select>
-          </label>
-          <label><input type="checkbox" id="toggleBoundaryStabilityLabels"> Подписи устойчивых рубежей</label>
-          <label class="topology-inline-field-v92"><span>Размер подписи</span>
-            <input id="boundaryStabilityLabelSize" type="range" min="9" max="18" step="1" value="11">
-          </label>
-          <div class="mini-muted">Геометрическая устойчивость реальных границ АТЕ: внутренние и внешние/экспонированные контуры, включая речные и орографические рубежи. v97: суженный допуск 4 км севернее/на 59° с.ш. и 3 км южнее; период можно менять выше. Стиль «буфер-коридор» показывает широкий полупрозрачный ход по той же реальной линии. Спорные/неясные/двоеданческие/передаваемые территории исключены.</div>
+          <div class="mini-muted">Граф следует фильтрам текущего административного слоя. Узлы показываются отдельным DOM-слоем поверх карты по центроидам АТЕ; рёбра и узлы можно включать отдельно. Спорные зоны, двоеданцы, неясная принадлежность и города &lt; 50 км² исключены.</div>
         </div>
       </div>
 
@@ -290,6 +259,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=97"></script>
+  <script src="app.js?v=98"></script>
 </body>
 </html>
