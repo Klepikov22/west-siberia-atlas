@@ -2031,10 +2031,10 @@
     "avg_area_parent_ate_km2": 1164671.51,
     "hierarchy_metrics_method_v100": "normal analytic polygons only; topology/adjacency excluded, special_status_code!=normal, include_in_analytics=false and area<50 km2 removed; upper/middle areas are sums of leaf polygon areas by hierarchy keys",
     "population_metrics_method_v103": "sum of population over all include_in_analytics!=false admin GeoJSON features; city/small polygons under 50 km2 are included for population, but remain excluded from topology/adjacency",
-    "population_features_v103": 16,
-    "population_nonzero_features_v103": 16,
+    "population_features_v103": 15,
+    "population_nonzero_features_v103": 15,
     "small_polygon_population_under_50_km2_v103": 0.0,
-    "topology_excluded_population_included_v103": 25000.0,
+    "topology_excluded_population_included_v103": 0.0,
     "area_count_upper_ate": 2,
     "area_mean_upper_ate_km2": 1164671.51,
     "area_median_upper_ate_km2": 1164671.51,
@@ -2140,7 +2140,9 @@
     "stat_excluded_area_km2_v104": 0,
     "stat_excluded_population_v104": 0,
     "population_reconstruction_scope_v109": "early support population series added for 1783/1809/1821/1838/1848; 1897 topology refreshed after Semipalatinsk/Ust-Kamenogorsk split",
-    "population_metrics_method_v109": "population sums use v109 support-level provincial/control benchmarks written to admin GeoJSON; quality varies by feature population_quality"
+    "population_metrics_method_v109": "population sums use v109 support-level provincial/control benchmarks written to admin GeoJSON; quality varies by feature population_quality",
+    "population_reconstruction_scope_v110": "v110 correction: 1848 semipalatinsk/ust-kamenogorsk Tomsk-gubernia tail assigned to Biysk okrug, not to Kirgiz Steppe context polygon; total_population unchanged from v109.",
+    "population_metrics_method_v110": "population sums use support-level benchmarks written to regular admin GeoJSON carriers; special/context polygons such as Kirgiz Steppe are not population carriers unless explicitly regularized."
   },
   {
     "year": 1855,
