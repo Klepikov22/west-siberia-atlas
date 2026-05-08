@@ -1,4 +1,4 @@
-const APP_VERSION = '105';
+const APP_VERSION = '106';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13021,3 +13021,225 @@ function v105RenderMultiyearTrendChart(data){
   table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>УРОВЕНЬ / КОНТЕКСТ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${valueLabel(r.value)}</b><em>${escapeHtml(v105IsAreaDispersionMetric(metric)?v105AreaTrendLeader(r.row,metric,context):v93TrendLeader(r.row,metric))}</em></div>`).join('');
 }
 try{ v93OpenMultiyearTrendsModal=v105OpenMultiyearTrendsModal; v90OpenTopologyTrendsModal=v105OpenMultiyearTrendsModal; openTopologyTrendsModal=v105OpenMultiyearTrendsModal; }catch(_){ }
+
+/* v106: explanatory layer for multiyear metric window.
+   Audience target: geographers who need cartometric meaning without diving into formulas. */
+function v106AreaLevelName(metric){
+  const m=String(metric||'');
+  if(m.includes('within_upper')) return 'нижний уровень внутри верхних контекстов';
+  if(m.includes('_upper_')) return 'верхний уровень';
+  if(m.includes('_middle_')) return 'средний уровень';
+  if(m.includes('_lower_')) return 'нижний уровень';
+  return 'выбранный уровень';
+}
+function v106MetricKind(metric){
+  const m=String(metric||'');
+  if(m.includes('_cv_') || m.includes('area_cv_')) return 'cv';
+  if(m.includes('_gini_') || m.includes('area_gini_')) return 'gini';
+  if(m.includes('p90_p10')) return 'p90p10';
+  if(m.includes('q75_q25')) return 'q75q25';
+  if(m.includes('range_ratio')) return 'maxmin';
+  if(m.includes('stddev')) return 'stddev';
+  if(m.includes('median')) return 'median';
+  if(m.includes('mean')) return 'mean';
+  if(m.includes('_min_')) return 'min';
+  if(m.includes('_max_')) return 'max';
+  return 'other';
+}
+function v106MetricKindTitle(kind){
+  return ({
+    cv:'CV / коэффициент вариации',
+    gini:'Gini / индекс неравномерности',
+    p90p10:'p90/p10 / крупные к мелким',
+    q75q25:'q75/q25 / центральный разброс',
+    maxmin:'max/min / крайний размах',
+    stddev:'σ / стандартное отклонение',
+    mean:'средняя площадь',
+    median:'медианная площадь',
+    min:'минимальная площадь',
+    max:'максимальная площадь',
+    other:'показатель площади'
+  })[kind] || 'показатель площади';
+}
+function v106MetricPlainText(metric){
+  const kind=v106MetricKind(metric);
+  const level=v106AreaLevelName(metric);
+  const map={
+    cv:`Показывает, насколько площади АТЕ ${level} разбросаны относительно их среднего размера. Это главный удобный показатель для сравнения разных лет: он безразмерный, поэтому подходит и для ранних огромных округов, и для поздних районов.`,
+    gini:`Показывает неравномерность площадей АТЕ ${level}. 0 означает почти одинаковые площади; чем выше значение, тем сильнее система состоит из очень крупных и очень мелких единиц одновременно.`,
+    p90p10:`Сравнивает «крупные, но не самые крайние» АТЕ ${level} с «мелкими, но не самыми крайними». Например, 8× значит, что верхняя крупная группа примерно в 8 раз больше нижней мелкой группы.`,
+    q75q25:`Показывает разброс основной массы АТЕ ${level}, без самых крайних выбросов. Полезно, когда один гигантский северный округ ломает всю картину.`,
+    maxmin:`Сравнивает самый большой и самый маленький объект ${level}. Это наглядно, но очень чувствительно к единичным выбросам и ошибкам реконструкции.`,
+    stddev:`Показывает абсолютный разброс площадей АТЕ ${level} в км². Хорошо показывает масштаб неодинаковости, но хуже подходит для сравнения разных эпох с разным средним размером единиц.`,
+    mean:`Средний размер АТЕ ${level}. Это не показатель разброса, а базовый ориентир: насколько крупной стала типичная единица на этом уровне.`,
+    median:`Площадь «серединной» АТЕ ${level}: половина единиц меньше, половина больше. Медиана устойчивее к огромным северным территориям, чем среднее.`,
+    min:`Размер самой малой АТЕ ${level} после очистки от спорных/слабоконтрольных территорий и объектов меньше 50 км².`,
+    max:`Размер самой крупной АТЕ ${level}. Помогает видеть северные и окраинные гиганты, но не должен один заменять показатели разброса.`
+  };
+  if(String(metric||'').includes('within_upper')){
+    return `Считает разброс площадей нижних АТЕ не по всему атласу сразу, а внутри каждой верхнеуровневой единицы, затем берёт среднее или максимум по этим верхним контекстам. Это нужно, чтобы сравнивать не только «всю Западную Сибирь», но и внутреннюю упорядоченность губерний, областей или краёв.`;
+  }
+  return map[kind] || `Показывает пространственный параметр АТЕ для выбранного уровня.`;
+}
+function v106HowToReadText(metric){
+  const kind=v106MetricKind(metric);
+  if(['cv','gini','p90p10','q75q25','maxmin','stddev'].includes(kind)){
+    return 'Если линия снижается, площади единиц выбранного уровня становятся более похожими друг на друга: сетка АТД выравнивается. Если линия растёт, система становится более контрастной: рядом существуют очень крупные и очень мелкие единицы.';
+  }
+  if(['mean','median'].includes(kind)) return 'Эти показатели показывают не разброс, а типичный размер единицы. Их лучше читать вместе с CV или Gini: средний размер может уменьшаться, но разброс при этом тоже может как снижаться, так и расти.';
+  return 'Это вспомогательный показатель. Для проверки гипотезы о «созревании» системы лучше сопоставлять его с CV, Gini и отношениями p90/p10 или q75/q25.';
+}
+function v106HypothesisText(rows, metric){
+  const kind=v106MetricKind(metric);
+  if(!rows || rows.length<2) return 'Для вывода выберите не менее двух лет.';
+  const first=rows[0], last=rows[rows.length-1];
+  const fv=Number(first.value), lv=Number(last.value);
+  if(!Number.isFinite(fv)||!Number.isFinite(lv)) return 'По выбранным годам нет устойчивого числового ряда.';
+  const pct=fv!==0 ? ((lv-fv)/Math.abs(fv))*100 : NaN;
+  const direction=lv<fv ? 'снизился' : (lv>fv ? 'вырос' : 'почти не изменился');
+  const valFmt=(v)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(v,metric) : v93FormatTrendValue(v,metric);
+  if(['cv','gini','p90p10','q75q25','maxmin','stddev'].includes(kind)){
+    const verdict=lv<fv ? 'это поддерживает гипотезу о выравнивании/созревании территориальной сетки' : (lv>fv ? 'это не поддерживает простую версию гипотезы: разброс вырос, нужен разбор по контекстам и конкретным реформам' : 'это даёт нейтральный результат: заметного изменения разброса нет');
+    return `С ${first.year} по ${last.year} показатель ${direction}: ${valFmt(fv)} → ${valFmt(lv)}${Number.isFinite(pct)?` (${pct>0?'+':''}${pct.toFixed(1).replace('.',',')}%)`:''}. По этой метрике ${verdict}.`;
+  }
+  return `С ${first.year} по ${last.year}: ${valFmt(fv)} → ${valFmt(lv)}. Это описывает размер единиц, но само по себе не доказывает выравнивание; для проверки гипотезы включи CV, Gini или p90/p10.`;
+}
+function v106MetricHelpHtml(metric, rows, context){
+  if(!v105IsAreaDispersionMetric(metric)){
+    return `<section class="trend-help-card-v106"><h3>Как читать этот график</h3><p>Это общий статистический показатель по годам. Для задачи о «созревании» территориальной системы переключи группу на <b>«Разброс площадей»</b>: там есть отдельные метрики для верхнего, среднего и нижнего уровней АТЕ.</p></section>`;
+  }
+  const kind=v106MetricKind(metric);
+  const level=v106AreaLevelName(metric);
+  const contextText=(context && context!=='all') ? `Сейчас выбран не весь атлас, а контекст: <b>${escapeHtml(context)}</b>. То есть график читает ${level} внутри этого верхнего административного/национального контура.` : `Сейчас выбран <b>весь статистический охват</b>: показатель считается по всем подходящим АТЕ этого года.`;
+  return `<section class="trend-help-card-v106" id="topologyTrendExplainV106">
+    <div class="trend-help-title-v106"><span>Пояснение</span><b>${escapeHtml(v106MetricKindTitle(kind))}</b></div>
+    <p>${escapeHtml(v106MetricPlainText(metric))}</p>
+    <p>${escapeHtml(v106HowToReadText(metric))}</p>
+    <p>${contextText}</p>
+    <div class="trend-hypothesis-v106"><b>Проверка гипотезы:</b> ${escapeHtml(v106HypothesisText(rows,metric))}</div>
+  </section>`;
+}
+function v106GeneralHelpHtml(){
+  return `<details class="trend-window-help-v106" open>
+    <summary>Что здесь проверяется?</summary>
+    <p><b>Идея простая:</b> зрелая административная система обычно стремится к более сопоставимым по размеру единицам одного уровня. Если разброс площадей районов, округов или губерний со временем падает, это аргумент в пользу «созревания» сетки АТД.</p>
+    <p><b>Уровни:</b> верхний — губернии/области/края; средний — округа или промежуточные единицы, если они есть; нижний — уезды, районы и другие базовые единицы слоя.</p>
+    <p><b>Контекст:</b> «весь охват» сравнивает всю Западную Сибирь, а отдельный верхний контекст позволяет смотреть, как устроена сетка внутри конкретной губернии/области/края.</p>
+  </details>`;
+}
+function v106ShortMethodNote(){
+  return `<div class="trend-method-strip-v106"><b>Очистка ряда:</b> спорные, двоеданческие, слабоконтрольные, неясные территории и полигоны меньше 50 км² не участвуют в расчётах разброса. Исключения v104 для 1926/1930/2021 сохранены.</div>`;
+}
+async function v106OpenMultiyearTrendsModal(){
+  const data=await v93LoadMultiyearMetrics();
+  if(!data.length){ alert('Нет данных динамики метрик.'); return; }
+  v105InstallAreaDispersionMetrics();
+  let modal=$('topologyTrendsModal') || $('chartLightbox');
+  if(!modal){ modal=document.createElement('div'); modal.id='topologyTrendsModal'; document.body.appendChild(modal); }
+  modal.className='chart-lightbox topology-trends-modal-v88 topology-trends-modal-v91 multiyear-trends-modal-v93 multiyear-trends-modal-v105 multiyear-trends-modal-v106';
+  modal.setAttribute('aria-hidden','true');
+  const group=state._topologyTrendGroup || v93MetricGroupFor(state._topologyTrendMetric || 'area_cv_lower_ate') || 'area_dispersion';
+  let metric=state._topologyTrendMetric || v93TrendMetricOptions(group)[0];
+  if(!v93TrendMetricOptions(group).includes(metric)) metric=v93TrendMetricOptions(group)[0];
+  state._topologyTrendMetric=metric;
+  state._topologyTrendGroup=group;
+  state._topologyTrendContextV105=state._topologyTrendContextV105 || 'all';
+  const cfg=v93TrendSettings();
+  modal.innerHTML=`<div class="chart-lightbox-scrim" data-close-topology-trends="1"></div><section class="chart-lightbox-card" role="dialog" aria-modal="true" aria-labelledby="topologyTrendsTitle"><button type="button" class="chart-lightbox-close" aria-label="Закрыть динамику метрик">×</button><div class="chart-lightbox-kicker">Мультивременная аналитика · ${APP_VERSION}</div><h2 id="topologyTrendsTitle">Динамика метрик по годам</h2><div id="topologyTrendsBody" class="chart-lightbox-body topology-trends-body-v91 multiyear-trends-body-v93 multiyear-trends-body-v105 multiyear-trends-body-v106"></div></section>`;
+  modal.querySelector('.chart-lightbox-close')?.addEventListener('click',()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
+  modal.querySelector('[data-close-topology-trends]')?.addEventListener('click',()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
+  const body=$('topologyTrendsBody');
+  const years=data.map(d=>Number(d.year)).filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!state._topologyTrendYears?.length) state._topologyTrendYears=years.slice();
+  const metricSelectHtml=()=>v93TrendMetricOptions(state._topologyTrendGroup || group).map(k=>`<option value="${k}" ${k===state._topologyTrendMetric?'selected':''}>${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+  body.innerHTML=`<div class="topology-trend-layout-v91 topology-trend-layout-v106 multiyear-trend-layout-v93">
+    <aside class="topology-trend-controls-v91 topology-trend-controls-v106">
+      ${v106GeneralHelpHtml()}
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendGroupV93">Группа показателей</label><select id="topologyTrendGroupV93">${Object.entries(v93TrendGroups).map(([k,g])=>`<option value="${k}" ${k===state._topologyTrendGroup?'selected':''}>${escapeHtml(g.label)}</option>`).join('')}</select></div>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendMetricV90">Метрика</label><select id="topologyTrendMetricV90">${metricSelectHtml()}</select></div>
+      ${v105ContextSelectorHtml(data,state._topologyTrendContextV105)}
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendScaleV91">Шкала значений</label><select id="topologyTrendScaleV91"><option value="linear" ${cfg.scale==='linear'?'selected':''}>Линейная</option><option value="log" ${cfg.scale==='log'?'selected':''}>Логарифмическая log10</option></select><div class="mini-muted">Линейная шкала лучше для обычного чтения. Log10 полезна, если значения различаются на порядки.</div></div>
+      <div class="topology-trend-control-v91 color-control-v91"><label class="control-label" for="topologyTrendLineColorV91">Цвет линии</label><input id="topologyTrendLineColorV91" type="color" value="${escapeHtml(v93SafeHexColor(cfg.lineColor,'#9a6a22'))}"></div>
+      <div class="topology-trend-control-v91 color-control-v91"><label class="control-label" for="topologyTrendPointColorV91">Цвет точек</label><input id="topologyTrendPointColorV91" type="color" value="${escapeHtml(v93SafeHexColor(cfg.pointColor,'#f2c14e'))}"></div>
+      <label class="topology-trend-check-v91"><input id="topologyTrendShowLabelsV91" type="checkbox" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize||11)}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize||11)}"></div>
+      <div class="trend-buttons-v106"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
+      <div class="topology-trend-years-v90 topology-trend-years-v106" id="topologyTrendYearsV90">${years.map(y=>`<label><input type="checkbox" value="${y}" ${state._topologyTrendYears.includes(y)?'checked':''}> ${y}</label>`).join('')}</div>
+      ${v106ShortMethodNote()}
+    </aside>
+    <main class="topology-trend-main-v91 topology-trend-main-v106"><div id="topologyTrendChartV90" class="topology-trend-chart-v91"></div><div id="topologyTrendExplainSlotV106"></div><div id="topologyTrendTableV90" class="topology-trend-table-v91"></div></main>
+  </div>`;
+  const sync=()=>{
+    const groupSel=$('topologyTrendGroupV93');
+    const metricSelect=$('topologyTrendMetricV90');
+    const contextSelect=$('topologyTrendContextV105');
+    state._topologyTrendGroup=groupSel?.value || 'area_dispersion';
+    if(metricSelect && !v93TrendMetricOptions(state._topologyTrendGroup).includes(metricSelect.value)){
+      metricSelect.innerHTML=v93TrendMetricOptions(state._topologyTrendGroup).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+      metricSelect.value=v93TrendMetricOptions(state._topologyTrendGroup)[0];
+    }
+    state._topologyTrendMetric=metricSelect?.value || v93TrendMetricOptions(state._topologyTrendGroup)[0];
+    state._topologyTrendContextV105=contextSelect?.value || 'all';
+    if(contextSelect){
+      const areaMetric=v105IsAreaDispersionMetric(state._topologyTrendMetric);
+      contextSelect.disabled=!areaMetric;
+      contextSelect.closest('.topology-trend-context-v105')?.classList.toggle('disabled',!areaMetric);
+      if(!areaMetric){ state._topologyTrendContextV105='all'; contextSelect.value='all'; }
+    }
+    state._topologyTrendScale=$('topologyTrendScaleV91')?.value || 'linear';
+    state._topologyTrendLineColor=$('topologyTrendLineColorV91')?.value || '#9a6a22';
+    state._topologyTrendPointColor=$('topologyTrendPointColorV91')?.value || '#f2c14e';
+    state._topologyTrendShowLabels=!!$('topologyTrendShowLabelsV91')?.checked;
+    state._topologyTrendLabelSize=Number($('topologyTrendLabelSizeV91')?.value || 11);
+    const labelSizeValue=$('topologyTrendLabelSizeValueV91'); if(labelSizeValue) labelSizeValue.textContent=String(state._topologyTrendLabelSize);
+    state._topologyTrendYears=[...body.querySelectorAll('#topologyTrendYearsV90 input:checked')].map(i=>Number(i.value));
+    v106RenderMultiyearTrendChart(data);
+  };
+  $('topologyTrendGroupV93')?.addEventListener('change',()=>{ const ms=$('topologyTrendMetricV90'); const g=$('topologyTrendGroupV93')?.value || 'area_dispersion'; if(ms){ ms.innerHTML=v93TrendMetricOptions(g).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join(''); ms.value=v93TrendMetricOptions(g)[0]; } sync(); });
+  ['topologyTrendMetricV90','topologyTrendScaleV91','topologyTrendContextV105'].forEach(id=>$(id)?.addEventListener('change',sync));
+  ['topologyTrendLineColorV91','topologyTrendPointColorV91','topologyTrendShowLabelsV91','topologyTrendLabelSizeV91'].forEach(id=>$(id)?.addEventListener('input',sync));
+  body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.addEventListener('change',sync));
+  $('topologyTrendAllV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=true); sync(); });
+  $('topologyTrendClearV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=false); sync(); });
+  $('topologyTrendCoreV90')?.addEventListener('click',()=>{ const core=new Set([1700,1745,1783,1798,1821,1848,1876,1897,1914,1926,1939,1959,1970,1989,2021]); body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=core.has(Number(i.value))); sync(); });
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  sync();
+}
+function v106RenderMultiyearTrendChart(data){
+  const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'), help=$('topologyTrendExplainSlotV106'); if(!chart || !table) return;
+  const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'area_cv_lower_ate';
+  const context=v105IsAreaDispersionMetric(metric) ? (state._topologyTrendContextV105 || 'all') : 'all';
+  const cfg=v93TrendSettings();
+  const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+  const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+  const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : data.map(d=>Number(d.year))).map(Number));
+  const rows=data.map(d=>({row:d, year:Number(d.year), value:v105TrendValue(d,metric,context)})).filter(d=>selectedYears.has(d.year) && Number.isFinite(d.value)).sort((a,b)=>a.year-b.year);
+  if(rows.length<2){ chart.innerHTML='<div class="mini-muted">Для этой метрики/контекста выберите минимум два года с числовыми данными.</div>'; table.innerHTML=''; if(help) help.innerHTML=v106MetricHelpHtml(metric,rows,context); return; }
+  const w=940,h=390,pad={l:88,r:34,t:36,b:54};
+  const xs=rows.map(r=>r.year), rawYs=rows.map(r=>r.value);
+  const xmin=Math.min(...xs), xmax=Math.max(...xs);
+  const positives=rawYs.filter(y=>y>0);
+  const useLog=cfg.scale==='log' && positives.length>0;
+  const logFloor=useLog ? Math.min(...positives)/10 : null;
+  const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
+  const inverseY=y=>useLog ? Math.pow(10,y) : y;
+  const axisPlan=useLog ? v102NiceLogAxis(rawYs, logFloor) : v102NiceLinearAxis(rawYs, 5);
+  const ys=rawYs.map(transformY);
+  let ymin=axisPlan ? axisPlan.min : Math.min(...ys), ymax=axisPlan ? axisPlan.max : Math.max(...ys);
+  if(ymin===ymax){ ymin-=useLog ? .5 : 1; ymax+=useLog ? .5 : 1; }
+  const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+  const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const pts=rows.map(r=>`${xScale(r.year).toFixed(1)},${yScaleRaw(r.value).toFixed(1)}`).join(' ');
+  const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>r.year);
+  const yTicks=axisPlan?.ticks?.length ? axisPlan.ticks : [0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+  const valueLabel=(v)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(v,metric) : v93FormatTrendValue(v,metric);
+  const axisLabel=(t)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(inverseY(t),metric).replace('×','') : v102FormatAxisTick(inverseY(t),metric,axisPlan,useLog);
+  const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(r.year); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(r.value)-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(valueLabel(r.value))}</text>`; }).join('') : '';
+  const contextSuffix=context && context!=='all' ? ` · ${context}` : '';
+  const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
+  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91 topology-trend-svg-v105 topology-trend-svg-v106" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(axisLabel(t))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(r.year).toFixed(1)}" cy="${yScaleRaw(r.value).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${valueLabel(r.value)}${contextSuffix}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)}${escapeHtml(contextSuffix)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}`;
+  if(help) help.innerHTML=v106MetricHelpHtml(metric,rows,context);
+  table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>УРОВЕНЬ / КОНТЕКСТ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${valueLabel(r.value)}</b><em>${escapeHtml(v105IsAreaDispersionMetric(metric)?v105AreaTrendLeader(r.row,metric,context):v93TrendLeader(r.row,metric))}</em></div>`).join('');
+}
+try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTrendsModal=v106OpenMultiyearTrendsModal; openTopologyTrendsModal=v106OpenMultiyearTrendsModal; }catch(_){ }
