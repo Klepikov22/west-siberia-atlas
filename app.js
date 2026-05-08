@@ -1,4 +1,4 @@
-const APP_VERSION = '103';
+const APP_VERSION = '104';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -11075,7 +11075,7 @@ async function v93OpenMultiyearTrendsModal(){
       <div class="topology-trend-label-grid-v91"><label class="compact-check"><input type="checkbox" id="topologyTrendShowLabelsV91" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize)||11}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize)||11}"></div>
       <div class="topology-trend-buttons-v88 topology-trend-buttons-v91"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
       <div><div class="control-label topology-years-label-v91">Годы наблюдений</div><div id="topologyTrendYearsV90" class="topology-trend-years-v88 topology-trend-years-v91">${years.map(y=>`<label><input type="checkbox" value="${y}" ${selected.has(y)?'checked':''}>${y}</label>`).join('')}</div></div>
-      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям. Население в динамике v103 считается по всем аналитическим объектам слоя, включая малые городские полигоны; графовые метрики — по топологическим узлам/рёбрам v94.</div>
+      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям. Население в динамике v103/v104 считается по всем аналитическим объектам слоя, включая малые городские полигоны; для 1926, 1930 и 2021 применены ручные исключения статистического охвата v104; графовые метрики — по отфильтрованным топологическим узлам/рёбрам v94.</div>
     </section>
     <section class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v88 topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v88 topology-trend-table-v91"></div></section>
   </div>`;
