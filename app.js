@@ -1,4 +1,4 @@
-const APP_VERSION = '106';
+const APP_VERSION = '107';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
