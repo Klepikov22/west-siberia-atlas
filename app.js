@@ -1,4 +1,4 @@
-const APP_VERSION = '104';
+const APP_VERSION = '105';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -12783,3 +12783,241 @@ if(v100PriorTrendLeader){
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1180),{once:true}); else setTimeout(boot,1180);
 })();
+
+/* v105: area-dispersion metrics by hierarchy level and upper/national context.
+   Adds indicators for testing whether areas of same-level ATE become less dispersed
+   as the territorial system matures. */
+const v105AreaDispersionMetrics = [
+  'area_cv_upper_ate','area_cv_middle_ate','area_cv_lower_ate',
+  'area_gini_upper_ate','area_gini_middle_ate','area_gini_lower_ate',
+  'area_p90_p10_ratio_upper_ate','area_p90_p10_ratio_middle_ate','area_p90_p10_ratio_lower_ate',
+  'area_q75_q25_ratio_upper_ate','area_q75_q25_ratio_middle_ate','area_q75_q25_ratio_lower_ate',
+  'area_range_ratio_upper_ate','area_range_ratio_middle_ate','area_range_ratio_lower_ate',
+  'area_stddev_upper_ate_km2','area_stddev_middle_ate_km2','area_stddev_lower_ate_km2',
+  'area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2',
+  'area_median_upper_ate_km2','area_median_middle_ate_km2','area_median_lower_ate_km2',
+  'area_min_upper_ate_km2','area_min_middle_ate_km2','area_min_lower_ate_km2',
+  'area_max_upper_ate_km2','area_max_middle_ate_km2','area_max_lower_ate_km2',
+  'area_cv_lower_within_upper_mean','area_cv_lower_within_upper_max',
+  'area_gini_lower_within_upper_mean','area_gini_lower_within_upper_max',
+  'area_p90_p10_lower_within_upper_mean','area_p90_p10_lower_within_upper_max'
+];
+const v105AreaDispersionMetricSet = new Set(v105AreaDispersionMetrics);
+function v105IsAreaDispersionMetric(metric){ return v105AreaDispersionMetricSet.has(String(metric||'')); }
+function v105InstallAreaDispersionMetrics(){
+  if(typeof v93TrendGroups==='object'){
+    v93TrendGroups.area_dispersion={label:'Разброс площадей', metrics:v105AreaDispersionMetrics.slice()};
+  }
+  if(typeof v93TrendLabels==='object'){
+    Object.assign(v93TrendLabels, {
+      area_cv_upper_ate:'CV площадей АТЕ верхнего уровня',
+      area_cv_middle_ate:'CV площадей АТЕ среднего уровня',
+      area_cv_lower_ate:'CV площадей АТЕ нижнего уровня',
+      area_gini_upper_ate:'Gini площадей АТЕ верхнего уровня',
+      area_gini_middle_ate:'Gini площадей АТЕ среднего уровня',
+      area_gini_lower_ate:'Gini площадей АТЕ нижнего уровня',
+      area_p90_p10_ratio_upper_ate:'p90/p10 площадей верхнего уровня',
+      area_p90_p10_ratio_middle_ate:'p90/p10 площадей среднего уровня',
+      area_p90_p10_ratio_lower_ate:'p90/p10 площадей нижнего уровня',
+      area_q75_q25_ratio_upper_ate:'q75/q25 площадей верхнего уровня',
+      area_q75_q25_ratio_middle_ate:'q75/q25 площадей среднего уровня',
+      area_q75_q25_ratio_lower_ate:'q75/q25 площадей нижнего уровня',
+      area_range_ratio_upper_ate:'max/min площадей верхнего уровня',
+      area_range_ratio_middle_ate:'max/min площадей среднего уровня',
+      area_range_ratio_lower_ate:'max/min площадей нижнего уровня',
+      area_stddev_upper_ate_km2:'σ площадей верхнего уровня, км²',
+      area_stddev_middle_ate_km2:'σ площадей среднего уровня, км²',
+      area_stddev_lower_ate_km2:'σ площадей нижнего уровня, км²',
+      area_mean_upper_ate_km2:'средняя площадь верхнего уровня, км²',
+      area_mean_middle_ate_km2:'средняя площадь среднего уровня, км²',
+      area_mean_lower_ate_km2:'средняя площадь нижнего уровня, км²',
+      area_median_upper_ate_km2:'медианная площадь верхнего уровня, км²',
+      area_median_middle_ate_km2:'медианная площадь среднего уровня, км²',
+      area_median_lower_ate_km2:'медианная площадь нижнего уровня, км²',
+      area_min_upper_ate_km2:'минимальная площадь верхнего уровня, км²',
+      area_min_middle_ate_km2:'минимальная площадь среднего уровня, км²',
+      area_min_lower_ate_km2:'минимальная площадь нижнего уровня, км²',
+      area_max_upper_ate_km2:'максимальная площадь верхнего уровня, км²',
+      area_max_middle_ate_km2:'максимальная площадь среднего уровня, км²',
+      area_max_lower_ate_km2:'максимальная площадь нижнего уровня, км²',
+      area_cv_lower_within_upper_mean:'средний CV нижних АТЕ внутри верхних контекстов',
+      area_cv_lower_within_upper_max:'максимальный CV нижних АТЕ внутри верхних контекстов',
+      area_gini_lower_within_upper_mean:'средний Gini нижних АТЕ внутри верхних контекстов',
+      area_gini_lower_within_upper_max:'максимальный Gini нижних АТЕ внутри верхних контекстов',
+      area_p90_p10_lower_within_upper_mean:'средний p90/p10 нижних АТЕ внутри верхних контекстов',
+      area_p90_p10_lower_within_upper_max:'максимальный p90/p10 нижних АТЕ внутри верхних контекстов'
+    });
+  }
+  try{ Object.assign(v90TrendLabels, v93TrendLabels); }catch(_){ }
+}
+v105InstallAreaDispersionMetrics();
+function v105TrendContexts(data){
+  const set=new Set();
+  (data||[]).forEach(row=>{
+    (row.area_dispersion_contexts||[]).forEach(c=>{ const name=String(c.context||c.context_key||'').trim(); if(name) set.add(name); });
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'ru'));
+}
+function v105ContextRecord(row, context){
+  const name=String(context||'all');
+  if(!name || name==='all') return null;
+  return (row?.area_dispersion_contexts||[]).find(c=>String(c.context||c.context_key||'')===name) || null;
+}
+function v105TrendValue(row, metric, context){
+  const rec=v105ContextRecord(row, context);
+  const src=rec || row;
+  const n=Number(src?.[metric]);
+  return Number.isFinite(n) ? n : NaN;
+}
+function v105FormatAreaTrendValue(v, key){
+  const n=Number(v); if(!Number.isFinite(n)) return '—';
+  const k=String(key||'');
+  if(k.includes('_cv_') || k.includes('_gini_')) return n.toFixed(3).replace('.',',');
+  if(k.includes('_ratio_') || k.includes('p90_p10') || k.includes('q75_q25') || k.includes('range_ratio')) return n.toFixed(2).replace('.',',')+'×';
+  if(k.includes('_km2')) return n>=100 ? num(n) : n.toFixed(1).replace('.',',');
+  return Math.abs(n)<10 && !Number.isInteger(n) ? n.toFixed(2).replace('.',',') : num(n);
+}
+const v105PriorFormatTrendValue = typeof v93FormatTrendValue==='function' ? v93FormatTrendValue : null;
+if(v105PriorFormatTrendValue){
+  v93FormatTrendValue = function v93FormatTrendValueV105(v,key){
+    if(v105IsAreaDispersionMetric(key)) return v105FormatAreaTrendValue(v,key);
+    return v105PriorFormatTrendValue(v,key);
+  };
+}
+function v105AreaTrendLeader(row, metric, context){
+  const rec=v105ContextRecord(row, context);
+  if(rec){
+    const n=metric.includes('middle') ? rec.area_count_middle_ate : rec.area_count_lower_ate;
+    return `${rec.context || context} · n=${num(n || 0)}`;
+  }
+  if(metric.includes('upper')) return `верхний уровень · n=${num(row.area_count_upper_ate || row.upper_ate_count || 0)}`;
+  if(metric.includes('middle')) return `средний уровень · n=${num(row.area_count_middle_ate || row.middle_ate_count || 0)}`;
+  if(metric.includes('lower')) return `нижний уровень · n=${num(row.area_count_lower_ate || row.lower_ate_count || 0)}`;
+  if(metric.includes('within_upper')) return `контекстов: ${num(row.area_context_count_v105 || 0)}`;
+  return 'без спец/спорных/слабоконтрольных и <50 км²';
+}
+const v105PriorTrendLeader = typeof v93TrendLeader==='function' ? v93TrendLeader : null;
+if(v105PriorTrendLeader){
+  v93TrendLeader = function v93TrendLeaderV105(row,metric){
+    const ctx=state._topologyTrendContextV105 || 'all';
+    if(v105IsAreaDispersionMetric(metric)) return v105AreaTrendLeader(row,metric,ctx);
+    return v105PriorTrendLeader(row,metric);
+  };
+}
+function v105ContextSelectorHtml(data, current){
+  const contexts=v105TrendContexts(data);
+  const options=['<option value="all">Весь статистический охват</option>'].concat(contexts.map(c=>`<option value="${escapeHtml(c)}" ${c===current?'selected':''}>${escapeHtml(c)}</option>`));
+  return `<div class="topology-trend-control-v91 topology-trend-context-v105"><label class="control-label" for="topologyTrendContextV105">Национальный / верхний контекст</label><select id="topologyTrendContextV105">${options.join('')}</select><div class="mini-muted">Для группы «Разброс площадей» можно смотреть весь слой или отдельный верхний контекст.</div></div>`;
+}
+async function v105OpenMultiyearTrendsModal(){
+  const data=await v93LoadMultiyearMetrics();
+  if(!data.length){ alert('Нет данных динамики метрик.'); return; }
+  v105InstallAreaDispersionMetrics();
+  let modal=$('topologyTrendsModal') || $('chartLightbox');
+  if(!modal){ modal=document.createElement('div'); modal.id='topologyTrendsModal'; document.body.appendChild(modal); }
+  modal.className='chart-lightbox topology-trends-modal-v88 topology-trends-modal-v91 multiyear-trends-modal-v93 multiyear-trends-modal-v105';
+  modal.setAttribute('aria-hidden','true');
+  const group=state._topologyTrendGroup || v93MetricGroupFor(state._topologyTrendMetric || 'area_cv_lower_ate') || 'area_dispersion';
+  let metric=state._topologyTrendMetric || v93TrendMetricOptions(group)[0];
+  if(!v93TrendMetricOptions(group).includes(metric)) metric=v93TrendMetricOptions(group)[0];
+  state._topologyTrendMetric=metric;
+  state._topologyTrendGroup=group;
+  state._topologyTrendContextV105=state._topologyTrendContextV105 || 'all';
+  const cfg=v93TrendSettings();
+  modal.innerHTML=`<div class="chart-lightbox-scrim" data-close-topology-trends="1"></div><section class="chart-lightbox-card" role="dialog" aria-modal="true" aria-labelledby="topologyTrendsTitle"><button type="button" class="chart-lightbox-close" aria-label="Закрыть динамику метрик">×</button><div class="chart-lightbox-kicker">Мультивременная аналитика · ${APP_VERSION}</div><h2 id="topologyTrendsTitle">Динамика метрик по годам</h2><div id="topologyTrendsBody" class="chart-lightbox-body topology-trends-body-v91 multiyear-trends-body-v93 multiyear-trends-body-v105"></div></section>`;
+  modal.querySelector('.chart-lightbox-close')?.addEventListener('click',()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
+  modal.querySelector('[data-close-topology-trends]')?.addEventListener('click',()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
+  const body=$('topologyTrendsBody');
+  const years=data.map(d=>Number(d.year)).filter(Number.isFinite).sort((a,b)=>a-b);
+  if(!state._topologyTrendYears?.length) state._topologyTrendYears=years.slice();
+  const metricSelectHtml=()=>v93TrendMetricOptions(state._topologyTrendGroup || group).map(k=>`<option value="${k}" ${k===state._topologyTrendMetric?'selected':''}>${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+  body.innerHTML=`<div class="topology-trend-layout-v91 multiyear-trend-layout-v93">
+    <aside class="topology-trend-controls-v91">
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendGroupV93">Группа показателей</label><select id="topologyTrendGroupV93">${Object.entries(v93TrendGroups).map(([k,g])=>`<option value="${k}" ${k===state._topologyTrendGroup?'selected':''}>${escapeHtml(g.label)}</option>`).join('')}</select></div>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendMetricV90">Метрика</label><select id="topologyTrendMetricV90">${metricSelectHtml()}</select></div>
+      ${v105ContextSelectorHtml(data,state._topologyTrendContextV105)}
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendScaleV91">Шкала значений</label><select id="topologyTrendScaleV91"><option value="linear" ${cfg.scale==='linear'?'selected':''}>Линейная</option><option value="log" ${cfg.scale==='log'?'selected':''}>Логарифмическая log10</option></select></div>
+      <div class="topology-trend-control-v91 color-control-v91"><label class="control-label" for="topologyTrendLineColorV91">Цвет линии</label><input id="topologyTrendLineColorV91" type="color" value="${escapeHtml(v93SafeHexColor(cfg.lineColor,'#9a6a22'))}"></div>
+      <div class="topology-trend-control-v91 color-control-v91"><label class="control-label" for="topologyTrendPointColorV91">Цвет точек</label><input id="topologyTrendPointColorV91" type="color" value="${escapeHtml(v93SafeHexColor(cfg.pointColor,'#f2c14e'))}"></div>
+      <label class="topology-trend-check-v91"><input id="topologyTrendShowLabelsV91" type="checkbox" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label>
+      <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize||11)}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize||11)}"></div>
+      <button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button>
+      <div class="topology-trend-years-v90" id="topologyTrendYearsV90">${years.map(y=>`<label><input type="checkbox" value="${y}" ${state._topologyTrendYears.includes(y)?'checked':''}> ${y}</label>`).join('')}</div>
+      <div class="mini-muted">Разброс площадей считается без спорных, двоеданческих, слабоконтрольных, неясных и малых (&lt;50 км²) полигонов. Исключения v104 для 1926/1930/2021 сохранены.</div>
+    </aside>
+    <main class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v91"></div></main>
+  </div>`;
+  const sync=()=>{
+    const groupSel=$('topologyTrendGroupV93');
+    const metricSelect=$('topologyTrendMetricV90');
+    const contextSelect=$('topologyTrendContextV105');
+    state._topologyTrendGroup=groupSel?.value || 'area_dispersion';
+    if(metricSelect && !v93TrendMetricOptions(state._topologyTrendGroup).includes(metricSelect.value)){
+      metricSelect.innerHTML=v93TrendMetricOptions(state._topologyTrendGroup).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join('');
+      metricSelect.value=v93TrendMetricOptions(state._topologyTrendGroup)[0];
+    }
+    state._topologyTrendMetric=metricSelect?.value || v93TrendMetricOptions(state._topologyTrendGroup)[0];
+    state._topologyTrendContextV105=contextSelect?.value || 'all';
+    if(contextSelect){
+      const areaMetric=v105IsAreaDispersionMetric(state._topologyTrendMetric);
+      contextSelect.disabled=!areaMetric;
+      contextSelect.closest('.topology-trend-context-v105')?.classList.toggle('disabled',!areaMetric);
+      if(!areaMetric){ state._topologyTrendContextV105='all'; contextSelect.value='all'; }
+    }
+    state._topologyTrendScale=$('topologyTrendScaleV91')?.value || 'linear';
+    state._topologyTrendLineColor=$('topologyTrendLineColorV91')?.value || '#9a6a22';
+    state._topologyTrendPointColor=$('topologyTrendPointColorV91')?.value || '#f2c14e';
+    state._topologyTrendShowLabels=!!$('topologyTrendShowLabelsV91')?.checked;
+    state._topologyTrendLabelSize=Number($('topologyTrendLabelSizeV91')?.value || 11);
+    const labelSizeValue=$('topologyTrendLabelSizeValueV91'); if(labelSizeValue) labelSizeValue.textContent=String(state._topologyTrendLabelSize);
+    state._topologyTrendYears=[...body.querySelectorAll('#topologyTrendYearsV90 input:checked')].map(i=>Number(i.value));
+    v105RenderMultiyearTrendChart(data);
+  };
+  $('topologyTrendGroupV93')?.addEventListener('change',()=>{ const ms=$('topologyTrendMetricV90'); const g=$('topologyTrendGroupV93')?.value || 'area_dispersion'; if(ms){ ms.innerHTML=v93TrendMetricOptions(g).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join(''); ms.value=v93TrendMetricOptions(g)[0]; } sync(); });
+  ['topologyTrendMetricV90','topologyTrendScaleV91','topologyTrendContextV105'].forEach(id=>$(id)?.addEventListener('change',sync));
+  ['topologyTrendLineColorV91','topologyTrendPointColorV91','topologyTrendShowLabelsV91','topologyTrendLabelSizeV91'].forEach(id=>$(id)?.addEventListener('input',sync));
+  body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.addEventListener('change',sync));
+  $('topologyTrendAllV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=true); sync(); });
+  $('topologyTrendClearV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=false); sync(); });
+  $('topologyTrendCoreV90')?.addEventListener('click',()=>{ const core=new Set([1700,1745,1783,1798,1821,1848,1876,1897,1914,1926,1939,1959,1970,1989,2021]); body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=core.has(Number(i.value))); sync(); });
+  modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  sync();
+}
+function v105RenderMultiyearTrendChart(data){
+  const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'); if(!chart || !table) return;
+  const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'area_cv_lower_ate';
+  const context=v105IsAreaDispersionMetric(metric) ? (state._topologyTrendContextV105 || 'all') : 'all';
+  const cfg=v93TrendSettings();
+  const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+  const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+  const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : data.map(d=>Number(d.year))).map(Number));
+  const rows=data.map(d=>({row:d, year:Number(d.year), value:v105TrendValue(d,metric,context)})).filter(d=>selectedYears.has(d.year) && Number.isFinite(d.value)).sort((a,b)=>a.year-b.year);
+  if(rows.length<2){ chart.innerHTML='<div class="mini-muted">Для этой метрики/контекста выберите минимум два года с числовыми данными.</div>'; table.innerHTML=''; return; }
+  const w=940,h=390,pad={l:88,r:34,t:36,b:54};
+  const xs=rows.map(r=>r.year), rawYs=rows.map(r=>r.value);
+  const xmin=Math.min(...xs), xmax=Math.max(...xs);
+  const positives=rawYs.filter(y=>y>0);
+  const useLog=cfg.scale==='log' && positives.length>0;
+  const logFloor=useLog ? Math.min(...positives)/10 : null;
+  const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
+  const inverseY=y=>useLog ? Math.pow(10,y) : y;
+  const axisPlan=useLog ? v102NiceLogAxis(rawYs, logFloor) : v102NiceLinearAxis(rawYs, 5);
+  const ys=rawYs.map(transformY);
+  let ymin=axisPlan ? axisPlan.min : Math.min(...ys), ymax=axisPlan ? axisPlan.max : Math.max(...ys);
+  if(ymin===ymax){ ymin-=useLog?.5:1; ymax+=useLog?.5:1; }
+  const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+  const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+  const pts=rows.map(r=>`${xScale(r.year).toFixed(1)},${yScaleRaw(r.value).toFixed(1)}`).join(' ');
+  const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>r.year);
+  const yTicks=axisPlan?.ticks?.length ? axisPlan.ticks : [0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+  const valueLabel=(v)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(v,metric) : v93FormatTrendValue(v,metric);
+  const axisLabel=(t)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(inverseY(t),metric).replace('×','') : v102FormatAxisTick(inverseY(t),metric,axisPlan,useLog);
+  const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(r.year); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(r.value)-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(valueLabel(r.value))}</text>`; }).join('') : '';
+  const contextSuffix=context && context!=='all' ? ` · ${context}` : '';
+  const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
+  const methodNote=v105IsAreaDispersionMetric(metric) ? '<div class="topology-trend-note-v91">Показатели разброса: CV = σ/среднее; Gini и отношения квантилей показывают неоднородность площадей единиц одного уровня. Чем ниже значение, тем ровнее сетка.</div>' : '';
+  chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91 topology-trend-svg-v105" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(axisLabel(t))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${rows.map(r=>`<circle cx="${xScale(r.year).toFixed(1)}" cy="${yScaleRaw(r.value).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${valueLabel(r.value)}${contextSuffix}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)}${escapeHtml(contextSuffix)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${logNote}${methodNote}`;
+  table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>УРОВЕНЬ / КОНТЕКСТ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${valueLabel(r.value)}</b><em>${escapeHtml(v105IsAreaDispersionMetric(metric)?v105AreaTrendLeader(r.row,metric,context):v93TrendLeader(r.row,metric))}</em></div>`).join('');
+}
+try{ v93OpenMultiyearTrendsModal=v105OpenMultiyearTrendsModal; v90OpenTopologyTrendsModal=v105OpenMultiyearTrendsModal; openTopologyTrendsModal=v105OpenMultiyearTrendsModal; }catch(_){ }
