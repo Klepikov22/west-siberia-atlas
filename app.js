@@ -1,4 +1,4 @@
-const APP_VERSION = '107';
+const APP_VERSION = '109';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13243,3 +13243,109 @@ function v106RenderMultiyearTrendChart(data){
   table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>УРОВЕНЬ / КОНТЕКСТ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${valueLabel(r.value)}</b><em>${escapeHtml(v105IsAreaDispersionMetric(metric)?v105AreaTrendLeader(r.row,metric,context):v93TrendLeader(r.row,metric))}</em></div>`).join('');
 }
 try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTrendsModal=v106OpenMultiyearTrendsModal; openTopologyTrendsModal=v106OpenMultiyearTrendsModal; }catch(_){ }
+
+/* v108: population ↔ ATE-count correlation plots for the multiyear statistics window. */
+(function v108InstallPopulationCorrelationPlots(){
+  const metricDefs={
+    corr_population_lower_ate_count:{label:'корреляция: население ↔ нижние АТЕ', yKey:'lower_ate_count', yLabel:'число АТЕ нижнего уровня'},
+    corr_population_upper_ate_count:{label:'корреляция: население ↔ верхние АТЕ', yKey:'upper_ate_count', yLabel:'число АТЕ верхнего уровня'}
+  };
+  function isMetric(metric){ return Object.prototype.hasOwnProperty.call(metricDefs, String(metric||'')); }
+  function install(){
+    if(typeof v93TrendGroups==='object'){
+      v93TrendGroups.population = v93TrendGroups.population || {label:'Население', metrics:[]};
+      Object.keys(metricDefs).forEach(k=>{ if(!v93TrendGroups.population.metrics.includes(k)) v93TrendGroups.population.metrics.push(k); });
+    }
+    if(typeof v93TrendLabels==='object'){
+      Object.entries(metricDefs).forEach(([k,d])=>{ v93TrendLabels[k]=d.label; });
+    }
+    try{ Object.assign(v90TrendLabels, v93TrendLabels); }catch(_){ }
+  }
+  function finite(v){ const n=Number(v); return Number.isFinite(n) ? n : NaN; }
+  function fmtPop(v){ return Number.isFinite(Number(v)) ? num(Math.round(Number(v))) : '—'; }
+  function fmtCount(v){ return Number.isFinite(Number(v)) ? num(Number(v)) : '—'; }
+  function pearson(rows){
+    const n=rows.length;
+    if(n<2) return NaN;
+    const mx=rows.reduce((s,r)=>s+r.x,0)/n, my=rows.reduce((s,r)=>s+r.y,0)/n;
+    let nume=0, dx=0, dy=0;
+    rows.forEach(r=>{ const a=r.x-mx, b=r.y-my; nume+=a*b; dx+=a*a; dy+=b*b; });
+    return dx>0 && dy>0 ? nume/Math.sqrt(dx*dy) : NaN;
+  }
+  function regression(rows){
+    const n=rows.length;
+    if(n<2) return null;
+    const mx=rows.reduce((s,r)=>s+r.x,0)/n, my=rows.reduce((s,r)=>s+r.y,0)/n;
+    let nume=0, den=0;
+    rows.forEach(r=>{ nume+=(r.x-mx)*(r.y-my); den+=(r.x-mx)*(r.x-mx); });
+    if(!den) return null;
+    const slope=nume/den;
+    return {slope, intercept:my-slope*mx};
+  }
+  function niceAxis(vals, target){ return (typeof v102NiceLinearAxis==='function' ? v102NiceLinearAxis(vals, target||5) : null) || {min:Math.min(...vals), max:Math.max(...vals), ticks:[Math.min(...vals), Math.max(...vals)]}; }
+  function tickLabel(v, key){
+    const n=Number(v);
+    if(!Number.isFinite(n)) return '—';
+    if(key==='total_population') return n>=1000 ? num(Math.round(n)) : String(Math.round(n));
+    return Number.isInteger(n) ? num(n) : n.toFixed(1).replace('.',',');
+  }
+  function verdict(r){
+    if(!Number.isFinite(r)) return 'Недостаточно данных для устойчивого коэффициента.';
+    const a=Math.abs(r);
+    const strength=a>=0.8 ? 'сильная' : (a>=0.55 ? 'заметная' : (a>=0.3 ? 'умеренная' : 'слабая'));
+    const dir=r>=0 ? 'положительная' : 'отрицательная';
+    return `${strength} ${dir} связь: r = ${r.toFixed(3).replace('.',',')}, R² = ${(r*r).toFixed(3).replace('.',',')}. Это показывает сопряжённость рядов, но не доказывает прямую причинность реформ.`;
+  }
+  function render(data){
+    const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'), help=$('topologyTrendExplainSlotV106');
+    if(!chart || !table) return;
+    const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'corr_population_lower_ate_count';
+    const def=metricDefs[metric] || metricDefs.corr_population_lower_ate_count;
+    const cfg=v93TrendSettings();
+    const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+    const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+    const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : (data||[]).map(d=>Number(d.year))).map(Number));
+    const rows=(data||[]).map(d=>({row:d, year:Number(d.year), x:finite(d.total_population), y:finite(d[def.yKey])}))
+      .filter(r=>selectedYears.has(r.year) && Number.isFinite(r.x) && Number.isFinite(r.y) && r.x>=0 && r.y>=0)
+      .sort((a,b)=>a.year-b.year);
+    if(rows.length<2){
+      chart.innerHTML='<div class="mini-muted">Для корреляционного графика выберите минимум два года с населением и числом АТЕ.</div>';
+      table.innerHTML='';
+      if(help) help.innerHTML='<section class="trend-help-card-v106"><h3>Корреляция населения и числа АТЕ</h3><p>Нужно минимум два года с числовыми данными. Для содержательной проверки лучше оставить несколько сопоставимых временных срезов.</p></section>';
+      return;
+    }
+    const w=940,h=390,pad={l:106,r:42,t:38,b:76};
+    const xAxis=niceAxis(rows.map(r=>r.x),5), yAxis=niceAxis(rows.map(r=>r.y),5);
+    let xmin=Number(xAxis.min), xmax=Number(xAxis.max), ymin=Number(yAxis.min), ymax=Number(yAxis.max);
+    if(xmin===xmax){ xmin-=1; xmax+=1; }
+    if(ymin===ymax){ ymin-=1; ymax+=1; }
+    const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+    const yScale=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+    const r=pearson(rows), reg=regression(rows);
+    let regSvg='';
+    if(reg){
+      const x1=xmin, x2=xmax, y1=reg.intercept+reg.slope*x1, y2=reg.intercept+reg.slope*x2;
+      regSvg=`<line x1="${xScale(x1).toFixed(1)}" y1="${yScale(y1).toFixed(1)}" x2="${xScale(x2).toFixed(1)}" y2="${yScale(y2).toFixed(1)}" class="trend-line-v91 trend-correlation-fit-v108" style="stroke:${lineColor};stroke-dasharray:8 6;opacity:.78"/>`;
+    }
+    const labelsSvg=cfg.showLabels ? rows.map(row=>`<text x="${xScale(row.x).toFixed(1)}" y="${Math.max(pad.t+Number(cfg.labelSize||11), yScale(row.y)-9).toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${row.year}</text>`).join('') : '';
+    chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91 topology-trend-svg-v108" role="img" aria-label="${escapeHtml(def.label)}"><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${(yAxis.ticks||[]).map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScale(t)}" y2="${yScale(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScale(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(tickLabel(t,def.yKey))}</text>`).join('')}${(xAxis.ticks||[]).map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-38}" text-anchor="middle" class="trend-label-v88">${escapeHtml(tickLabel(t,'total_population'))}</text>`).join('')}${regSvg}${rows.map(row=>`<circle cx="${xScale(row.x).toFixed(1)}" cy="${yScale(row.y).toFixed(1)}" r="6.2" class="trend-point-v91" style="fill:${pointColor}"><title>${row.year}: население ${fmtPop(row.x)}; ${def.yLabel} — ${fmtCount(row.y)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(def.label)} · КОРРЕЛЯЦИОННОЕ ПОЛЕ</text><text x="${pad.l+(w-pad.l-pad.r)/2}" y="${h-10}" text-anchor="middle" class="trend-label-v88">население</text><text x="20" y="${pad.t+(h-pad.t-pad.b)/2}" transform="rotate(-90 20 ${pad.t+(h-pad.t-pad.b)/2})" text-anchor="middle" class="trend-label-v88">${escapeHtml(def.yLabel)}</text></svg><div class="topology-trend-note-v91">${escapeHtml(verdict(r))}</div>`;
+    if(help) help.innerHTML=`<section class="trend-help-card-v106 trend-help-card-v108"><h3>Как читать корреляционный график</h3><p>Каждая точка — отдельный год. По оси X отложено население статистического охвата, по оси Y — ${escapeHtml(def.yLabel)}. Пунктирная линия показывает общий линейный тренд.</p><p><b>Смысл для главы:</b> график помогает проверить, сопровождался ли демографический рост усложнением административной сетки. Положительная связь ожидаема, но сама по себе не доказывает, что население напрямую «создало» новые АТЕ: реформы, транспорт, хозяйственное освоение и политические решения тоже влияли на ряд.</p></section>`;
+    table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>НАСЕЛЕНИЕ</span><span>'+escapeHtml(def.yLabel.toUpperCase())+'</span></div>'+rows.map(row=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${row.year}</span><b>${fmtPop(row.x)}</b><em>${fmtCount(row.y)}</em></div>`).join('');
+  }
+  install();
+  const prior = typeof v106RenderMultiyearTrendChart==='function' ? v106RenderMultiyearTrendChart : null;
+  if(prior){
+    v106RenderMultiyearTrendChart = function v106RenderMultiyearTrendChartV108(data){
+      const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || '';
+      if(isMetric(metric)) return render(data);
+      return prior(data);
+    };
+  }
+  const priorLeader = typeof v93TrendLeader==='function' ? v93TrendLeader : null;
+  if(priorLeader){
+    v93TrendLeader = function v93TrendLeaderV108(row, metric){
+      if(isMetric(metric)) return 'корреляционное поле: население × число АТЕ';
+      return priorLeader(row, metric);
+    };
+  }
+})();

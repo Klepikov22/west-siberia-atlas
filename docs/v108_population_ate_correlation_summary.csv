@@ -1,0 +1,3 @@
+metric,x,y,years_count,pearson_r,r2
+Население ↔ число АТЕ нижнего уровня,total_population,lower_ate_count,27,0.85716,0.734723
+Население ↔ число АТЕ верхнего уровня,total_population,upper_ate_count,27,0.711308,0.505959

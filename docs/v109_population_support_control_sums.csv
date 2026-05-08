@@ -1,0 +1,25 @@
+year,group_type,group,population_sum
+1783,admin_parent,Колыванское наместничество,88200
+1783,admin_parent,Тобольское наместничество,514700
+1783,population_source_unit,Колыванское наместничество,88200
+1783,population_source_unit,Тобольское наместничество,514700
+1809,admin_parent,Тобольская губерния,394477
+1809,admin_parent,Томская губерния,220000
+1809,population_source_unit,Тобольская губерния,394477
+1809,population_source_unit,Томская губерния,220000
+1821,admin_parent,Тобольская губерния,536102
+1821,admin_parent,Томская губерния,306125
+1821,population_source_unit,Тобольская губерния,536102
+1821,population_source_unit,Томская губерния,306125
+1838,admin_parent,Омская область,226497
+1838,admin_parent,Тобольская губерния,736746
+1838,admin_parent,Томская губерния,453814
+1838,population_source_unit,existing_or_uncontrolled,226497
+1838,population_source_unit,Тобольская губерния,736746
+1838,population_source_unit,Томская губерния,453814
+1848,admin_parent,Киргизская степь,25000
+1848,admin_parent,Тобольская губерния,831151
+1848,admin_parent,Томская губерния,563186
+1848,population_source_unit,Семипалатинский и Усть-Каменогорский уезды в рамке Томской губернии,25000
+1848,population_source_unit,Тобольская губерния,831151
+1848,population_source_unit,Томская губерния,563186

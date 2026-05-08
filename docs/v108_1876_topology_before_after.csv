@@ -1,0 +1,11 @@
+metric,before,after
+nodes,29,27
+edges,65,62
+components,1,1
+graph_density,0.160099,0.176638
+cyclomatic,37,36
+articulation_points,1,0
+avg_degree,4.482759,4.592593
+bridges,1,0
+max_degree,7.0,7.0
+max_degree_name,Барнаульский округ,Барнаульский округ

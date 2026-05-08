@@ -1,0 +1,3 @@
+year,source_raw_objectid,source_unit_id,source_name,source_area_km2_before,target_unit_id,target_name,target_area_km2_before,operation
+1876,5,adm_1876_5,Безымянный объект №5,75.468,adm_1876_10,Каинский округ,82984.892,geometry_union_and_remove_source_feature
+1876,28,adm_1876_28,Безымянный объект №28,81.944,adm_1876_19,Кокпектинский округ,41894.346,geometry_union_and_remove_source_feature
