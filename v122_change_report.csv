@@ -1,0 +1,8 @@
+﻿block,metric,value
+version,APP_VERSION,122
+1989_atd_normalization,changed_features,195
+age_corrections,changed_features,25
+1989_validation,names_containing_municipal,0
+1989_validation,unit_type_counts,"{'район': 200, 'горсовет': 21}"
+age_backfill_1989_2021,changed_features,72
+kuzbass_restored_district_manual,changed_features,3

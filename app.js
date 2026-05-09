@@ -1,4 +1,4 @@
-const APP_VERSION = '121';
+const APP_VERSION = '123';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -5085,7 +5085,8 @@ function showFeature(f){
   const intermediate=String(p.admin_intermediate || '').trim(); const superparent=String(p.admin_superparent || '').trim();
   const urbanExtra=(hasFiniteNumber(p.strict_city_pop)||hasFiniteNumber(p.worker_settlement_pop)||hasFiniteNumber(p.broader_urban_pop))?`<div class="info-row"><span>Собственно города</span><b>${num(p.strict_city_pop)}</b></div><div class="info-row"><span>Рабочие посёлки / ПГТ</span><b>${num(p.worker_settlement_pop)}</b></div><div class="info-row"><span>Города + РП/ПГТ</span><b>${num(p.broader_urban_pop||p.urban_pop)}</b></div>`:'';
   const urbanMethod=p.urban_pop_method?`<div class="info-row"><span>Метод урбанизации</span><b>${escapeHtml(p.urban_pop_method)}</b></div>`:'';
-  $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div>${intermediate && intermediate!==String(p.admin_parent||'').trim()?`<div class="info-row"><span>Промежуточный уровень</span><b>${escapeHtml(intermediate)}</b></div>`:''}${superparent?`<div class="info-row"><span>Вышестоящая группа</span><b>${escapeHtml(superparent)}</b></div>`:''}<div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское / несельское</span><b>${num(p.urban_pop)}</b></div>${urbanExtra}<div class="info-row"><span>Сельское / прочее</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div>${urbanMethod}<div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`;
+  const urbanSettlements=p.urban_settlements_1947?`<div class="info-row"><span>Городские пункты 1947</span><b>${escapeHtml(p.urban_settlements_1947)}</b></div>`:'';
+  $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div>${intermediate && intermediate!==String(p.admin_parent||'').trim()?`<div class="info-row"><span>Промежуточный уровень</span><b>${escapeHtml(intermediate)}</b></div>`:''}${superparent?`<div class="info-row"><span>Вышестоящая группа</span><b>${escapeHtml(superparent)}</b></div>`:''}<div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское / несельское</span><b>${num(p.urban_pop)}</b></div>${urbanExtra}<div class="info-row"><span>Сельское / прочее</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div>${urbanMethod}${urbanSettlements}<div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`;
 }
 
 
@@ -14116,3 +14117,93 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const boot=()=>{ try{ ensureModeOption(); }catch(e){ console.warn('v121 age mode boot skipped', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
+
+
+/* v122: 1989 АТД names + analytics chart recovery */
+(function v122RestoreAnalyticsCharts(){
+  function v122AnalyticsFeatures(){
+    try{
+      if(typeof selectedFeatures === 'function') return selectedFeatures() || [];
+      const feats = (state.currentGeoJSON && state.currentGeoJSON.features) ? state.currentGeoJSON.features : [];
+      return typeof isAnalyticsFeature === 'function' ? feats.filter(isAnalyticsFeature) : feats;
+    }catch(err){
+      console.warn('v122 analytics feature collection failed', err);
+      return [];
+    }
+  }
+  function v122EnsureGroupAnalytics(reason){
+    const box = $('groupAnalyticsBox');
+    if(!box) return;
+    const feats = v122AnalyticsFeatures();
+    if(typeof updateGroupAnalytics === 'function'){
+      try{ updateGroupAnalytics(feats); }
+      catch(err){ console.warn('v122 group analytics redraw failed', reason, err); }
+    }
+    if(!box.innerHTML.trim()){
+      box.innerHTML = '<div class="mini-muted">Диаграммы появятся после загрузки административного слоя.</div>';
+    }
+  }
+  if(typeof updateStatsAndSelection === 'function' && !updateStatsAndSelection.__v122Wrapped){
+    const prevUpdateStatsAndSelection = updateStatsAndSelection;
+    updateStatsAndSelection = function updateStatsAndSelectionV122(){
+      const result = prevUpdateStatsAndSelection.apply(this, arguments);
+      setTimeout(()=>v122EnsureGroupAnalytics('stats'), 0);
+      return result;
+    };
+    updateStatsAndSelection.__v122Wrapped = true;
+  }
+  if(typeof refreshAdmin === 'function' && !refreshAdmin.__v122Wrapped){
+    const prevRefreshAdmin = refreshAdmin;
+    refreshAdmin = async function refreshAdminV122(seq){
+      const result = await prevRefreshAdmin.apply(this, arguments);
+      try{
+        if(!(typeof isStaleRefresh === 'function' && isStaleRefresh(seq))){
+          setTimeout(()=>v122EnsureGroupAnalytics('admin-refresh'), 0);
+        }
+      }catch(_){ setTimeout(()=>v122EnsureGroupAnalytics('admin-refresh'), 0); }
+      return result;
+    };
+    refreshAdmin.__v122Wrapped = true;
+  }
+  if(typeof bindUi === 'function' && !bindUi.__v122AnalyticsWrapped){
+    const prevBindUi = bindUi;
+    bindUi = function bindUiV122(){
+      const result = prevBindUi.apply(this, arguments);
+      ['pieLevelSelect','piePaletteSelect'].forEach(id=>{
+        const el = $(id);
+        if(el && el.dataset.v122AnalyticsBound !== '1'){
+          el.dataset.v122AnalyticsBound = '1';
+          el.addEventListener('change', ()=>setTimeout(()=>v122EnsureGroupAnalytics(id),0), true);
+        }
+      });
+      return result;
+    };
+    bindUi.__v122AnalyticsWrapped = true;
+  }
+  function v122TryRestoreTrendChart(){
+    const chart = $('topologyTrendChartV90') || $('topologyTrendChart');
+    if(!chart || chart.querySelector('svg')) return;
+    if(typeof v93LoadMultiyearMetrics === 'function' && typeof v106RenderMultiyearTrendChart === 'function'){
+      v93LoadMultiyearMetrics().then(data=>v106RenderMultiyearTrendChart(data)).catch(err=>console.warn('v122 trend chart redraw failed', err));
+    }else if(typeof renderMultiyearTrendChart === 'function' && typeof v93LoadMultiyearMetrics === 'function'){
+      v93LoadMultiyearMetrics().then(data=>renderMultiyearTrendChart(data)).catch(err=>console.warn('v122 trend chart redraw failed', err));
+    }
+  }
+  if(typeof openTopologyTrendsModal === 'function' && !openTopologyTrendsModal.__v122Wrapped){
+    const prevOpenTopologyTrendsModal = openTopologyTrendsModal;
+    openTopologyTrendsModal = async function openTopologyTrendsModalV122(){
+      const result = await prevOpenTopologyTrendsModal.apply(this, arguments);
+      setTimeout(v122TryRestoreTrendChart, 80);
+      return result;
+    };
+    openTopologyTrendsModal.__v122Wrapped = true;
+    try{ v93OpenMultiyearTrendsModal = openTopologyTrendsModal; }catch(_){ }
+    try{ v90OpenTopologyTrendsModal = openTopologyTrendsModal; }catch(_){ }
+  }
+  const boot = ()=>setTimeout(()=>v122EnsureGroupAnalytics('boot'), 500);
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true});
+  else boot();
+})();
+
+
+/* v123: 1947 Oirot AO labels and status-based urban/rural correction are data-level updates; feature card displays urban_settlements_1947 when present. */
