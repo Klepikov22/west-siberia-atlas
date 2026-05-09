@@ -3267,3 +3267,46 @@ body.dark .topology-dom-centroid-v97{
 .unit-type-checks-v117{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 8px;max-height:145px;overflow:auto;padding:4px;border-radius:10px;background:rgba(255,255,255,.36);}
 .unit-type-check-v117{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.15;min-width:0;}
 .unit-type-check-v117 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* v118: regional scope controls for multiyear metric tables */
+.metric-table-regions-v118{display:grid;grid-template-columns:1fr;gap:5px;max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;margin:7px 0 8px;background:rgba(255,255,255,.24);}
+.metric-table-region-v118{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);line-height:1.2;}
+.metric-table-region-note-v118,.metric-table-scope-note-v118{border:1px solid var(--line);border-radius:12px;padding:8px 9px;margin:7px 0 10px;background:rgba(255,255,255,.26);line-height:1.35;}
+.metric-table-scope-note-v118{margin:0 0 8px;}
+[data-theme="dark"] .metric-table-regions-v118,[data-theme="dark"] .metric-table-region-note-v118,[data-theme="dark"] .metric-table-scope-note-v118{background:rgba(20,26,30,.48);}
+
+
+/* v120: dashed trend/correlation fit controls in multiyear charts */
+.trend-fit-control-v120{
+  border:1px solid rgba(120,92,52,.22);
+  border-radius:14px;
+  background:rgba(255,252,244,.62);
+  padding:10px 11px;
+}
+.trend-fit-check-v120{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+  color:#4b3a22;
+}
+.trend-fit-line-v120{
+  fill:none;
+  stroke-width:3.1;
+  stroke-dasharray:9 7;
+  opacity:.8;
+  vector-effect:non-scaling-stroke;
+}
+.trend-fit-label-v120{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+  fill:#5b3f18;
+  paint-order:stroke;
+  stroke:#fff8e7;
+  stroke-width:4px;
+  stroke-linejoin:round;
+}
+.trend-fit-note-v120{
+  margin-top:8px;
+}

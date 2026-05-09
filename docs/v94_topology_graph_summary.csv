@@ -1,5 +1,2 @@
 year,features_total,nodes_in_graph,edges,excluded,components,density,cyclomatic,bridges,articulation_points,max_degree,avg_degree,removed_features
-1918,33,26,58,7,1,0.178462,33,0,0,7,4.462,
-1923,30,27,60,3,1,0.17094,34,0,0,8,4.444,
-1926,278,265,715,13,1,0.02044,451,1,1,9,5.396,
-1930,206,191,523,15,1,0.028823,333,0,0,9,5.476,
+1939,241,201,547,40,1,0.027214,347,1,1,11,5.443,

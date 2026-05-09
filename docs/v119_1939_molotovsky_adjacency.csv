@@ -1,0 +1,15 @@
+field,v118_before,v119_after
+unit_id,adm_1939_105,adm_1939_105
+name,Молотовский,Молотовский
+unit_type,район,район
+admin_parent,Омская область,Омская область
+population,15959,15959
+area_km2,2420.5,2420.467
+adjacent_count,5,5
+adjacent_names,"['Большереченский', 'Горьковский', 'Калачинский', 'Татарский', 'Усть-Тарский']","['Большереченский', 'Горьковский', 'Калачинский', 'Татарский', 'Усть-Тарский']"
+topo_degree,5,5
+topo_betweenness,0.009104,0.009412
+topo_closeness,0.147564,0.148038
+topo_k_core,3,3
+topo_graph_nodes,207,201
+topo_graph_edges,552,547

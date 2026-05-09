@@ -1,4 +1,4 @@
-const APP_VERSION = '117';
+const APP_VERSION = '120';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13486,7 +13486,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   }
 
   const metricTableGroupsV116 = {
-    ate_area:{label:'АТЕ и площади', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','total_area_km2','avg_area_km2','area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2']},
+    ate_area:{label:'АТЕ и площади', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','district_like_units_count','district_without_urban_pop_count','urban_rank_units_count','total_area_km2','avg_area_km2','area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2']},
     population:{label:'Население', metrics:['total_population','avg_population','population_density','urban_population','rural_population','urban_share']},
     rail:{label:'Железные дороги', metrics:['rail_length_km_total','rail_density_km_1000','rail_segments_count_sum']},
     adjacency:{label:'Соседство', metrics:['avg_adjacency','same_parent_edges','cross_parent_edges','same_superparent_edges','other_edges']},
@@ -13495,6 +13495,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   };
   const metricLabelsV116 = {
     ate_total_count:'АТЕ всего', upper_ate_count:'АТЕ верхнего уровня', middle_ate_count:'АТЕ среднего уровня', lower_ate_count:'АТЕ нижнего уровня',
+    district_like_units_count:'Районы / уезды / муниципальные районы и округа', district_without_urban_pop_count:'Районов / уездов без городского населения', urban_rank_units_count:'Городов районного ранга',
     total_area_km2:'Площадь всего, км²', avg_area_km2:'Средняя площадь АТЕ, км²', area_mean_upper_ate_km2:'Средняя площадь верхнего уровня, км²', area_mean_middle_ate_km2:'Средняя площадь среднего уровня, км²', area_mean_lower_ate_km2:'Средняя площадь нижнего уровня, км²',
     total_population:'Население всего', avg_population:'Среднее население АТЕ', population_density:'Плотность населения', urban_population:'Городское население', rural_population:'Сельское население', urban_share:'Доля городского населения',
     rail_length_km_total:'Длина ЖД, км', rail_density_km_1000:'Плотность ЖД, км/1000 км²', rail_segments_count_sum:'ЖД-сегментов',
@@ -13505,7 +13506,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     area_cv_lower_ate:'CV площадей нижнего уровня', area_gini_lower_ate:'Gini площадей нижнего уровня', area_p90_p10_ratio_lower_ate:'p90/p10 нижнего уровня', area_q75_q25_ratio_lower_ate:'q75/q25 нижнего уровня', area_range_ratio_lower_ate:'max/min нижнего уровня', area_cv_lower_within_upper_mean:'Средний CV нижних АТЕ внутри верхних контуров', area_gini_lower_within_upper_mean:'Средний Gini нижних АТЕ внутри верхних контуров'
   };
   const metricRecommendedV116 = {
-    ate_area:['upper_ate_count','middle_ate_count','lower_ate_count','avg_area_km2','area_mean_lower_ate_km2'],
+    ate_area:['upper_ate_count','middle_ate_count','lower_ate_count','district_without_urban_pop_count','urban_rank_units_count','avg_area_km2','area_mean_lower_ate_km2'],
     population:['total_population','population_density','urban_population','urban_share'],
     rail:['rail_length_km_total','rail_density_km_1000'],
     adjacency:['avg_adjacency','same_parent_edges','cross_parent_edges'],
@@ -13513,6 +13514,76 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     dispersion:['area_cv_lower_ate','area_gini_lower_ate','area_p90_p10_ratio_lower_ate','area_cv_lower_within_upper_mean']
   };
   let metricTableDataV116=null;
+  let metricRegionDataV118=null;
+  async function v118LoadRegionMetricRows(){
+    if(metricRegionDataV118) return metricRegionDataV118;
+    const path=state.manifest?.layers?.multiyear_metrics_by_2021_region || 'data/topology/multiyear_metrics_by_2021_region.json';
+    try{ metricRegionDataV118=await loadJson(path); }catch(e){ console.warn('v118 region metric rows unavailable', e); metricRegionDataV118=[]; }
+    return metricRegionDataV118;
+  }
+  function v118RegionNames(){
+    return [...new Set((metricRegionDataV118||[]).map(r=>String(r.region_2021||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+  }
+  const v118AdditiveMetrics=new Set(['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','district_like_units_count','district_without_urban_pop_count','urban_rank_units_count','total_area_km2','total_population','urban_population','rural_population','rail_length_km_total','rail_segments_count_sum','nodes','edges']);
+  const v118WeightedMetrics={avg_adjacency:'nodes',avg_degree:'nodes',avg_betweenness:'nodes',avg_closeness:'nodes',avg_k_core:'nodes'};
+  function v118CurrentRegionConfig(){
+    const mode=$('metricTableRegionModeV118')?.value || 'all';
+    const selected=[...document.querySelectorAll('#metricTableRegionChecksV118 input[type="checkbox"]:checked')].map(x=>x.value);
+    return {mode, selected:new Set(selected)};
+  }
+  function v118AggregateRegionRowsForYear(year, sourceRows){
+    const out={year:Number(year), metric_scope_v118:'2021_region_selection'};
+    for(const k of v118AdditiveMetrics) out[k]=0;
+    const weighted={};
+    for(const [metric,weight] of Object.entries(v118WeightedMetrics)) weighted[metric]={sum:0,w:0,weight};
+    for(const r of sourceRows){
+      for(const k of v118AdditiveMetrics){ const n=Number(r[k]); if(Number.isFinite(n)) out[k]+=n; }
+      for(const [metric,obj] of Object.entries(weighted)){
+        const v=Number(r[metric]); const w=Number(r[obj.weight]);
+        if(Number.isFinite(v) && Number.isFinite(w) && w>0){ obj.sum+=v*w; obj.w+=w; }
+      }
+    }
+    out.avg_area_km2 = out.ate_total_count ? out.total_area_km2/out.ate_total_count : null;
+    out.avg_population = out.ate_total_count ? out.total_population/out.ate_total_count : null;
+    out.population_density = out.total_area_km2 ? out.total_population/out.total_area_km2 : null;
+    out.urban_share = out.total_population ? out.urban_population/out.total_population : null;
+    out.rail_density_km_1000 = out.total_area_km2 ? out.rail_length_km_total/out.total_area_km2*1000 : null;
+    for(const [metric,obj] of Object.entries(weighted)) out[metric]=obj.w?obj.sum/obj.w:null;
+    for(const [k,v] of Object.entries(out)){ if(typeof v==='number' && Number.isFinite(v)) out[k]=Math.round(v*1000000)/1000000; }
+    return out;
+  }
+  function v118ScopedTableRows(baseRows){
+    const cfg=v118CurrentRegionConfig();
+    if(cfg.mode==='all' || !metricRegionDataV118?.length) return baseRows||[];
+    const regions=v118RegionNames();
+    const chosen = cfg.mode==='exclude' ? new Set(regions.filter(r=>!cfg.selected.has(r))) : cfg.selected;
+    if(!chosen.size) return [];
+    const byYear=new Map();
+    for(const r of metricRegionDataV118){
+      const reg=String(r.region_2021||'');
+      if(!chosen.has(reg)) continue;
+      const y=Number(r.year);
+      if(!Number.isFinite(y)) continue;
+      if(!byYear.has(y)) byYear.set(y,[]);
+      byYear.get(y).push(r);
+    }
+    return [...byYear.entries()].sort((a,b)=>a[0]-b[0]).map(([year,rs])=>v118AggregateRegionRowsForYear(year,rs));
+  }
+  function v118RenderRegionControls(rows){
+    const box=$('metricTableRegionChecksV118');
+    if(!box) return;
+    const regs=v118RegionNames();
+    box.innerHTML=regs.map(r=>`<label class="metric-table-region-v118"><input type="checkbox" value="${escapeHtml(r)}"><span>${escapeHtml(r)}</span></label>`).join('');
+    box.querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{ v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); }));
+  }
+  function v118SelectedScopeLabel(){
+    const cfg=v118CurrentRegionConfig();
+    if(cfg.mode==='all') return 'весь статистический охват';
+    const regs=v118RegionNames();
+    const selected=[...cfg.selected];
+    if(cfg.mode==='exclude') return selected.length ? 'все регионы 2021, кроме: '+selected.join(', ') : 'все регионы 2021';
+    return selected.length ? selected.join(', ') : 'нет выбранных регионов';
+  }
   async function v116LoadMetricRows(){
     if(metricTableDataV116) return metricTableDataV116;
     const path=state.manifest?.layers?.multiyear_metrics || 'data/topology/multiyear_metrics_by_year.json';
@@ -13550,7 +13621,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function v116RenderMetricCheckboxes(rows){
     const group=$('metricTableGroupV116')?.value || 'population';
     const box=$('metricTableMetricsV116'); if(!box) return;
-    const available=new Set(Object.keys((rows||[])[0]||{}));
+    const scoped=v118ScopedTableRows(rows);
+    const available=new Set(Object.keys((scoped||[])[0]||{}));
     const metrics=(metricTableGroupsV116[group]?.metrics||[]).filter(k=>available.has(k));
     const rec=new Set(metricRecommendedV116[group]||metrics.slice(0,5));
     box.innerHTML=metrics.map(k=>`<label class="metric-table-check-v116"><input type="checkbox" value="${escapeHtml(k)}" ${rec.has(k)?'checked':''}><span>${escapeHtml(metricLabelsV116[k]||k)}</span></label>`).join('');
@@ -13563,6 +13635,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     box.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>v116RenderMetricTable(rows)));
   }
   function v116TableMatrix(rows){
+    rows=v118ScopedTableRows(rows);
     const cfg=v116CurrentTableConfig();
     const byYear=new Map((rows||[]).map(r=>[Number(r.year),r]));
     const years=cfg.years.length?cfg.years:v116AllYears(rows);
@@ -13580,7 +13653,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const slot=$('metricTableResultV116'); if(!slot) return;
     const {header,body}=v116TableMatrix(rows);
     if(!body.length){ slot.innerHTML='<div class="mini-muted">Выберите хотя бы один год и одну метрику.</div>'; return; }
-    slot.innerHTML=`<div class="metric-table-scroll-v116"><table class="metric-table-v116"><thead><tr>${header.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+    slot.innerHTML=`<div class="mini-muted metric-table-scope-note-v118">Охват таблицы: <b>${escapeHtml(v118SelectedScopeLabel())}</b></div><div class="metric-table-scroll-v116"><table class="metric-table-v116"><thead><tr>${header.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   async function v116OpenMetricTablesModal(){
     let modal=$('metricTablesModalV116');
@@ -13593,9 +13666,13 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
     const body=$('metricTablesBodyV116');
     const rows=await v116LoadMetricRows();
-    body.innerHTML=`<aside class="metric-table-controls-v116"><label class="control-label" for="metricTableGroupV116">Компонент анализа</label><select id="metricTableGroupV116">${Object.entries(metricTableGroupsV116).map(([k,g])=>`<option value="${k}">${escapeHtml(g.label)}</option>`).join('')}</select><label class="control-label" for="metricTableOrientationV116">Структура таблицы</label><select id="metricTableOrientationV116"><option value="years_rows">Годы строками, метрики столбцами</option><option value="metrics_rows">Метрики строками, годы столбцами</option></select><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableYearsAllV116">Все годы</button><button type="button" id="metricTableYearsNoneV116">Снять годы</button><button type="button" id="metricTableYearsAnchorsV116">Опорные годы</button></div><div id="metricTableYearsV116" class="metric-table-years-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableMetricsAllV116">Все метрики</button><button type="button" id="metricTableMetricsNoneV116">Снять метрики</button><button type="button" id="metricTableMetricsRecommendedV116">Рекомендуемые</button></div><div id="metricTableMetricsV116" class="metric-table-metrics-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableCopyV116">Копировать TSV</button><button type="button" id="metricTableDownloadV116">Скачать CSV</button></div></aside><main class="metric-table-main-v116"><div class="mini-muted metric-table-note-v116">Таблица строится из того же ряда <code>multiyear_metrics_by_year.json</code>, что и графики динамики. Выключайте временные срезы и метрики, чтобы быстро собрать таблицу для главы.</div><div id="metricTableResultV116"></div></main>`;
-    v116RenderYearCheckboxes(rows); v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows);
+    await v118LoadRegionMetricRows();
+    body.innerHTML=`<aside class="metric-table-controls-v116"><label class="control-label" for="metricTableGroupV116">Компонент анализа</label><select id="metricTableGroupV116">${Object.entries(metricTableGroupsV116).map(([k,g])=>`<option value="${k}">${escapeHtml(g.label)}</option>`).join('')}</select><label class="control-label" for="metricTableRegionModeV118">Охват пересчёта</label><select id="metricTableRegionModeV118"><option value="all">Весь статистический охват</option><option value="include">Только выбранные регионы 2021</option><option value="exclude">Все, кроме выбранных регионов 2021</option></select><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableRegionsAllV118">Все регионы</button><button type="button" id="metricTableRegionsNoneV118">Снять регионы</button></div><div id="metricTableRegionChecksV118" class="metric-table-regions-v118"></div><div class="mini-muted metric-table-region-note-v118">Для регионального охвата суммарные значения пересчитываются по наложению исторических АТЕ на контуры регионов 2021 г.; графовые показатели здесь являются диагностикой узловой подвыборки, а не полной перестройкой графа.</div><label class="control-label" for="metricTableOrientationV116">Структура таблицы</label><select id="metricTableOrientationV116"><option value="years_rows">Годы строками, метрики столбцами</option><option value="metrics_rows">Метрики строками, годы столбцами</option></select><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableYearsAllV116">Все годы</button><button type="button" id="metricTableYearsNoneV116">Снять годы</button><button type="button" id="metricTableYearsAnchorsV116">Опорные годы</button></div><div id="metricTableYearsV116" class="metric-table-years-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableMetricsAllV116">Все метрики</button><button type="button" id="metricTableMetricsNoneV116">Снять метрики</button><button type="button" id="metricTableMetricsRecommendedV116">Рекомендуемые</button></div><div id="metricTableMetricsV116" class="metric-table-metrics-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableCopyV116">Копировать TSV</button><button type="button" id="metricTableDownloadV116">Скачать CSV</button></div></aside><main class="metric-table-main-v116"><div class="mini-muted metric-table-note-v116">Таблица строится из ряда <code>multiyear_metrics_by_year.json</code>. Для регионального режима используется дополнительный слой пересчёта по контурам регионов 2021 г.; можно смотреть весь охват, выбранные регионы или весь ряд без выбранных регионов.</div><div id="metricTableResultV116"></div></main>`;
+    v116RenderYearCheckboxes(rows); v118RenderRegionControls(rows); v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows);
     const rerender=()=>v116RenderMetricTable(rows);
+    $('metricTableRegionModeV118')?.addEventListener('change',()=>{ v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); });
+    $('metricTableRegionsAllV118')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableRegionChecksV118 input').forEach(i=>i.checked=true); v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); });
+    $('metricTableRegionsNoneV118')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableRegionChecksV118 input').forEach(i=>i.checked=false); v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); });
     $('metricTableGroupV116')?.addEventListener('change',()=>{ v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); });
     $('metricTableOrientationV116')?.addEventListener('change',rerender);
     $('metricTableYearsAllV116')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableYearsV116 input').forEach(i=>i.checked=true); rerender(); });
@@ -13733,4 +13810,171 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     sync(state.rawGeoJSON?.features || []);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1500),{once:true}); else setTimeout(boot,1500);
+})();
+
+
+/* v120: optional dashed trend/correlation fit lines with visible r/R² values in multiyear charts. */
+(function v120InstallTrendFitControls(){
+  const TOGGLE_ID='topologyTrendShowFitV120';
+  const INFO_ID='topologyTrendFitInfoV120';
+  function finite(v){ const n=Number(v); return Number.isFinite(n) ? n : NaN; }
+  function pearson(rows){
+    const n=rows.length;
+    if(n<2) return NaN;
+    const mx=rows.reduce((s,r)=>s+r.x,0)/n, my=rows.reduce((s,r)=>s+r.y,0)/n;
+    let nume=0, dx=0, dy=0;
+    rows.forEach(r=>{ const a=r.x-mx, b=r.y-my; nume+=a*b; dx+=a*a; dy+=b*b; });
+    return dx>0 && dy>0 ? nume/Math.sqrt(dx*dy) : NaN;
+  }
+  function regression(rows){
+    const n=rows.length;
+    if(n<2) return null;
+    const mx=rows.reduce((s,r)=>s+r.x,0)/n, my=rows.reduce((s,r)=>s+r.y,0)/n;
+    let nume=0, den=0;
+    rows.forEach(r=>{ nume+=(r.x-mx)*(r.y-my); den+=(r.x-mx)*(r.x-mx); });
+    if(!den) return null;
+    const slope=nume/den;
+    return {slope, intercept:my-slope*mx};
+  }
+  function fmtR(v){ return Number.isFinite(v) ? v.toFixed(3).replace('.',',') : '—'; }
+  function fmtR2(v){ return Number.isFinite(v) ? (v*v).toFixed(3).replace('.',',') : '—'; }
+  function fmtPop(v){ return Number.isFinite(Number(v)) ? num(Math.round(Number(v))) : '—'; }
+  function fmtCount(v){ return Number.isFinite(Number(v)) ? num(Number(v)) : '—'; }
+  function trendEnabled(){
+    const el=$(TOGGLE_ID);
+    if(el) return !!el.checked;
+    return state._topologyTrendShowFitV120 !== false;
+  }
+  function trendSet(v){ state._topologyTrendShowFitV120 = !!v; }
+  function isCorrMetric(metric){ return ['corr_population_lower_ate_count','corr_population_upper_ate_count'].includes(String(metric||'')); }
+  function corrDef(metric){
+    return metric==='corr_population_upper_ate_count'
+      ? {label:'корреляция: население ↔ верхние АТЕ', yKey:'upper_ate_count', yLabel:'число АТЕ верхнего уровня'}
+      : {label:'корреляция: население ↔ нижние АТЕ', yKey:'lower_ate_count', yLabel:'число АТЕ нижнего уровня'};
+  }
+  function niceAxis(vals, target){ return (typeof v102NiceLinearAxis==='function' ? v102NiceLinearAxis(vals, target||5) : null) || {min:Math.min(...vals), max:Math.max(...vals), ticks:[Math.min(...vals), Math.max(...vals)]}; }
+  function tickLabel(v, key){
+    const n=Number(v);
+    if(!Number.isFinite(n)) return '—';
+    if(key==='total_population') return n>=1000 ? num(Math.round(n)) : String(Math.round(n));
+    return Number.isInteger(n) ? num(n) : n.toFixed(1).replace('.',',');
+  }
+  function fitText(r, mode){
+    if(!Number.isFinite(r)) return 'Недостаточно данных для расчёта корреляции.';
+    const a=Math.abs(r);
+    const strength=a>=0.8 ? 'сильная' : (a>=0.55 ? 'заметная' : (a>=0.3 ? 'умеренная' : 'слабая'));
+    const dir=r>=0 ? 'положительная' : 'отрицательная';
+    const prefix=mode==='time-log' ? 'Пунктир: линейный тренд по log10(значения).' : (mode==='time' ? 'Пунктир: линейный тренд по годам.' : 'Пунктир: линейная аппроксимация корреляционного поля.');
+    return `${prefix} ${strength} ${dir} связь: r = ${fmtR(r)}, R² = ${fmtR2(r)}.`;
+  }
+  function insertControls(){
+    const side=document.querySelector('.topology-trend-controls-v106') || document.querySelector('.topology-trend-controls-v91');
+    if(!side || $(TOGGLE_ID)) return;
+    const holder=document.createElement('div');
+    holder.className='topology-trend-control-v91 trend-fit-control-v120';
+    holder.innerHTML=`<label class="topology-trend-check-v91 trend-fit-check-v120"><input id="${TOGGLE_ID}" type="checkbox" ${trendEnabled()?'checked':''}> Пунктирный тренд / корреляция</label><div class="mini-muted" id="${INFO_ID}">Показывает линейный тренд и значение r/R² для выбранных лет.</div>`;
+    const years=side.querySelector('#topologyTrendYearsV90');
+    if(years && years.parentElement) side.insertBefore(holder, years.parentElement);
+    else side.appendChild(holder);
+    $(TOGGLE_ID)?.addEventListener('change',async e=>{ trendSet(e.target.checked); const data=await v93LoadMultiyearMetrics(); v106RenderMultiyearTrendChart(data); });
+  }
+  async function openWithControls(){
+    if(typeof priorOpen==='function') await priorOpen();
+    insertControls();
+    try{ const data=await v93LoadMultiyearMetrics(); v106RenderMultiyearTrendChart(data); }catch(_){ }
+  }
+  function renderCorrelation(data){
+    const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'), help=$('topologyTrendExplainSlotV106');
+    if(!chart || !table) return;
+    const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'corr_population_lower_ate_count';
+    const def=corrDef(metric);
+    const cfg=v93TrendSettings();
+    const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+    const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+    const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : (data||[]).map(d=>Number(d.year))).map(Number));
+    const rows=(data||[]).map(d=>({row:d, year:Number(d.year), x:finite(d.total_population), y:finite(d[def.yKey])}))
+      .filter(r=>selectedYears.has(r.year) && Number.isFinite(r.x) && Number.isFinite(r.y) && r.x>=0 && r.y>=0)
+      .sort((a,b)=>a.year-b.year);
+    if(rows.length<2){
+      chart.innerHTML='<div class="mini-muted">Для корреляционного графика выберите минимум два года с населением и числом АТЕ.</div>';
+      table.innerHTML='';
+      if(help) help.innerHTML='<section class="trend-help-card-v106"><h3>Корреляция населения и числа АТЕ</h3><p>Нужно минимум два года с числовыми данными. Для содержательной проверки лучше оставить несколько сопоставимых временных срезов.</p></section>';
+      return;
+    }
+    const w=940,h=390,pad={l:106,r:42,t:38,b:76};
+    const xAxis=niceAxis(rows.map(r=>r.x),5), yAxis=niceAxis(rows.map(r=>r.y),5);
+    let xmin=Number(xAxis.min), xmax=Number(xAxis.max), ymin=Number(yAxis.min), ymax=Number(yAxis.max);
+    if(xmin===xmax){ xmin-=1; xmax+=1; }
+    if(ymin===ymax){ ymin-=1; ymax+=1; }
+    const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+    const yScale=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+    const r=pearson(rows), reg=regression(rows);
+    const showFit=trendEnabled();
+    let regSvg='';
+    if(showFit && reg){
+      const x1=xmin, x2=xmax, y1=reg.intercept+reg.slope*x1, y2=reg.intercept+reg.slope*x2;
+      regSvg=`<g clip-path="url(#trendClipV120)"><line x1="${xScale(x1).toFixed(1)}" y1="${yScale(y1).toFixed(1)}" x2="${xScale(x2).toFixed(1)}" y2="${yScale(y2).toFixed(1)}" class="trend-fit-line-v120" style="stroke:${lineColor}"/></g><text x="${w-pad.r}" y="24" text-anchor="end" class="trend-fit-label-v120">r = ${fmtR(r)} · R² = ${fmtR2(r)}</text>`;
+    }
+    const labelsSvg=cfg.showLabels ? rows.map(row=>`<text x="${xScale(row.x).toFixed(1)}" y="${Math.max(pad.t+Number(cfg.labelSize||11), yScale(row.y)-9).toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${row.year}</text>`).join('') : '';
+    const note=showFit ? fitText(r,'corr') : 'Пунктирная линия тренда отключена. Точки всё равно показывают соотношение населения и числа АТЕ по выбранным годам.';
+    chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91 topology-trend-svg-v108 topology-trend-svg-v120" role="img" aria-label="${escapeHtml(def.label)}"><defs><clipPath id="trendClipV120"><rect x="${pad.l}" y="${pad.t}" width="${w-pad.l-pad.r}" height="${h-pad.t-pad.b}"/></clipPath></defs><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${(yAxis.ticks||[]).map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScale(t)}" y2="${yScale(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScale(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(tickLabel(t,def.yKey))}</text>`).join('')}${(xAxis.ticks||[]).map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-38}" text-anchor="middle" class="trend-label-v88">${escapeHtml(tickLabel(t,'total_population'))}</text>`).join('')}${regSvg}${rows.map(row=>`<circle cx="${xScale(row.x).toFixed(1)}" cy="${yScale(row.y).toFixed(1)}" r="6.2" class="trend-point-v91" style="fill:${pointColor}"><title>${row.year}: население ${fmtPop(row.x)}; ${def.yLabel} — ${fmtCount(row.y)}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(def.label)} · КОРРЕЛЯЦИОННОЕ ПОЛЕ</text><text x="${pad.l+(w-pad.l-pad.r)/2}" y="${h-10}" text-anchor="middle" class="trend-label-v88">население</text><text x="20" y="${pad.t+(h-pad.t-pad.b)/2}" transform="rotate(-90 20 ${pad.t+(h-pad.t-pad.b)/2})" text-anchor="middle" class="trend-label-v88">${escapeHtml(def.yLabel)}</text></svg><div class="topology-trend-note-v91 trend-fit-note-v120">${escapeHtml(note)}</div>`;
+    if(help) help.innerHTML=`<section class="trend-help-card-v106 trend-help-card-v108"><h3>Как читать корреляционный график</h3><p>Каждая точка — отдельный год. По оси X отложено население статистического охвата, по оси Y — ${escapeHtml(def.yLabel)}. Пунктирная линия показывает общий линейный тренд и прямо подписывает коэффициенты <b>r</b> и <b>R²</b>.</p><p><b>Смысл для главы:</b> график помогает проверить, сопровождался ли демографический рост усложнением административной сетки. Положительная связь ожидаема, но сама по себе не доказывает, что население напрямую «создало» новые АТЕ.</p></section>`;
+    table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>НАСЕЛЕНИЕ</span><span>'+escapeHtml(def.yLabel.toUpperCase())+'</span></div>'+rows.map(row=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${row.year}</span><b>${fmtPop(row.x)}</b><em>${fmtCount(row.y)}</em></div>`).join('');
+  }
+  function renderTimeSeries(data){
+    const chart=$('topologyTrendChartV90'), table=$('topologyTrendTableV90'), help=$('topologyTrendExplainSlotV106'); if(!chart || !table) return;
+    const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || 'area_cv_lower_ate';
+    const context=v105IsAreaDispersionMetric(metric) ? (state._topologyTrendContextV105 || 'all') : 'all';
+    const cfg=v93TrendSettings();
+    const lineColor=v93SafeHexColor(cfg.lineColor,'#9a6a22');
+    const pointColor=v93SafeHexColor(cfg.pointColor,'#f2c14e');
+    const selectedYears=new Set((state._topologyTrendYears?.length ? state._topologyTrendYears : data.map(d=>Number(d.year))).map(Number));
+    const rows=data.map(d=>({row:d, year:Number(d.year), value:v105TrendValue(d,metric,context)})).filter(d=>selectedYears.has(d.year) && Number.isFinite(d.value)).sort((a,b)=>a.year-b.year);
+    if(rows.length<2){ chart.innerHTML='<div class="mini-muted">Для этой метрики/контекста выберите минимум два года с числовыми данными.</div>'; table.innerHTML=''; if(help) help.innerHTML=v106MetricHelpHtml(metric,rows,context); return; }
+    const w=940,h=390,pad={l:88,r:34,t:36,b:54};
+    const xs=rows.map(r=>r.year), rawYs=rows.map(r=>r.value);
+    const xmin=Math.min(...xs), xmax=Math.max(...xs);
+    const positives=rawYs.filter(y=>y>0);
+    const useLog=cfg.scale==='log' && positives.length>0;
+    const logFloor=useLog ? Math.min(...positives)/10 : null;
+    const transformY=y=>useLog ? Math.log10(y>0 ? y : logFloor) : y;
+    const inverseY=y=>useLog ? Math.pow(10,y) : y;
+    const axisPlan=useLog ? v102NiceLogAxis(rawYs, logFloor) : v102NiceLinearAxis(rawYs, 5);
+    const ys=rawYs.map(transformY);
+    let ymin=axisPlan ? axisPlan.min : Math.min(...ys), ymax=axisPlan ? axisPlan.max : Math.max(...ys);
+    if(ymin===ymax){ ymin-=useLog ? .5 : 1; ymax+=useLog ? .5 : 1; }
+    const xScale=x=>pad.l+(x-xmin)/(xmax-xmin||1)*(w-pad.l-pad.r);
+    const yScaleRaw=y=>h-pad.b-(transformY(y)-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+    const yScaleTrans=y=>h-pad.b-(y-ymin)/(ymax-ymin||1)*(h-pad.t-pad.b);
+    const pts=rows.map(r=>`${xScale(r.year).toFixed(1)},${yScaleRaw(r.value).toFixed(1)}`).join(' ');
+    const xTicks=rows.filter((_,i)=>i===0||i===rows.length-1||i%Math.ceil(rows.length/9)===0).map(r=>r.year);
+    const yTicks=axisPlan?.ticks?.length ? axisPlan.ticks : [0,.25,.5,.75,1].map(t=>ymin+(ymax-ymin)*t);
+    const valueLabel=(v)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(v,metric) : v93FormatTrendValue(v,metric);
+    const axisLabel=(t)=> v105IsAreaDispersionMetric(metric) ? v105FormatAreaTrendValue(inverseY(t),metric).replace('×','') : v102FormatAxisTick(inverseY(t),metric,axisPlan,useLog);
+    const labelsSvg=cfg.showLabels ? rows.map(r=>{ const x=xScale(r.year); const y=Math.max(pad.t+Number(cfg.labelSize||11), yScaleRaw(r.value)-9); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" class="trend-point-label-v91" style="font-size:${Number(cfg.labelSize||11)}px">${escapeHtml(valueLabel(r.value))}</text>`; }).join('') : '';
+    const contextSuffix=context && context!=='all' ? ` · ${context}` : '';
+    const fitRows=rows.map(r=>({x:r.year, y:transformY(r.value)})).filter(r=>Number.isFinite(r.x)&&Number.isFinite(r.y));
+    const rFit=pearson(fitRows), reg=regression(fitRows);
+    const showFit=trendEnabled();
+    const fitMode=useLog ? 'time-log' : 'time';
+    let fitSvg='';
+    if(showFit && reg){
+      const fy1=reg.intercept+reg.slope*xmin, fy2=reg.intercept+reg.slope*xmax;
+      fitSvg=`<g clip-path="url(#trendClipV120)"><line x1="${xScale(xmin).toFixed(1)}" y1="${yScaleTrans(fy1).toFixed(1)}" x2="${xScale(xmax).toFixed(1)}" y2="${yScaleTrans(fy2).toFixed(1)}" class="trend-fit-line-v120" style="stroke:${lineColor}"/></g><text x="${w-pad.r}" y="24" text-anchor="end" class="trend-fit-label-v120">r = ${fmtR(rFit)} · R² = ${fmtR2(rFit)}</text>`;
+    }
+    const fitNote=showFit ? `<div class="topology-trend-note-v91 trend-fit-note-v120">${escapeHtml(fitText(rFit,fitMode))}</div>` : '<div class="topology-trend-note-v91 trend-fit-note-v120">Пунктирная линия тренда отключена.</div>';
+    const logNote=(cfg.scale==='log' && !positives.length) ? '<div class="topology-trend-note-v91">Для этой метрики нет положительных значений; показана линейная шкала.</div>' : (useLog && rawYs.some(y=>y<=0) ? '<div class="topology-trend-note-v91">Log10-шкала: нулевые значения прижаты к нижней границе.</div>' : '');
+    chart.innerHTML=`<svg viewBox="0 0 ${w} ${h}" class="topology-trend-svg-v88 topology-trend-svg-v90 topology-trend-svg-v91 topology-trend-svg-v105 topology-trend-svg-v106 topology-trend-svg-v120" role="img" aria-label="Динамика ${escapeHtml(v93TrendLabels[metric]||metric)}"><defs><clipPath id="trendClipV120"><rect x="${pad.l}" y="${pad.t}" width="${w-pad.l-pad.r}" height="${h-pad.t-pad.b}"/></clipPath></defs><rect x="0" y="0" width="${w}" height="${h}" rx="18" class="trend-bg-v88"/>${yTicks.map(t=>`<line x1="${pad.l}" x2="${w-pad.r}" y1="${yScaleTrans(t)}" y2="${yScaleTrans(t)}" class="trend-grid-v88"/><text x="${pad.l-10}" y="${yScaleTrans(t)+4}" text-anchor="end" class="trend-label-v88">${escapeHtml(axisLabel(t))}</text>`).join('')}${xTicks.map(t=>`<line x1="${xScale(t)}" x2="${xScale(t)}" y1="${pad.t}" y2="${h-pad.b}" class="trend-grid-x-v88"/><text x="${xScale(t)}" y="${h-18}" text-anchor="middle" class="trend-label-v88">${t}</text>`).join('')}<polyline points="${pts}" fill="none" class="trend-line-v91" style="stroke:${lineColor}"/>${fitSvg}${rows.map(r=>`<circle cx="${xScale(r.year).toFixed(1)}" cy="${yScaleRaw(r.value).toFixed(1)}" r="5.8" class="trend-point-v91" style="fill:${pointColor}"><title>${r.year}: ${valueLabel(r.value)}${contextSuffix}</title></circle>`).join('')}${labelsSvg}<text x="${pad.l}" y="22" class="trend-title-v88 trend-title-v91">${escapeHtml(v93TrendLabels[metric]||metric)}${escapeHtml(contextSuffix)} · ${useLog?'LOG10':'ЛИНЕЙНАЯ ШКАЛА'}</text></svg>${fitNote}${logNote}`;
+    if(help) help.innerHTML=v106MetricHelpHtml(metric,rows,context);
+    table.innerHTML='<div class="chart-legend-head topology-trend-head-v88 topology-trend-head-v91"><span></span><span>ГОД</span><span>ЗНАЧЕНИЕ</span><span>УРОВЕНЬ / КОНТЕКСТ</span></div>'+rows.map(r=>`<div class="chart-legend-row topology-trend-row-v88 topology-trend-row-v91"><span class="pie-dot" style="background:${pointColor}"></span><span>${r.year}</span><b>${valueLabel(r.value)}</b><em>${escapeHtml(v105IsAreaDispersionMetric(metric)?v105AreaTrendLeader(r.row,metric,context):v93TrendLeader(r.row,metric))}</em></div>`).join('');
+  }
+  const priorOpen=typeof v106OpenMultiyearTrendsModal==='function' ? v106OpenMultiyearTrendsModal : (typeof openTopologyTrendsModal==='function' ? openTopologyTrendsModal : null);
+  const renderFinal=function v106RenderMultiyearTrendChartV120(data){
+    insertControls();
+    const metric=state._topologyTrendMetric || $('topologyTrendMetricV90')?.value || '';
+    if(isCorrMetric(metric)) return renderCorrelation(data);
+    return renderTimeSeries(data||[]);
+  };
+  try{ v106RenderMultiyearTrendChart=renderFinal; }catch(_){ window.v106RenderMultiyearTrendChart=renderFinal; }
+  try{ v93OpenMultiyearTrendsModal=openWithControls; v90OpenTopologyTrendsModal=openWithControls; openTopologyTrendsModal=openWithControls; }catch(_){ }
 })();
