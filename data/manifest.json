@@ -67,7 +67,7 @@
     "centers": {
       "1897": "data/centers/centers_1897.geojson",
       "1914": "data/centers/centers_1914.geojson",
-      "1926": "data/centers/centers_1926.geojson",
+      "1926": "data/urban/urban_points_1926.geojson",
       "1939": "data/centers/centers_1939.geojson",
       "1959": "data/centers/centers_1959.geojson",
       "1970": "data/centers/centers_1970.geojson",
@@ -228,7 +228,14 @@
       "1989": "data/topology/topology_nodes_1989.geojson",
       "2021": "data/topology/topology_nodes_2021.geojson"
     },
-    "multiyear_metrics": "data/topology/multiyear_metrics_by_year.json"
+    "multiyear_metrics": "data/topology/multiyear_metrics_by_year.json",
+    "urban_points_by_year": {
+      "1918": "data/urban/urban_points_1918.geojson",
+      "1923": "data/urban/urban_points_1923.geojson",
+      "1926": "data/urban/urban_points_1926.geojson",
+      "1930": "data/urban/urban_points_1930.geojson",
+      "1939": "data/urban/urban_points_1939.geojson"
+    }
   },
   "notes": [
     "v3: добавлен слой океана; административные полигоны обрезаны разностью с Ocean.geojson; добавлена выборочная статистика.",
@@ -263,7 +270,7 @@
     "v105: динамика метрик получила блок «Разброс площадей»: сопоставление пространственных параметров АТЕ по верхнему, среднему и нижнему уровням, включая контекстный выбор по верхнеуровневым/национальным системам; расчёт исключает спец/спорные/слабоконтрольные/неясные территории, полигоны <50 км² и v104-исключения статистического охвата.",
     "v107: для слоёв 1745/1765 Екатеринбургский объект переатрибутирован как Екатеринбургское ведомство в составе Тобольской провинции, исключён из сопоставимой статистики/динамики; Исетская провинция 1765 исключена как внешний контекст. Пересчитаны графовые и картометрические метрики динамики."
   ],
-  "app_version": 109,
+  "app_version": "114",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -287,6 +294,7 @@
     {
       "version": "109",
       "note": "Опорная реконструкция населения для 1783/1809/1821/1838/1848; замена слоя 1897 с разделением Семипалатинского и Усть-Каменогорского уездов; пересчёт топологии, областных метрик, population_long и диагностик."
-    }
+    },
+    "v114: city micro-polygons merged into host ATE for 1918/1923 and selectively for 1926/1930; Novo-Omsk and Omsk okrug controls applied."
   ]
 }

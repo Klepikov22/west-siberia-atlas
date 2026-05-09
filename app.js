@@ -1,4 +1,4 @@
-const APP_VERSION = '110';
+const APP_VERSION = '114';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -615,6 +615,8 @@ function featurePassesFilters(f){
   const totalParents=state.parentCounts?.size || 0;
   if(totalParents && !parent) return false;
   if(totalParents && state.visibleParents.size!==totalParents && !state.visibleParents.has(parent)) return false;
+  const fp=f?.properties||{};
+  if(fp.filter_exempt_metric_filters === true || fp.always_visible_in_filters === true) return true;
   return ['population','area_km2','density'].every(field=>{
     const filter=state.filters[field];
     const isFull=(filter.minFraction<=0.0001 && filter.maxFraction>=0.9999);
@@ -995,7 +997,7 @@ async function refreshCenters(seq){
     const city=isCityCenter(p); const large=city && pop>=largeCityThreshold(state.year);
     const m=L.circleMarker(latlng,{radius:r, color:large?'#201105':'#3a2607', weight:large?2.1:1.45, fillColor:large?'#ffd25e':'#f6c85f', fillOpacity:large?.92:.86, opacity:.98});
     m.feature=f;
-    m.on('mouseover',(e)=>showHoverLater({title:cleanCenterLabelName(p.name||'центр'), subtitle:p.unit_name || p.admin_parent || (city?'город':'центр'), population:pop, extra:city?'город / городской центр':'центр'}, e.originalEvent));
+    m.on('mouseover',(e)=>showHoverLater({title:cleanCenterLabelName(p.name||'центр'), subtitle:p.host_name || p.unit_name || p.admin_parent || p.status || (city?'город':'центр'), population:pop, extra:p.point_layer_role==='city_point'?'городская точка':(city?'город / городской центр':'центр')}, e.originalEvent));
     m.on('mousemove',(e)=>moveHover(e.originalEvent));
     m.on('mouseout', hideHover);
     m.on('click',(e)=>{ L.DomEvent.stopPropagation(e); showCenterFeature(f,m); });
@@ -1447,7 +1449,7 @@ function showCenterFeature(f, marker){
   const p=f.properties||{};
   const info=$('featureInfo'); if(!info) return;
   info.classList.remove('muted');
-  info.innerHTML=`<span class="selection-badge on">центр</span><div class="info-title">${escapeHtml(p.name||'Центр')}</div><div class="info-row"><span>Единица</span><b>${escapeHtml(p.unit_name||'—')}</b></div><div class="info-row"><span>Подчинение</span><b>${escapeHtml(p.admin_parent||'—')}</b></div><div class="info-row"><span>Городское население центра</span><b>${num(pointPopulation(p))}</b></div><div class="info-row"><span>Источник показателя</span><b>${escapeHtml(p.center_pop_urban_source||'—')}</b></div>${objectAttributesHtml(f)}`;
+  info.innerHTML=`<span class="selection-badge on">центр</span><div class="info-title">${escapeHtml(p.name||'Центр')}</div><div class="info-row"><span>Единица / район</span><b>${escapeHtml(p.host_name||p.unit_name||'—')}</b></div><div class="info-row"><span>Подчинение</span><b>${escapeHtml(p.admin_parent||'—')}</b></div><div class="info-row"><span>Население точки</span><b>${num(pointPopulation(p))}</b></div><div class="info-row"><span>Источник показателя</span><b>${escapeHtml(p.center_pop_urban_source||'—')}</b></div>${objectAttributesHtml(f)}`;
 }
 function showFeature(f){ const p=f.properties; const id=featureId(f); const selected=state.selectedIds.has(id); const sel=$('selectedFeatureSelect'); if(sel && [...sel.options].some(o=>o.value===id)) sel.value=id; $('featureInfo').classList.remove('muted'); $('featureInfo').innerHTML=`<span class="selection-badge ${selected?'on':''}">${selected?'в выборке':'не выбрано'}</span><div class="info-title">${p.name||'Без названия'}</div><div class="info-row"><span>Год</span><b>${p.year||state.year}</b></div><div class="info-row"><span>Тип</span><b>${p.unit_type||'—'}</b></div><div class="info-row"><span>Подчинение</span><b>${p.admin_parent||'—'}</b></div><div class="info-row"><span>Центр</span><b>${p.center||'—'}</b></div><div class="info-row"><span>Население</span><b>${num(p.population)}</b></div><div class="info-row"><span>Городское</span><b>${num(p.urban_pop)}</b></div><div class="info-row"><span>Сельское</span><b>${num(p.rural_pop)}</b></div><div class="info-row"><span>Доля городского</span><b>${pct(p.urban_share)}</b></div><div class="info-row"><span>Площадь, км²</span><b>${num(p.area_km2)}</b></div><div class="info-row"><span>Плотность</span><b>${p.density==null?'—':Number(p.density).toFixed(2).replace('.',',')}</b></div><div class="info-row"><span>Исходный слой</span><b>${p.source_layer||'—'}</b></div>${objectAttributesHtml(f)}`; }
 
@@ -5391,6 +5393,8 @@ function featurePassesFilters(f){
     if(state.visibleParents.size===0) return false;
     if(!state.visibleParents.has(parent)) return false;
   }
+  const fp=f?.properties||{};
+  if(fp.filter_exempt_metric_filters === true || fp.always_visible_in_filters === true) return true;
   return v56MetricFields().every(field=>{
     const filter=state.filters[field];
     if(!filter) return true;
