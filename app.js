@@ -1,4 +1,4 @@
-const APP_VERSION = '120';
+const APP_VERSION = '121';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13486,7 +13486,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   }
 
   const metricTableGroupsV116 = {
-    ate_area:{label:'АТЕ и площади', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','district_like_units_count','district_without_urban_pop_count','urban_rank_units_count','total_area_km2','avg_area_km2','area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2']},
+    ate_area:{label:'АТЕ и площади', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','district_like_units_count','district_without_urban_pop_count','urban_rank_units_count','total_area_km2','avg_area_km2','area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2','district_age_avg_years','district_age_median_years','district_age_max_years']},
     population:{label:'Население', metrics:['total_population','avg_population','population_density','urban_population','rural_population','urban_share']},
     rail:{label:'Железные дороги', metrics:['rail_length_km_total','rail_density_km_1000','rail_segments_count_sum']},
     adjacency:{label:'Соседство', metrics:['avg_adjacency','same_parent_edges','cross_parent_edges','same_superparent_edges','other_edges']},
@@ -13495,7 +13495,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   };
   const metricLabelsV116 = {
     ate_total_count:'АТЕ всего', upper_ate_count:'АТЕ верхнего уровня', middle_ate_count:'АТЕ среднего уровня', lower_ate_count:'АТЕ нижнего уровня',
-    district_like_units_count:'Районы / уезды / муниципальные районы и округа', district_without_urban_pop_count:'Районов / уездов без городского населения', urban_rank_units_count:'Городов районного ранга',
+    district_like_units_count:'Районы / уезды / муниципальные районы и округа', district_without_urban_pop_count:'Районов / уездов без городского населения', urban_rank_units_count:'Городов районного ранга', district_age_units_count:'Районов с рассчитанным возрастом', district_age_avg_years:'Средний возраст районов, лет', district_age_median_years:'Медианный возраст районов, лет', district_age_max_years:'Максимальный возраст районов, лет',
     total_area_km2:'Площадь всего, км²', avg_area_km2:'Средняя площадь АТЕ, км²', area_mean_upper_ate_km2:'Средняя площадь верхнего уровня, км²', area_mean_middle_ate_km2:'Средняя площадь среднего уровня, км²', area_mean_lower_ate_km2:'Средняя площадь нижнего уровня, км²',
     total_population:'Население всего', avg_population:'Среднее население АТЕ', population_density:'Плотность населения', urban_population:'Городское население', rural_population:'Сельское население', urban_share:'Доля городского населения',
     rail_length_km_total:'Длина ЖД, км', rail_density_km_1000:'Плотность ЖД, км/1000 км²', rail_segments_count_sum:'ЖД-сегментов',
@@ -13506,7 +13506,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     area_cv_lower_ate:'CV площадей нижнего уровня', area_gini_lower_ate:'Gini площадей нижнего уровня', area_p90_p10_ratio_lower_ate:'p90/p10 нижнего уровня', area_q75_q25_ratio_lower_ate:'q75/q25 нижнего уровня', area_range_ratio_lower_ate:'max/min нижнего уровня', area_cv_lower_within_upper_mean:'Средний CV нижних АТЕ внутри верхних контуров', area_gini_lower_within_upper_mean:'Средний Gini нижних АТЕ внутри верхних контуров'
   };
   const metricRecommendedV116 = {
-    ate_area:['upper_ate_count','middle_ate_count','lower_ate_count','district_without_urban_pop_count','urban_rank_units_count','avg_area_km2','area_mean_lower_ate_km2'],
+    ate_area:['upper_ate_count','middle_ate_count','lower_ate_count','district_without_urban_pop_count','urban_rank_units_count','district_age_avg_years','district_age_median_years','district_age_max_years','avg_area_km2','area_mean_lower_ate_km2'],
     population:['total_population','population_density','urban_population','urban_share'],
     rail:['rail_length_km_total','rail_density_km_1000'],
     adjacency:['avg_adjacency','same_parent_edges','cross_parent_edges'],
@@ -13977,4 +13977,142 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   };
   try{ v106RenderMultiyearTrendChart=renderFinal; }catch(_){ window.v106RenderMultiyearTrendChart=renderFinal; }
   try{ v93OpenMultiyearTrendsModal=openWithControls; v90OpenTopologyTrendsModal=openWithControls; openTopologyTrendsModal=openWithControls; }catch(_){ }
+})();
+
+
+/* v121: district-age choropleth mode.
+   Proxy age is assigned in GeoJSON fields district_age_years / district_origin_year.
+   It is based on district-like units from 1926 onward, using name inheritance and centroid/shape continuity. */
+(function v121DistrictAgeMode(){
+  function modeIsDistrictAge(){ return state.mode === 'district_age'; }
+  function districtAgeField(){ return 'district_age_years'; }
+  function districtAgeIsFinite(p){ return Number.isFinite(Number(p?.district_age_years)); }
+  function districtAgeLabel(v){
+    const n=Number(v);
+    if(!Number.isFinite(n)) return 'нет данных';
+    if(n>=90) return '90 лет и старше';
+    const lo=Math.floor(Math.max(0,n)/10)*10;
+    return `${lo}–${lo+9} лет`;
+  }
+  function districtAgeValueText(v){
+    const n=Number(v);
+    if(!Number.isFinite(n)) return '—';
+    const yr=Math.round(n);
+    return `${yr} ${yr===1?'год':(yr>=2&&yr<=4?'года':'лет')}`;
+  }
+  try{ v67SequentialModes.add('district_age'); v67FixedModes.add('district_age'); }catch(_){ }
+  const priorValField = valField;
+  valField = function valFieldV121(){
+    if(modeIsDistrictAge()) return districtAgeField();
+    return priorValField();
+  };
+  if(typeof v67ModeUnit === 'function'){
+    const priorUnit=v67ModeUnit;
+    v67ModeUnit=function v67ModeUnitV121(mode=state.mode){ return mode==='district_age' ? ' лет' : priorUnit(mode); };
+  }
+  if(typeof v67FixedBreaks === 'function'){
+    const priorFixed=v67FixedBreaks;
+    v67FixedBreaks=function v67FixedBreaksV121(mode=state.mode){
+      if(mode==='district_age'){
+        return {thresholds:[10,20,30,40,50,60,70,80,90], labels:['0–9 лет','10–19 лет','20–29 лет','30–39 лет','40–49 лет','50–59 лет','60–69 лет','70–79 лет','80–89 лет','90 лет и старше']};
+      }
+      return priorFixed(mode);
+    };
+  }
+  const priorMetricDisplay = typeof v67MetricDisplayValue === 'function' ? v67MetricDisplayValue : null;
+  if(priorMetricDisplay){
+    v67MetricDisplayValue=function v67MetricDisplayValueV121(v, mode=state.mode){
+      if(mode==='district_age'){
+        const n=Number(v);
+        return Number.isFinite(n) ? Math.max(0,n) : null;
+      }
+      return priorMetricDisplay(v, mode);
+    };
+  }
+  const priorColor = valueColor;
+  valueColor = function valueColorV121(v, values){
+    if(modeIsDistrictAge()){
+      const n=Number(v);
+      if(!Number.isFinite(n)) return '#d7d1c8';
+      const desc=(typeof v67FixedBreaks==='function') ? v67FixedBreaks('district_age') : null;
+      if(desc && typeof v67ClassIndexByThresholds==='function' && typeof v67ColorFromClass==='function'){
+        const idx=v67ClassIndexByThresholds(n, desc.thresholds);
+        return v67ColorFromClass(idx, desc.thresholds.length+1);
+      }
+    }
+    return priorColor(v, values||[]);
+  };
+  const priorAdminStyle = adminStyle;
+  adminStyle = function adminStyleV121(feature, vals){
+    const base=priorAdminStyle(feature, vals);
+    if(modeIsDistrictAge()){
+      const p=feature?.properties||{};
+      const ok=districtAgeIsFinite(p);
+      base.fillColor = ok ? valueColor(Number(p.district_age_years), vals||[]) : '#d7d1c8';
+      base.fillOpacity = ok ? Math.max(base.fillOpacity||0.55, .66) : .22;
+      if(!ok){ base.dashArray = base.dashArray || '4 5'; base.opacity = Math.min(base.opacity||.55, .5); }
+    }
+    return base;
+  };
+  if(typeof v67ChoroplethTitle === 'function'){
+    const priorTitle=v67ChoroplethTitle;
+    v67ChoroplethTitle=function v67ChoroplethTitleV121(){
+      return modeIsDistrictAge() ? 'Возраст районов: лет с первого распознанного предшественника' : priorTitle();
+    };
+  }
+  if(typeof v98LegendAdminHtml === 'function'){
+    const priorLegendAdmin=v98LegendAdminHtml;
+    v98LegendAdminHtml=function v98LegendAdminHtmlV121(features, vals){
+      if(!modeIsDistrictAge()) return priorLegendAdmin(features, vals);
+      const desc=typeof v67FixedBreaks==='function' ? v67FixedBreaks('district_age') : null;
+      let html='<div class="legend-section">Возраст районов</div>';
+      if(desc){
+        const count=desc.thresholds.length+1;
+        desc.labels.forEach((label,i)=>{ html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      }
+      const noData=(features||[]).filter(f=>!districtAgeIsFinite(f.properties||{})).length;
+      if(noData) html += '<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:#d7d1c8;border-style:dashed"></span><span>не район / нет данных</span></div>';
+      html += '<div class="mini-muted legend-scale-note-v67">Классы через 10 лет. Возраст — прокси по названию, центроиду и геометрической преемственности с 1926 г.</div>';
+      return html;
+    };
+  }
+  const priorShowFeature = showFeature;
+  showFeature = function showFeatureV121(f){
+    priorShowFeature(f);
+    const p=f?.properties||{}; const box=$('featureInfo');
+    if(!box) return;
+    if(!districtAgeIsFinite(p)) return;
+    const pred=p.district_age_predecessor ? `${escapeHtml(p.district_age_predecessor)}${p.district_age_predecessor_year?` (${p.district_age_predecessor_year})`:''}` : '—';
+    const html=`<div class="analytics-block district-age-object-v121"><h3>Возраст района</h3>
+      <div class="info-row"><span>возраст</span><b>${escapeHtml(districtAgeValueText(p.district_age_years))}</b></div>
+      <div class="info-row"><span>первый распознанный год</span><b>${escapeHtml(String(p.district_origin_year ?? '—'))}</b></div>
+      <div class="info-row"><span>класс легенды</span><b>${escapeHtml(p.district_age_class_10 || districtAgeLabel(p.district_age_years))}</b></div>
+      <div class="info-row"><span>предшественник</span><b>${pred}</b></div>
+      <div class="info-row"><span>основание</span><b>${escapeHtml(p.district_age_basis || '—')} · ${escapeHtml(p.district_age_confidence || '—')}</b></div>
+    </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+  };
+  if(typeof exportAdminLabelsSvg === 'function'){
+    const priorExportLabels = exportAdminLabelsSvg;
+    exportAdminLabelsSvg = function exportAdminLabelsSvgV121(features, project, w, h){
+      // keep previous label engine; labels of values are controlled by v112 if enabled.
+      return priorExportLabels(features, project, w, h);
+    };
+  }
+  function ensureModeOption(){
+    const sel=$('modeSelect');
+    if(sel && !sel.querySelector('option[value="district_age"]')){
+      const opt=document.createElement('option');
+      opt.value='district_age'; opt.textContent='Возраст районов';
+      const before=sel.querySelector('option[value="unit_type"]');
+      sel.insertBefore(opt,before||null);
+    }
+  }
+  const priorInit = init;
+  init = async function initV121(){
+    await priorInit();
+    ensureModeOption();
+  };
+  const boot=()=>{ try{ ensureModeOption(); }catch(e){ console.warn('v121 age mode boot skipped', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
