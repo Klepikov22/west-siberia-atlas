@@ -1,4 +1,4 @@
-const APP_VERSION = '123';
+const APP_VERSION = '124';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -14207,3 +14207,164 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 
 
 /* v123: 1947 Oirot AO labels and status-based urban/rural correction are data-level updates; feature card displays urban_settlements_1947 when present. */
+
+
+/* v124: analysis of natural / inherited boundary genesis */
+(function v124NaturalBoundaryGenesis(){
+  const NB_MODES = {
+    nb_river_pct: 'Доля речных границ',
+    nb_watershed_pct: 'Доля водораздельных границ',
+    nb_lake_pct: 'Доля озёрных / водных границ',
+    nb_coast_pct: 'Доля береговых границ',
+    nb_inherited_pct: 'Доля унаследованных / фантомных границ',
+    nb_unexplained_pct: 'Доля необъяснённых границ'
+  };
+  const NB_CLASS_LABELS = {
+    coastline:'береговая линия', river:'река', lake:'озеро / водная гладь', watershed:'водораздел / орография', inherited:'унаследованная / фантомная', unexplained:'не объяснено'
+  };
+  const NB_COLORS = {coastline:'#0ea5e9', river:'#2563eb', lake:'#38bdf8', watershed:'#8b5cf6', inherited:'#f59e0b', unexplained:'#9ca3af'};
+  function isNbMode(mode=state.mode){ return Object.prototype.hasOwnProperty.call(NB_MODES, mode); }
+  function nbModeTitle(mode=state.mode){ return NB_MODES[mode] || 'Происхождение границ'; }
+  function nbPct(v){ const n=Number(v); return Number.isFinite(n) ? `${n.toFixed(1).replace('.',',')}%` : '—'; }
+  function nbColor(cls){ return NB_COLORS[cls] || '#777'; }
+  function ensureNaturalBoundaryControls(){
+    const sel=$('modeSelect');
+    if(sel){
+      const before=sel.querySelector('option[value="district_age"]') || sel.querySelector('option[value="unit_type"]');
+      Object.entries(NB_MODES).forEach(([value,label])=>{
+        if(!sel.querySelector(`option[value="${value}"]`)){
+          const opt=document.createElement('option'); opt.value=value; opt.textContent=label; sel.insertBefore(opt,before||null);
+        }
+      });
+    }
+    const toggles=document.querySelector('.toggles');
+    if(toggles && !$('toggleNaturalBoundarySegments')){
+      const label=document.createElement('label');
+      label.innerHTML='<input type="checkbox" id="toggleNaturalBoundarySegments"> Линейный слой происхождения границ';
+      const anchor=$('toggleTopologyEdgesMain')?.closest('label') || toggles.firstElementChild;
+      if(anchor && anchor.parentNode===toggles) toggles.insertBefore(label, anchor.nextSibling); else toggles.appendChild(label);
+      label.querySelector('input')?.addEventListener('change', refreshVisibility);
+    }
+  }
+  const priorValField = valField;
+  valField = function valFieldV124(){ return isNbMode() ? state.mode : priorValField(); };
+  try{ Object.keys(NB_MODES).forEach(m=>{ v67SequentialModes.add(m); v67FixedModes.add(m); }); }catch(_){ }
+  if(typeof v67ModeUnit === 'function'){
+    const priorUnit=v67ModeUnit;
+    v67ModeUnit=function v67ModeUnitV124(mode=state.mode){ return isNbMode(mode) ? '%' : priorUnit(mode); };
+  }
+  if(typeof v67FixedBreaks === 'function'){
+    const priorBreaks=v67FixedBreaks;
+    v67FixedBreaks=function v67FixedBreaksV124(mode=state.mode){
+      if(isNbMode(mode)) return {thresholds:[5,10,20,40,60], labels:['0–5%','5–10%','10–20%','20–40%','40–60%','60% и более']};
+      return priorBreaks(mode);
+    };
+  }
+  if(typeof v67MetricDisplayValue === 'function'){
+    const priorDisplay=v67MetricDisplayValue;
+    v67MetricDisplayValue=function v67MetricDisplayValueV124(v, mode=state.mode){
+      if(isNbMode(mode)){ const n=Number(v); return Number.isFinite(n) ? n : null; }
+      return priorDisplay(v, mode);
+    };
+  }
+  const priorAdminStyle = adminStyle;
+  adminStyle = function adminStyleV124(feature, vals){
+    const base=priorAdminStyle(feature, vals);
+    if(isNbMode()){
+      const n=Number(feature?.properties?.[state.mode]);
+      if(Number.isFinite(n)){
+        base.fillColor=valueColor(n, vals||[]);
+        base.fillOpacity=Math.max(base.fillOpacity||0.55, .68);
+      }else{
+        base.fillColor='#d7d1c8'; base.fillOpacity=.22; base.dashArray=base.dashArray || '4 5';
+      }
+    }
+    return base;
+  };
+  if(typeof v67ChoroplethTitle === 'function'){
+    const priorTitle=v67ChoroplethTitle;
+    v67ChoroplethTitle=function v67ChoroplethTitleV124(){ return isNbMode() ? nbModeTitle() : priorTitle(); };
+  }
+  if(typeof v98LegendAdminHtml === 'function'){
+    const priorLegend=v98LegendAdminHtml;
+    v98LegendAdminHtml=function v98LegendAdminHtmlV124(features, vals){
+      if(!isNbMode()) return priorLegend(features, vals);
+      const desc=typeof v67FixedBreaks==='function' ? v67FixedBreaks(state.mode) : null;
+      let html=`<div class="legend-section">${escapeHtml(nbModeTitle())}</div>`;
+      if(desc && typeof v67ColorFromClass==='function'){
+        const count=desc.thresholds.length+1;
+        desc.labels.forEach((label,i)=>{ html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      }
+      html += '<div class="mini-muted legend-scale-note-v67">Доля от периметра АТЕ. Классы фиксированные; расчёт v124 по сегментам границ.</div>';
+      return html;
+    };
+  }
+  const priorShowFeature = showFeature;
+  showFeature = function showFeatureV124(f){
+    priorShowFeature(f);
+    const p=f?.properties||{}; const box=$('featureInfo');
+    if(!box || p.nb_total_boundary_km==null) return;
+    const rows=[['береговая линия',p.nb_coast_pct,p.nb_coast_km],['реки',p.nb_river_pct,p.nb_river_km],['озёра / водная гладь',p.nb_lake_pct,p.nb_lake_km],['водоразделы / орография',p.nb_watershed_pct,p.nb_watershed_km],['унаследованные / фантомные',p.nb_inherited_pct,p.nb_inherited_km],['не объяснено',p.nb_unexplained_pct,p.nb_unexplained_km]];
+    const html=`<div class="analytics-block natural-boundary-object-v124"><h3>Происхождение границ · v124</h3>
+      <div class="info-row"><span>периметр в расчёте</span><b>${num1(p.nb_total_boundary_km)} км</b></div>
+      <div class="info-row"><span>доминирующий тип</span><b>${escapeHtml(p.nb_dominant_origin_label || '—')} · ${nbPct(p.nb_dominant_origin_pct)}</b></div>
+      ${rows.map(([label,pct,km])=>`<div class="info-row"><span>${escapeHtml(label)}</span><b>${nbPct(pct)} · ${num1(km)} км</b></div>`).join('')}
+      <div class="mini-muted">Приоритет: берег → река → озеро → водораздел → унаследованная граница → не объяснено.</div>
+    </div>`;
+    box.insertAdjacentHTML('beforeend', html);
+  };
+  function naturalBoundaryStyle(f){
+    const cls=f?.properties?.boundary_origin || 'unexplained';
+    return {color:nbColor(cls), weight:cls==='coastline'?3.0:(cls==='river'?2.6:(cls==='watershed'?2.2:2.0)), opacity:cls==='unexplained'?.55:.92, dashArray:cls==='inherited'?'7 4':(cls==='unexplained'?'3 6':null), lineCap:'round', lineJoin:'round'};
+  }
+  async function refreshNaturalBoundarySegments(seq){
+    clearLayer('naturalBoundarySegments');
+    const path=state.manifest?.layers?.natural_boundaries?.segments?.[String(state.year)];
+    if(!path) return;
+    try{
+      const gj=await loadJson(path);
+      if(typeof isStaleRefresh==='function' && isStaleRefresh(seq)) return;
+      state.layers.naturalBoundarySegments=L.geoJSON(gj,{interactive:false, style:naturalBoundaryStyle});
+    }catch(err){ console.warn('v124 natural boundary segment load failed', err); }
+  }
+  const priorClearYearLayers=clearYearLayers;
+  clearYearLayers=function clearYearLayersV124(){ priorClearYearLayers.apply(this, arguments); clearLayer('naturalBoundarySegments'); };
+  const priorRefreshAll=refreshAll;
+  refreshAll=async function refreshAllV124(){
+    const result=await priorRefreshAll.apply(this, arguments);
+    const seq=state.refreshSeq;
+    await refreshNaturalBoundarySegments(seq);
+    refreshVisibility();
+    return result;
+  };
+  const priorRefreshVisibility=refreshVisibility;
+  refreshVisibility=function refreshVisibilityV124(){
+    const result=priorRefreshVisibility.apply(this, arguments);
+    const show=$('toggleNaturalBoundarySegments')?.checked === true;
+    const l=state.layers.naturalBoundarySegments;
+    if(l){
+      if(show && !state.map.hasLayer(l)) l.addTo(state.map);
+      if(!show && state.map.hasLayer(l)) state.map.removeLayer(l);
+      if(show && l.bringToFront) l.bringToFront();
+    }
+    return result;
+  };
+  const priorRefreshVectorStyles=refreshVectorStyles;
+  refreshVectorStyles=function refreshVectorStylesV124(){
+    const result=priorRefreshVectorStyles.apply(this, arguments);
+    if(state.layers.naturalBoundarySegments?.setStyle) state.layers.naturalBoundarySegments.setStyle(naturalBoundaryStyle);
+    return result;
+  };
+  const priorBindUi=bindUi;
+  bindUi=function bindUiV124(){
+    const result=priorBindUi.apply(this, arguments);
+    ensureNaturalBoundaryControls();
+    const t=$('toggleNaturalBoundarySegments');
+    if(t && t.dataset.v124Bound!=='1'){
+      t.dataset.v124Bound='1'; t.addEventListener('change', refreshVisibility);
+    }
+    return result;
+  };
+  const boot=()=>ensureNaturalBoundaryControls();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();

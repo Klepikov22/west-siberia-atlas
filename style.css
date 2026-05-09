@@ -3310,3 +3310,7 @@ body.dark .topology-dom-centroid-v97{
 .trend-fit-note-v120{
   margin-top:8px;
 }
+
+/* v124: natural boundary genesis */
+.natural-boundary-object-v124 h3{margin-top:10px;}
+.natural-boundary-object-v124 .mini-muted{margin-top:8px;line-height:1.35;}
