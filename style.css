@@ -3230,3 +3230,32 @@ body.dark .topology-dom-centroid-v97{
 .topology-trend-chart-v91{min-height:300px;}
 @media(max-width:1180px){.topology-trend-layout-v106{grid-template-columns:1fr}.topology-trend-main-v106{grid-template-rows:auto auto auto}.topology-trend-years-v106{grid-template-columns:repeat(5,1fr);}}
 @media(max-width:760px){.topology-trend-years-v106{grid-template-columns:repeat(3,1fr)}.trend-window-help-v106,.trend-help-card-v106,.trend-method-strip-v106{border-radius:13px}.trend-help-card-v106{padding:9px 10px}}
+
+
+/* v116: center point labels and multiyear metric tables */
+.center-point-label-v116{pointer-events:none;transform:translate(7px,-18px);white-space:nowrap;filter:drop-shadow(0 1px 1px rgba(255,255,255,.95)) drop-shadow(0 2px 5px rgba(45,35,20,.28));}
+.center-point-label-v116 span{display:inline-block;background:rgba(255,248,224,.92);border:1px solid rgba(70,48,19,.35);color:#2f230f;font-size:10px;line-height:1.15;font-weight:850;padding:2px 4px;border-radius:6px;box-shadow:0 1px 5px rgba(30,25,10,.14);}
+.center-point-label-v116 .center-point-label-pop-v116{margin-left:3px;background:rgba(255,214,96,.88);font-weight:900;}
+.center-point-label-v116.city span{background:rgba(255,238,178,.96);}
+.center-point-label-v116.large span{font-size:11px;border-color:rgba(60,32,7,.56);}
+.metric-tables-btn-v116{margin-top:6px;width:100%;}
+.metric-tables-card-v116{width:min(1280px,96vw);height:min(820px,92vh);}
+.metric-tables-body-v116{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:14px;min-height:0;}
+.metric-table-controls-v116{border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.38);overflow:auto;min-height:0;}
+.metric-table-main-v116{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0;}
+.metric-table-note-v116{border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:rgba(255,255,255,.35);}
+.metric-table-years-v116,.metric-table-metrics-v116{display:grid;grid-template-columns:1fr;gap:5px;max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;margin:7px 0 10px;background:rgba(255,255,255,.26);}
+.metric-table-year-v116,.metric-table-check-v116{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);}
+.metric-table-button-row-v116{gap:6px;flex-wrap:wrap;margin:6px 0;}
+.metric-table-button-row-v116 button{font-size:11px;padding:6px 8px;}
+.metric-table-scroll-v116{overflow:auto;border:1px solid var(--line);border-radius:14px;min-height:0;max-height:calc(92vh - 220px);background:rgba(255,255,255,.48);}
+.metric-table-v116{border-collapse:collapse;width:100%;font-size:12px;min-width:760px;}
+.metric-table-v116 th,.metric-table-v116 td{border-bottom:1px solid var(--line);border-right:1px solid rgba(128,128,128,.14);padding:7px 8px;text-align:right;vertical-align:top;white-space:nowrap;}
+.metric-table-v116 th:first-child,.metric-table-v116 td:first-child{text-align:left;font-weight:850;position:sticky;left:0;background:rgba(250,248,238,.96);z-index:1;}
+.metric-table-v116 th{position:sticky;top:0;background:var(--panel);z-index:2;color:var(--text);font-weight:900;}
+.metric-table-v116 th:first-child{z-index:3;}
+[data-theme="dark"] .center-point-label-v116 span{background:rgba(43,36,24,.92);color:#fff1c7;border-color:rgba(255,218,122,.35);}
+[data-theme="dark"] .center-point-label-v116 .center-point-label-pop-v116{background:rgba(117,87,34,.96);color:#fff5d6;}
+[data-theme="dark"] .metric-table-controls-v116,[data-theme="dark"] .metric-table-note-v116,[data-theme="dark"] .metric-table-scroll-v116{background:rgba(20,26,30,.54);}
+[data-theme="dark"] .metric-table-v116 th:first-child,[data-theme="dark"] .metric-table-v116 td:first-child{background:rgba(28,34,36,.98);}
+@media (max-width:900px){.metric-tables-body-v116{grid-template-columns:1fr}.metric-table-controls-v116{max-height:260px}.metric-table-scroll-v116{max-height:52vh}}

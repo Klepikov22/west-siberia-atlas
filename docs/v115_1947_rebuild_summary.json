@@ -1,0 +1,14 @@
+{
+  "year": 1947,
+  "features": 252,
+  "analytics_features": 219,
+  "nodes": 219,
+  "edges": 584,
+  "components": 3,
+  "bridges": 1,
+  "articulation_points": 1,
+  "total_population_analytics": 6206627.0,
+  "urban_population_analytics": 1077219.0,
+  "rural_population_analytics": 5129408.0,
+  "area_total_analytics_km2": 2373692.18
+}

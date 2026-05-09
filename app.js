@@ -1,4 +1,4 @@
-const APP_VERSION = '114';
+const APP_VERSION = '116';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13352,4 +13352,278 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       return priorLeader(row, metric);
     };
   }
+})();
+
+
+/* v116: visible city/center labels + multiyear metric tables panel. */
+(function v116InstallCenterPointLabelsAndMetricTables(){
+  const CENTER_LABEL_TOGGLE_ID = 'toggleCenterPointLabels';
+  const TABLE_BUTTON_ID = 'openMetricTables';
+
+  function v116CleanCenterName(name){
+    try{ return cleanCenterLabelName(name); }catch(_){ return String(name||'').trim(); }
+  }
+  function v116ShortPopulation(v){
+    const n=Number(v);
+    if(!Number.isFinite(n) || n<=0) return '';
+    if(n>=1000000) return (n/1000000).toFixed(n>=10000000?0:1).replace('.',',')+' млн';
+    if(n>=1000) return (n/1000).toFixed(n>=100000?0:1).replace('.',',')+' тыс.';
+    return num(Math.round(n));
+  }
+  function v116CenterMatchesCurrentLayer(f){
+    const p=f?.properties||{};
+    const visible=(state.currentGeoJSON?.features||[]);
+    if(!visible.length) return true;
+    const visibleNames=new Set(visible.map(x=>String(x.properties?.name||'').trim().toLowerCase()).filter(Boolean));
+    const visibleParents=new Set(visible.map(x=>String(x.properties?.admin_parent||'').trim()).filter(Boolean));
+    const visibleUnitIds=new Set(visible.map(x=>String(x.properties?.unit_id||'')).filter(Boolean));
+    const unitId=String(p.unit_id||'');
+    const unitName=String(p.unit_name||p.host_name||p.name||'').trim().toLowerCase();
+    const parent=String(p.admin_parent||'').trim();
+    const hasMatchMeta = unitId || unitName || parent;
+    if(!hasMatchMeta) return true;
+    if(unitId && visibleUnitIds.has(unitId)) return true;
+    if(unitName && visibleNames.has(unitName)) return true;
+    if(parent && visibleParents.has(parent)) return true;
+    return false;
+  }
+  function v116FilteredCenterFeatures(){
+    const gj=state.rawCentersGeoJSON;
+    if(!gj?.features?.length) return [];
+    return gj.features.filter(f=>f.geometry?.type==='Point' && v116CenterMatchesCurrentLayer(f));
+  }
+  function v116ClearCenterPointLabels(){
+    const old=state.layers.centerLabels;
+    if(old && state.map?.hasLayer(old)) state.map.removeLayer(old);
+    state.layers.centerLabels=L.layerGroup();
+    state.centerLabelItems=[];
+  }
+  function v116LabelClassForCenter(p, pop){
+    const cls=['center-point-label-v116'];
+    let city=false;
+    try{ city=isCityCenter(p); }catch(_){ city=false; }
+    if(city) cls.push('city');
+    if(Number(pop)>=largeCityThreshold(Number(p?.year||state.year))) cls.push('large');
+    return cls.join(' ');
+  }
+  function v116BuildCenterPointLabels(){
+    if(!state.map) return;
+    v116ClearCenterPointLabels();
+    const features=v116FilteredCenterFeatures();
+    if(!features.length) return;
+    const entries=features.map(f=>{
+      const p=f.properties||{};
+      const coords=f.geometry?.coordinates||[];
+      const pop=pointPopulation(p);
+      const name=v116CleanCenterName(p.name||p.center||p.unit_name||'центр');
+      return {f,p,pop,name,latlng:L.latLng(Number(coords[1]),Number(coords[0])),priority:labelPriority(p)};
+    }).filter(x=>x.name && Number.isFinite(x.latlng.lat) && Number.isFinite(x.latlng.lng))
+      .sort((a,b)=>(b.priority||0)-(a.priority||0));
+    const group=L.layerGroup();
+    entries.forEach((it,idx)=>{
+      const popText=v116ShortPopulation(it.pop);
+      const html=`<span class="center-point-label-name-v116">${escapeHtml(it.name)}</span>${popText?`<span class="center-point-label-pop-v116">${escapeHtml(popText)}</span>`:''}`;
+      const marker=L.marker(it.latlng,{
+        interactive:false,
+        keyboard:false,
+        zIndexOffset:1180 + Math.max(0, 999-idx),
+        icon:L.divIcon({className:v116LabelClassForCenter(it.p,it.pop), html, iconSize:null, iconAnchor:[0,0]})
+      });
+      group.addLayer(marker);
+      state.centerLabelItems.push({marker, feature:it.f, latlng:it.latlng, priority:it.priority});
+    });
+    state.layers.centerLabels=group;
+  }
+
+  function v116CenterLabelsEnabled(){
+    return $('toggleCenters')?.checked !== false && $(CENTER_LABEL_TOGGLE_ID)?.checked === true;
+  }
+
+  const priorRefreshCenters = typeof refreshCenters === 'function' ? refreshCenters : null;
+  if(priorRefreshCenters && !priorRefreshCenters._v116Wrapped){
+    const wrapped = async function refreshCentersV116(seq){
+      await priorRefreshCenters(seq);
+      if(isStaleRefresh(seq)) return;
+      v116BuildCenterPointLabels();
+      refreshVisibility();
+    };
+    wrapped._v116Wrapped = true;
+    refreshCenters = wrapped;
+  }
+
+  const priorRefreshVisibility = typeof refreshVisibility === 'function' ? refreshVisibility : null;
+  if(priorRefreshVisibility && !priorRefreshVisibility._v116Wrapped){
+    const wrapped = function refreshVisibilityV116(){
+      priorRefreshVisibility();
+      const layer=state.layers.centerLabels;
+      if(layer && state.map){
+        const should=v116CenterLabelsEnabled();
+        if(should && !state.map.hasLayer(layer)) layer.addTo(state.map);
+        if(!should && state.map.hasLayer(layer)) state.map.removeLayer(layer);
+        if(should) bringLayerGroupToFront(layer);
+      }
+    };
+    wrapped._v116Wrapped = true;
+    refreshVisibility = wrapped;
+  }
+
+  updateCenterLabels = function updateCenterLabelsV116(){
+    if(!state.map) return;
+    const layer=state.layers.centerLabels;
+    if(layer && v116CenterLabelsEnabled()) bringLayerGroupToFront(layer);
+  };
+  clearCenterLabels = function clearCenterLabelsV116(){ v116ClearCenterPointLabels(); };
+
+  function v116BindCenterLabelToggle(){
+    const cb=$(CENTER_LABEL_TOGGLE_ID);
+    if(!cb || cb.dataset.v116Bound==='1') return;
+    cb.dataset.v116Bound='1';
+    cb.addEventListener('change', ()=>{
+      if(!state.layers.centerLabels || !state.centerLabelItems?.length) v116BuildCenterPointLabels();
+      refreshVisibility();
+      updateLegend(state.currentGeoJSON || {features:[]}, state._lastVals || []);
+    });
+  }
+
+  const metricTableGroupsV116 = {
+    ate_area:{label:'АТЕ и площади', metrics:['ate_total_count','upper_ate_count','middle_ate_count','lower_ate_count','total_area_km2','avg_area_km2','area_mean_upper_ate_km2','area_mean_middle_ate_km2','area_mean_lower_ate_km2']},
+    population:{label:'Население', metrics:['total_population','avg_population','population_density','urban_population','rural_population','urban_share']},
+    rail:{label:'Железные дороги', metrics:['rail_length_km_total','rail_density_km_1000','rail_segments_count_sum']},
+    adjacency:{label:'Соседство', metrics:['avg_adjacency','same_parent_edges','cross_parent_edges','same_superparent_edges','other_edges']},
+    topology:{label:'Граф и топология', metrics:['nodes','edges','components','graph_density','cyclomatic','avg_degree','avg_betweenness','avg_closeness','avg_k_core','bridges','articulation_points_computed','avg_external_degree','avg_external_share']},
+    dispersion:{label:'Разброс площадей', metrics:['area_cv_upper_ate','area_gini_upper_ate','area_p90_p10_ratio_upper_ate','area_cv_middle_ate','area_gini_middle_ate','area_p90_p10_ratio_middle_ate','area_cv_lower_ate','area_gini_lower_ate','area_p90_p10_ratio_lower_ate','area_q75_q25_ratio_lower_ate','area_range_ratio_lower_ate','area_cv_lower_within_upper_mean','area_gini_lower_within_upper_mean']}
+  };
+  const metricLabelsV116 = {
+    ate_total_count:'АТЕ всего', upper_ate_count:'АТЕ верхнего уровня', middle_ate_count:'АТЕ среднего уровня', lower_ate_count:'АТЕ нижнего уровня',
+    total_area_km2:'Площадь всего, км²', avg_area_km2:'Средняя площадь АТЕ, км²', area_mean_upper_ate_km2:'Средняя площадь верхнего уровня, км²', area_mean_middle_ate_km2:'Средняя площадь среднего уровня, км²', area_mean_lower_ate_km2:'Средняя площадь нижнего уровня, км²',
+    total_population:'Население всего', avg_population:'Среднее население АТЕ', population_density:'Плотность населения', urban_population:'Городское население', rural_population:'Сельское население', urban_share:'Доля городского населения',
+    rail_length_km_total:'Длина ЖД, км', rail_density_km_1000:'Плотность ЖД, км/1000 км²', rail_segments_count_sum:'ЖД-сегментов',
+    avg_adjacency:'Среднее соседство', same_parent_edges:'Рёбра внутри одного верхнего контура', cross_parent_edges:'Рёбра между верхними контурами', same_superparent_edges:'Рёбра внутри вышестоящего контура', other_edges:'Прочие рёбра',
+    nodes:'Узлы графа', edges:'Рёбра графа', components:'Компоненты связности', graph_density:'Плотность графа', cyclomatic:'Цикломатическое число', avg_degree:'Средняя степень узла', avg_betweenness:'Среднее посредничество', avg_closeness:'Средняя близость', avg_k_core:'Средний k-core', bridges:'Мосты', articulation_points_computed:'Точки сочленения', avg_external_degree:'Среднее число внешних связей', avg_external_share:'Средняя доля внешних связей',
+    area_cv_upper_ate:'CV площадей верхнего уровня', area_gini_upper_ate:'Gini площадей верхнего уровня', area_p90_p10_ratio_upper_ate:'p90/p10 верхнего уровня',
+    area_cv_middle_ate:'CV площадей среднего уровня', area_gini_middle_ate:'Gini площадей среднего уровня', area_p90_p10_ratio_middle_ate:'p90/p10 среднего уровня',
+    area_cv_lower_ate:'CV площадей нижнего уровня', area_gini_lower_ate:'Gini площадей нижнего уровня', area_p90_p10_ratio_lower_ate:'p90/p10 нижнего уровня', area_q75_q25_ratio_lower_ate:'q75/q25 нижнего уровня', area_range_ratio_lower_ate:'max/min нижнего уровня', area_cv_lower_within_upper_mean:'Средний CV нижних АТЕ внутри верхних контуров', area_gini_lower_within_upper_mean:'Средний Gini нижних АТЕ внутри верхних контуров'
+  };
+  const metricRecommendedV116 = {
+    ate_area:['upper_ate_count','middle_ate_count','lower_ate_count','avg_area_km2','area_mean_lower_ate_km2'],
+    population:['total_population','population_density','urban_population','urban_share'],
+    rail:['rail_length_km_total','rail_density_km_1000'],
+    adjacency:['avg_adjacency','same_parent_edges','cross_parent_edges'],
+    topology:['nodes','edges','components','avg_degree','bridges','articulation_points_computed'],
+    dispersion:['area_cv_lower_ate','area_gini_lower_ate','area_p90_p10_ratio_lower_ate','area_cv_lower_within_upper_mean']
+  };
+  let metricTableDataV116=null;
+  async function v116LoadMetricRows(){
+    if(metricTableDataV116) return metricTableDataV116;
+    const path=state.manifest?.layers?.multiyear_metrics || 'data/topology/multiyear_metrics_by_year.json';
+    metricTableDataV116=await loadJson(path);
+    return metricTableDataV116;
+  }
+  function v116AllYears(rows){ return (rows||[]).map(r=>Number(r.year)).filter(Number.isFinite).sort((a,b)=>a-b); }
+  function v116DefaultYears(rows){
+    const years=v116AllYears(rows);
+    const anchors=[1783,1809,1821,1838,1848,1897,1918,1926,1930,1939,1947,1959,1970,1979,1989,2021];
+    const set=new Set(years);
+    return anchors.filter(y=>set.has(y));
+  }
+  function v116FormatMetricValue(key, value){
+    if(value==null || value==='' || Number.isNaN(Number(value))) return '—';
+    const n=Number(value);
+    if(key.includes('share')) return (n*100).toFixed(1).replace('.',',')+'%';
+    if(key.includes('density') || key.includes('avg_') || key.includes('mean') || key.includes('cv') || key.includes('gini') || key.includes('ratio') || key==='graph_density' || key.includes('betweenness') || key.includes('closeness') || key.includes('degree')){
+      if(Math.abs(n)>=100) return num(Math.round(n));
+      return n.toFixed(Math.abs(n)<10?3:1).replace('.',',').replace(/,?0+$/,'');
+    }
+    return num(Math.round(n));
+  }
+  function v116CsvEscape(v){
+    const s=String(v??'');
+    return /[";\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }
+  function v116CurrentTableConfig(){
+    const years=[...document.querySelectorAll('#metricTableYearsV116 input[type="checkbox"]:checked')].map(x=>Number(x.value)).filter(Number.isFinite);
+    const metrics=[...document.querySelectorAll('#metricTableMetricsV116 input[type="checkbox"]:checked')].map(x=>x.value);
+    const orientation=$('metricTableOrientationV116')?.value || 'years_rows';
+    const group=$('metricTableGroupV116')?.value || 'population';
+    return {years,metrics,orientation,group};
+  }
+  function v116RenderMetricCheckboxes(rows){
+    const group=$('metricTableGroupV116')?.value || 'population';
+    const box=$('metricTableMetricsV116'); if(!box) return;
+    const available=new Set(Object.keys((rows||[])[0]||{}));
+    const metrics=(metricTableGroupsV116[group]?.metrics||[]).filter(k=>available.has(k));
+    const rec=new Set(metricRecommendedV116[group]||metrics.slice(0,5));
+    box.innerHTML=metrics.map(k=>`<label class="metric-table-check-v116"><input type="checkbox" value="${escapeHtml(k)}" ${rec.has(k)?'checked':''}><span>${escapeHtml(metricLabelsV116[k]||k)}</span></label>`).join('');
+    box.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>v116RenderMetricTable(rows)));
+  }
+  function v116RenderYearCheckboxes(rows){
+    const box=$('metricTableYearsV116'); if(!box) return;
+    const years=v116AllYears(rows); const defaults=new Set(v116DefaultYears(rows));
+    box.innerHTML=years.map(y=>`<label class="metric-table-year-v116"><input type="checkbox" value="${y}" ${defaults.has(y)?'checked':''}><span>${y}</span></label>`).join('');
+    box.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>v116RenderMetricTable(rows)));
+  }
+  function v116TableMatrix(rows){
+    const cfg=v116CurrentTableConfig();
+    const byYear=new Map((rows||[]).map(r=>[Number(r.year),r]));
+    const years=cfg.years.length?cfg.years:v116AllYears(rows);
+    const metrics=cfg.metrics.length?cfg.metrics:((metricTableGroupsV116[cfg.group]?.metrics||[]));
+    if(cfg.orientation==='metrics_rows'){
+      const header=['метрика',...years.map(String)];
+      const body=metrics.map(k=>[metricLabelsV116[k]||k,...years.map(y=>v116FormatMetricValue(k, byYear.get(y)?.[k]))]);
+      return {header, body};
+    }
+    const header=['год',...metrics.map(k=>metricLabelsV116[k]||k)];
+    const body=years.map(y=>[String(y),...metrics.map(k=>v116FormatMetricValue(k, byYear.get(y)?.[k]))]);
+    return {header, body};
+  }
+  function v116RenderMetricTable(rows){
+    const slot=$('metricTableResultV116'); if(!slot) return;
+    const {header,body}=v116TableMatrix(rows);
+    if(!body.length){ slot.innerHTML='<div class="mini-muted">Выберите хотя бы один год и одну метрику.</div>'; return; }
+    slot.innerHTML=`<div class="metric-table-scroll-v116"><table class="metric-table-v116"><thead><tr>${header.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  async function v116OpenMetricTablesModal(){
+    let modal=$('metricTablesModalV116');
+    if(!modal){
+      modal=document.createElement('div'); modal.id='metricTablesModalV116'; modal.className='chart-lightbox metric-tables-modal-v116'; modal.setAttribute('aria-hidden','true');
+      modal.innerHTML=`<div class="chart-lightbox-scrim" data-close-metric-tables-v116="1"></div><section class="chart-lightbox-card metric-tables-card-v116" role="dialog" aria-modal="true" aria-labelledby="metricTablesTitleV116"><button type="button" class="chart-lightbox-close" aria-label="Закрыть таблицы">×</button><div class="chart-lightbox-kicker">Мультивременная аналитика · ${APP_VERSION}</div><h2 id="metricTablesTitleV116">Таблицы метрик по годам</h2><div id="metricTablesBodyV116" class="chart-lightbox-body metric-tables-body-v116">Загрузка…</div></section>`;
+      modal.addEventListener('click', e=>{ if(e.target.matches('[data-close-metric-tables-v116], .chart-lightbox-close')) v116CloseMetricTablesModal(); });
+      document.body.appendChild(modal);
+    }
+    modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+    const body=$('metricTablesBodyV116');
+    const rows=await v116LoadMetricRows();
+    body.innerHTML=`<aside class="metric-table-controls-v116"><label class="control-label" for="metricTableGroupV116">Компонент анализа</label><select id="metricTableGroupV116">${Object.entries(metricTableGroupsV116).map(([k,g])=>`<option value="${k}">${escapeHtml(g.label)}</option>`).join('')}</select><label class="control-label" for="metricTableOrientationV116">Структура таблицы</label><select id="metricTableOrientationV116"><option value="years_rows">Годы строками, метрики столбцами</option><option value="metrics_rows">Метрики строками, годы столбцами</option></select><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableYearsAllV116">Все годы</button><button type="button" id="metricTableYearsNoneV116">Снять годы</button><button type="button" id="metricTableYearsAnchorsV116">Опорные годы</button></div><div id="metricTableYearsV116" class="metric-table-years-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableMetricsAllV116">Все метрики</button><button type="button" id="metricTableMetricsNoneV116">Снять метрики</button><button type="button" id="metricTableMetricsRecommendedV116">Рекомендуемые</button></div><div id="metricTableMetricsV116" class="metric-table-metrics-v116"></div><div class="button-row metric-table-button-row-v116"><button type="button" id="metricTableCopyV116">Копировать TSV</button><button type="button" id="metricTableDownloadV116">Скачать CSV</button></div></aside><main class="metric-table-main-v116"><div class="mini-muted metric-table-note-v116">Таблица строится из того же ряда <code>multiyear_metrics_by_year.json</code>, что и графики динамики. Выключайте временные срезы и метрики, чтобы быстро собрать таблицу для главы.</div><div id="metricTableResultV116"></div></main>`;
+    v116RenderYearCheckboxes(rows); v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows);
+    const rerender=()=>v116RenderMetricTable(rows);
+    $('metricTableGroupV116')?.addEventListener('change',()=>{ v116RenderMetricCheckboxes(rows); v116RenderMetricTable(rows); });
+    $('metricTableOrientationV116')?.addEventListener('change',rerender);
+    $('metricTableYearsAllV116')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableYearsV116 input').forEach(i=>i.checked=true); rerender(); });
+    $('metricTableYearsNoneV116')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableYearsV116 input').forEach(i=>i.checked=false); rerender(); });
+    $('metricTableYearsAnchorsV116')?.addEventListener('click',()=>{ const a=new Set(v116DefaultYears(rows)); document.querySelectorAll('#metricTableYearsV116 input').forEach(i=>i.checked=a.has(Number(i.value))); rerender(); });
+    $('metricTableMetricsAllV116')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableMetricsV116 input').forEach(i=>i.checked=true); rerender(); });
+    $('metricTableMetricsNoneV116')?.addEventListener('click',()=>{ document.querySelectorAll('#metricTableMetricsV116 input').forEach(i=>i.checked=false); rerender(); });
+    $('metricTableMetricsRecommendedV116')?.addEventListener('click',()=>{ const rec=new Set(metricRecommendedV116[$('metricTableGroupV116')?.value||'population']||[]); document.querySelectorAll('#metricTableMetricsV116 input').forEach(i=>i.checked=rec.has(i.value)); rerender(); });
+    $('metricTableCopyV116')?.addEventListener('click',async()=>{ const {header,body}=v116TableMatrix(rows); const tsv=[header,...body].map(r=>r.join('\t')).join('\n'); try{ await navigator.clipboard.writeText(tsv); $('metricTableCopyV116').textContent='Скопировано'; setTimeout(()=>{$('metricTableCopyV116').textContent='Копировать TSV';},1200); }catch(_){ alert('Не удалось скопировать автоматически.'); } });
+    $('metricTableDownloadV116')?.addEventListener('click',()=>{ const {header,body}=v116TableMatrix(rows); const csv=[header,...body].map(r=>r.map(v116CsvEscape).join(';')).join('\n'); const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`west_siberia_metrics_${($('metricTableGroupV116')?.value||'table')}_v${APP_VERSION}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); });
+  }
+  function v116CloseMetricTablesModal(){ const modal=$('metricTablesModalV116'); if(modal){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); } }
+  function v116BindMetricTablesButton(){
+    const btn=$(TABLE_BUTTON_ID);
+    if(!btn || btn.dataset.v116Bound==='1') return;
+    btn.dataset.v116Bound='1';
+    btn.addEventListener('click',()=>v116OpenMetricTablesModal().catch(e=>{ console.error(e); alert('Не удалось открыть таблицы: '+(e.message||e)); }));
+  }
+  function v116Boot(){
+    v116BindCenterLabelToggle();
+    v116BindMetricTablesButton();
+    const toggleCenters=$('toggleCenters');
+    if(toggleCenters && toggleCenters.dataset.v116LabelBound!=='1'){
+      toggleCenters.dataset.v116LabelBound='1';
+      toggleCenters.addEventListener('change',()=>{ if(!state.layers.centerLabels || !state.centerLabelItems?.length) v116BuildCenterPointLabels(); refreshVisibility(); });
+    }
+    if(state.rawCentersGeoJSON) v116BuildCenterPointLabels();
+    refreshVisibility?.();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(v116Boot,1300),{once:true}); else setTimeout(v116Boot,1300);
 })();
