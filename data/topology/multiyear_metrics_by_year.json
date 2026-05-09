@@ -3002,7 +3002,8 @@
     "area_gini_lower_within_upper_max": 0.832001,
     "area_p90_p10_lower_within_upper_mean": 13.423786,
     "area_p90_p10_lower_within_upper_max": 21.535439,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1930,
@@ -3157,7 +3158,8 @@
     "area_gini_lower_within_upper_max": 0.825231,
     "area_p90_p10_lower_within_upper_mean": 17.387945,
     "area_p90_p10_lower_within_upper_max": 29.290187,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1939,
@@ -3277,7 +3279,8 @@
     "area_gini_lower_within_upper_max": 0.658445,
     "area_p90_p10_lower_within_upper_mean": 8.246813,
     "area_p90_p10_lower_within_upper_max": 8.246813,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1947,
@@ -3287,12 +3290,12 @@
     "lower_ate_count": 219,
     "total_area_km2": 2373692.18,
     "avg_area_km2": 10838.777,
-    "total_population": 6206627.0,
-    "avg_population": 28340.763,
-    "population_density": 2.614756,
-    "urban_population": 1077219.0,
+    "total_population": 8822438.0,
+    "avg_population": 35009.675,
+    "population_density": 3.716757,
+    "urban_population": 3693030.0,
     "rural_population": 5129408.0,
-    "urban_share": 0.173559,
+    "urban_share": 0.418595,
     "rail_length_km_total": 7213.99,
     "rail_density_km_1000": 3.039143,
     "rail_segments_count_sum": 205.0,
@@ -3310,22 +3313,22 @@
     "avg_betweenness": 0.02976,
     "avg_closeness": 0.133087,
     "avg_k_core": 3.105023,
-    "avg_external_degree": 0.922374,
-    "avg_internal_degree": 4.410959,
-    "avg_external_share": 0.162543,
-    "avg_super_external_degree": 0.739726,
+    "avg_external_degree": null,
+    "avg_internal_degree": null,
+    "avg_external_share": null,
+    "avg_super_external_degree": null,
     "same_parent_edges": 483,
     "same_superparent_edges": 20,
     "cross_parent_edges": 81,
     "other_edges": 0,
-    "max_degree": 10.0,
+    "max_degree": 10,
     "max_degree_name": "Троицкий район",
     "max_betweenness": 0.192974,
     "max_betweenness_name": "Михайловский район",
     "max_closeness": 0.181065,
     "max_closeness_name": "Михайловский район",
-    "max_k_core": 4.0,
-    "max_k_core_name": "Мамонтовский район",
+    "max_k_core": 4,
+    "max_k_core_name": "Панкрушихинский район",
     "bridges": 1,
     "articulation_points_computed": 1,
     "area_count_upper_ate": 6,
@@ -3532,7 +3535,16 @@
     "area_gini_lower_within_upper_max": 0.645035,
     "area_p90_p10_lower_within_upper_mean": 10.608974,
     "area_p90_p10_lower_within_upper_max": 37.910313,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v115 compact city polygons."
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v115 compact city polygons.",
+    "unit_type_normalization_v117": "city/urban unit_type normalized; 1947 Омск and Новосибирск separated as republican-subordination cities",
+    "population_metrics_method_v103": "v114_population_includes_regular_A TE_and_kept_city_center_polygons; stat-scope exclusions preserved",
+    "population_features_v103": 252,
+    "population_nonzero_features_v103": 251,
+    "statistical_scope_method_v104": "preserved_v114_stat_scope_exclusions",
+    "stat_excluded_units_v104": "",
+    "stat_excluded_features_v104": 0,
+    "stat_excluded_area_km2_v104": 0.0,
+    "stat_excluded_population_v104": 0.0
   },
   {
     "year": 1959,
@@ -3787,7 +3799,8 @@
     "area_gini_lower_within_upper_max": 0.65941,
     "area_p90_p10_lower_within_upper_mean": 10.723965,
     "area_p90_p10_lower_within_upper_max": 38.132791,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1964,
@@ -4042,7 +4055,8 @@
     "area_gini_lower_within_upper_max": 0.532386,
     "area_p90_p10_lower_within_upper_mean": 14.058209,
     "area_p90_p10_lower_within_upper_max": 45.976338,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1970,
@@ -4297,7 +4311,8 @@
     "area_gini_lower_within_upper_max": 0.610353,
     "area_p90_p10_lower_within_upper_mean": 11.045479,
     "area_p90_p10_lower_within_upper_max": 43.264527,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1979,
@@ -4552,7 +4567,8 @@
     "area_gini_lower_within_upper_max": 0.618409,
     "area_p90_p10_lower_within_upper_mean": 10.404522,
     "area_p90_p10_lower_within_upper_max": 37.959555,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 1989,
@@ -4807,7 +4823,8 @@
     "area_gini_lower_within_upper_max": 0.595021,
     "area_p90_p10_lower_within_upper_mean": 14.991137,
     "area_p90_p10_lower_within_upper_max": 35.798918,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   },
   {
     "year": 2021,
@@ -5089,6 +5106,7 @@
     "area_gini_lower_within_upper_max": 0.707471,
     "area_p90_p10_lower_within_upper_mean": 100.058232,
     "area_p90_p10_lower_within_upper_max": 533.778216,
-    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021"
+    "area_dispersion_method_v105": "areas grouped by hierarchy level; excludes topology/adjacency excluded, special/uncertain/context polygons, polygons <50 km2, and v104 statistical-scope exclusions for 1926/1930/2021",
+    "unit_type_normalization_v117": "city/urban unit_type normalized for interface filtering; numeric metrics unchanged unless source attributes are grouped by unit_type"
   }
 ]

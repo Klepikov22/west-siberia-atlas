@@ -3259,3 +3259,11 @@ body.dark .topology-dom-centroid-v97{
 [data-theme="dark"] .metric-table-controls-v116,[data-theme="dark"] .metric-table-note-v116,[data-theme="dark"] .metric-table-scroll-v116{background:rgba(20,26,30,.54);}
 [data-theme="dark"] .metric-table-v116 th:first-child,[data-theme="dark"] .metric-table-v116 td:first-child{background:rgba(28,34,36,.98);}
 @media (max-width:900px){.metric-tables-body-v116{grid-template-columns:1fr}.metric-table-controls-v116{max-height:260px}.metric-table-scroll-v116{max-height:52vh}}
+
+/* v117: categorical unit type filter */
+.unit-type-filter-v117{grid-column:1/-1;}
+.unit-type-filter-actions-v117{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px;}
+.unit-type-filter-actions-v117 button{font-size:11px;padding:4px 7px;border-radius:999px;border:1px solid rgba(84,75,59,.26);background:rgba(255,255,255,.72);cursor:pointer;}
+.unit-type-checks-v117{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 8px;max-height:145px;overflow:auto;padding:4px;border-radius:10px;background:rgba(255,255,255,.36);}
+.unit-type-check-v117{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.15;min-width:0;}
+.unit-type-check-v117 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

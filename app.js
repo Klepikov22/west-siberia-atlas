@@ -1,4 +1,4 @@
-const APP_VERSION = '116';
+const APP_VERSION = '117';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13626,4 +13626,111 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     refreshVisibility?.();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(v116Boot,1300),{once:true}); else setTimeout(v116Boot,1300);
+})();
+
+
+/* v117: explicit administrative unit type filter + normalized city/gorsovet labels */
+(function initV117UnitTypeFilter(){
+  const STATE={year:null, available:[], visible:new Set(), all:true, initialized:false};
+  const TYPE_GROUPS={
+    territorial:/район|уезд|округ|волость|провинция|область|край|губерния|наместничество/i,
+    urban:/город|горсовет|центр округа|городской округ|республиканского подчинения|зато/i
+  };
+  function normType(v){ return String(v || 'тип не указан').trim() || 'тип не указан'; }
+  function groupForType(v){
+    const t=normType(v);
+    if(TYPE_GROUPS.urban.test(t)) return 'urban';
+    if(TYPE_GROUPS.territorial.test(t)) return 'territorial';
+    return 'other';
+  }
+  function ensureCard(){
+    const grid=document.querySelector('#metricFilters .metric-filter-grid');
+    if(!grid) return null;
+    let card=document.getElementById('unitTypeFilterCardV117');
+    if(card) return card;
+    card=document.createElement('div');
+    card.id='unitTypeFilterCardV117';
+    card.className='metric-filter-item unit-type-filter-v117';
+    card.dataset.filterField='unit_type_v117';
+    card.innerHTML=`<label>Тип АТЕ</label>
+      <div class="unit-type-filter-actions-v117">
+        <button type="button" id="unitTypeAllV117">Все</button>
+        <button type="button" id="unitTypeTerritorialV117">Районы / уезды / округа</button>
+        <button type="button" id="unitTypeUrbanV117">Города / горсоветы</button>
+      </div>
+      <div id="unitTypeChecksV117" class="unit-type-checks-v117"></div>
+      <div class="filter-meta"><span>категориальный фильтр</span><b id="unitTypeSummaryV117">все</b></div>`;
+    grid.appendChild(card);
+    const all=document.getElementById('unitTypeAllV117');
+    const terr=document.getElementById('unitTypeTerritorialV117');
+    const urb=document.getElementById('unitTypeUrbanV117');
+    all?.addEventListener('click',()=>{ STATE.all=true; STATE.visible=new Set(STATE.available); renderChecks(); rerenderFilteredLayers?.(); });
+    terr?.addEventListener('click',()=>{ STATE.all=false; STATE.visible=new Set(STATE.available.filter(t=>groupForType(t)==='territorial')); renderChecks(); rerenderFilteredLayers?.(); });
+    urb?.addEventListener('click',()=>{ STATE.all=false; STATE.visible=new Set(STATE.available.filter(t=>groupForType(t)==='urban')); renderChecks(); rerenderFilteredLayers?.(); });
+    return card;
+  }
+  function renderChecks(){
+    ensureCard();
+    const box=document.getElementById('unitTypeChecksV117'); if(!box) return;
+    box.innerHTML=STATE.available.map(t=>{
+      const safe=escapeHtml(t);
+      const checked=STATE.all || STATE.visible.has(t);
+      return `<label class="unit-type-check-v117"><input type="checkbox" value="${safe}" ${checked?'checked':''}><span>${safe}</span></label>`;
+    }).join('');
+    box.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('change',()=>{
+        const values=[...box.querySelectorAll('input')];
+        STATE.all=values.every(i=>i.checked);
+        STATE.visible=new Set(values.filter(i=>i.checked).map(i=>i.value));
+        updateSummary();
+        rerenderFilteredLayers?.();
+      });
+    });
+    updateSummary();
+  }
+  function updateSummary(){
+    const b=document.getElementById('unitTypeSummaryV117'); if(!b) return;
+    if(STATE.all || STATE.visible.size===STATE.available.length) b.textContent='все';
+    else if(!STATE.visible.size) b.textContent='ничего';
+    else b.textContent=`${STATE.visible.size} из ${STATE.available.length}`;
+  }
+  function sync(features){
+    ensureCard();
+    const year=state.year;
+    const types=[...new Set((features||[]).map(f=>normType(f?.properties?.unit_type)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const changed=year!==STATE.year || types.join('§')!==STATE.available.join('§');
+    if(changed){
+      STATE.year=year;
+      STATE.available=types;
+      STATE.visible=new Set(types);
+      STATE.all=true;
+      renderChecks();
+    }else{
+      updateSummary();
+    }
+  }
+  const oldSync=syncFilterRanges;
+  syncFilterRanges=function syncFilterRangesV117(features){
+    const result=oldSync.apply(this,arguments);
+    try{ sync(features || state.rawGeoJSON?.features || []); }catch(e){ console.warn('v117 unit type filter sync failed',e); }
+    return result;
+  };
+  const oldPass=featurePassesFilters;
+  featurePassesFilters=function featurePassesFiltersV117(f){
+    if(!oldPass.apply(this,arguments)) return false;
+    if(!STATE.available.length || STATE.all) return true;
+    return STATE.visible.has(normType(f?.properties?.unit_type));
+  };
+  const oldReset=document.getElementById('resetMetricFilters');
+  function bindReset(){
+    const reset=document.getElementById('resetMetricFilters');
+    if(!reset || reset.dataset.v117UnitTypeReset==='1') return;
+    reset.dataset.v117UnitTypeReset='1';
+    reset.addEventListener('click',()=>{ STATE.all=true; STATE.visible=new Set(STATE.available); renderChecks(); }, true);
+  }
+  function boot(){
+    ensureCard(); bindReset();
+    sync(state.rawGeoJSON?.features || []);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1500),{once:true}); else setTimeout(boot,1500);
 })();
