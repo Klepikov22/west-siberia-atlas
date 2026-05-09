@@ -1,0 +1,38 @@
+{
+  "version": "v126",
+  "projection": "+proj=eqdc +lat_1=50 +lat_2=70 +lat_0=60 +lon_0=75 +datum=WGS84 +units=m +no_defs",
+  "main_principle_ru": "Две аналитические плоскости разведены: природная морфология границ и административно-инфраструктурные совпадения. Унаследованность/совпадение с 2021, MO и ЖД не конкурируют с природными факторами.",
+  "physical_priority": [
+    "береговая линия",
+    "река",
+    "озеро / водная гладь",
+    "водораздел сточных бассейнов",
+    "водораздел бессточных областей стока",
+    "болота / заболоченные массивы",
+    "не объяснено физико-географическими рубежами"
+  ],
+  "administrative_infrastructure_axis": [
+    "совпадение с границами слоя 2021 года",
+    "совпадение с низовой муниципальной/сельсоветской сеткой MO_retrospecular",
+    "приуроченность к железной дороге"
+  ],
+  "tolerances_km": {
+    "coastline": 5.0,
+    "river": 1.0,
+    "lake": 1.0,
+    "watershed_between_48_59_N": 3.0,
+    "watershed_north_of_59_or_south_of_48_N": 6.0,
+    "admin_2021_match": 2.5,
+    "municipal_lower_boundaries_match": 2.5,
+    "railway_match": 1.5,
+    "wetland_low_priority_buffer": 1.0
+  },
+  "wetland_algorithm_ru": "Болотный фактор применяется только к участкам, не объясненным более приоритетными природными факторами. Участок переводится в wetland, если не менее 50% контрольных точек по длине попадает в 1-километровый буфер болотных полигонов.",
+  "geometry_diagnostic_ru": "Прямолинейность/условно геометрическая форма считается как дополнительная диагностика для природно необъясненных участков; она не является природным фактором и не заменяет основной класс.",
+  "source_layers": {
+    "wetlands": "data/natural_boundaries/reference/wetlands_west_siberia.json",
+    "MO_retrospecular": "data/natural_boundaries/reference/MO_retrospecular_boundaries_selsoviets.json",
+    "watersheds": "data/natural_boundaries/reference/orography_clipped1.json",
+    "railways": "data/railways/railways.geojson"
+  }
+}

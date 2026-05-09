@@ -3311,6 +3311,30 @@ body.dark .topology-dom-centroid-v97{
   margin-top:8px;
 }
 
-/* v124: natural boundary genesis */
+/* v124/v125: natural boundary genesis */
 .natural-boundary-object-v124 h3{margin-top:10px;}
 .natural-boundary-object-v124 .mini-muted{margin-top:8px;line-height:1.35;}
+
+/* v125: two-axis boundary genesis card */
+.natural-boundary-object-v125 h3{margin-top:10px;}
+.natural-boundary-object-v125 h4{margin:10px 0 6px;font-size:.86rem;color:#39434d;}
+.natural-boundary-object-v125 .mini-muted{margin-top:8px;line-height:1.35;}
+
+/* v127 boundary factor charts */
+.boundary-chart-open-btn{width:100%;margin:8px 0 10px;padding:9px 10px;border:1px solid rgba(82,70,54,.28);border-radius:12px;background:linear-gradient(180deg,#fffaf0,#efe5d0);color:#2f2a22;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(50,40,25,.10)}
+body.dark .boundary-chart-open-btn{background:linear-gradient(180deg,#2b3136,#20262c);color:#f2ead8;border-color:rgba(236,220,180,.22)}
+.boundary-charts-modal{position:fixed;inset:0;display:none;z-index:5000}.boundary-charts-modal.open{display:block}.boundary-charts-backdrop{position:absolute;inset:0;background:rgba(18,20,22,.58);backdrop-filter:blur(2px)}
+.boundary-charts-shell{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1180px,94vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;border-radius:22px;background:#f8f3e8;color:#27221a;box-shadow:0 24px 80px rgba(0,0,0,.38);border:1px solid rgba(95,78,54,.22)}
+body.dark .boundary-charts-shell{background:#181d22;color:#efe6d3;border-color:rgba(255,245,210,.14)}
+.boundary-charts-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:18px 22px 12px;border-bottom:1px solid rgba(100,82,58,.18)}
+.boundary-charts-head h2{margin:2px 0 4px;font-size:22px}.boundary-charts-actions{display:flex;gap:8px;align-items:center}.boundary-charts-actions button{border:1px solid rgba(90,74,50,.25);background:#fffaf0;border-radius:12px;padding:7px 10px;cursor:pointer;font-weight:700}.boundary-charts-close{font-size:24px;line-height:1;padding:4px 11px!important}
+body.dark .boundary-charts-actions button{background:#242b31;color:#efe6d3;border-color:rgba(255,245,210,.18)}
+.boundary-charts-note{margin:12px 22px 8px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.55);font-size:13px;line-height:1.35;color:#5c5143}body.dark .boundary-charts-note{background:rgba(255,255,255,.06);color:#cfc4b2}
+.boundary-charts-legend{display:flex;flex-wrap:wrap;gap:8px 12px;padding:6px 22px 12px;border-bottom:1px solid rgba(100,82,58,.14)}
+.boundary-chart-legend-item{display:flex;align-items:center;gap:6px;font-size:13px;padding:5px 7px;border-radius:999px;background:rgba(255,255,255,.48);cursor:pointer}.boundary-chart-legend-item.off{opacity:.48}.boundary-chart-legend-item input{accent-color:#74613d}.boundary-chart-dot{width:12px;height:12px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.16) inset}
+body.dark .boundary-chart-legend-item{background:rgba(255,255,255,.06)}
+.boundary-charts-body{padding:14px 22px 20px;overflow:auto}.boundary-chart-panel{margin:0 0 18px;padding:14px;border-radius:18px;background:rgba(255,255,255,.64);border:1px solid rgba(112,90,60,.13)}body.dark .boundary-chart-panel{background:rgba(255,255,255,.045);border-color:rgba(255,245,210,.10)}.boundary-chart-panel h3{margin:0 0 8px;font-size:16px}
+.boundary-chart-scroll{overflow-x:auto;overflow-y:hidden;padding-bottom:4px}.boundary-chart-svg{width:100%;min-width:940px;height:auto;display:block}.boundary-chart-grid{stroke:rgba(74,62,46,.22);stroke-width:.8;stroke-dasharray:3 5}.boundary-chart-axis{stroke:rgba(62,51,37,.55);stroke-width:1.1}.boundary-chart-axis-label,.boundary-chart-year,.boundary-chart-axis-title{fill:#5f5548;font-size:11px}.boundary-chart-axis-title{font-size:12px;font-weight:700}body.dark .boundary-chart-grid{stroke:rgba(230,220,200,.18)}body.dark .boundary-chart-axis{stroke:rgba(230,220,200,.46)}body.dark .boundary-chart-axis-label,body.dark .boundary-chart-year,body.dark .boundary-chart-axis-title{fill:#d9cfbd}
+.boundary-chart-svg rect[data-nbtip]{cursor:crosshair;transition:opacity .12s}.boundary-chart-svg rect[data-nbtip]:hover{opacity:.78}
+.boundary-charts-tooltip{position:fixed;z-index:6000;max-width:250px;white-space:pre-line;padding:9px 10px;border-radius:12px;background:#201b15;color:#fff4dd;font-size:12px;line-height:1.35;box-shadow:0 10px 28px rgba(0,0,0,.32);pointer-events:none}.boundary-charts-tooltip[hidden]{display:none}
+@media(max-width:900px){.boundary-charts-shell{width:96vw;max-height:92vh}.boundary-charts-head{padding:14px}.boundary-charts-body{padding:12px}.boundary-charts-legend{padding:6px 14px 12px}.boundary-charts-note{margin-left:14px;margin-right:14px}}
