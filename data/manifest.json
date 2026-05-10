@@ -391,7 +391,7 @@
     "v107: для слоёв 1745/1765 Екатеринбургский объект переатрибутирован как Екатеринбургское ведомство в составе Тобольской провинции, исключён из сопоставимой статистики/динамики; Исетская провинция 1765 исключена как внешний контекст. Пересчитаны графовые и картометрические метрики динамики.",
     "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки."
   ],
-  "app_version": 129,
+  "app_version": "130",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -424,8 +424,9 @@
     {
       "version": "124",
       "note": "Boundary-genesis analysis: per-unit percentages and per-year colored line segments of natural/inherited boundary origins."
-    }
+    },
+    "v130: advanced connectivity graph split into independent edge/node layers; advanced metrics joined to admin layers for map modes."
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": 129
+  "version": "v130"
 }

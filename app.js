@@ -1,4 +1,4 @@
-const APP_VERSION = '129';
+const APP_VERSION = '130';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -14808,8 +14808,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
 
-/* v129: heuristic connectivity graph with transport corridors and natural barriers */
-(function v129AdvancedConnectivityGraph(){
+
+/* v130: advanced connectivity graph as independent edge/node layers + map modes */
+(function v130AdvancedConnectivityGraph(){
   const EDGE = {
     rail_corridor:{label:'коридор: железная дорога', color:'#b45309', weight:4.2, dash:null},
     old_road_corridor:{label:'коридор: Сибирский тракт / исторические дороги', color:'#92400e', weight:3.8, dash:'9 4'},
@@ -14818,42 +14819,73 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.0, dash:'3 6'},
     minor_river_barrier:{label:'барьер: несудоходная река', color:'#1d4ed8', weight:2.4, dash:'2 5'},
     highland_barrier:{label:'барьер: рельеф >400 м', color:'#991b1b', weight:2.8, dash:'7 4'},
-    blocked_highland:{label:'ребро снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.2, dash:'2 4'}
+    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.2, dash:'2 4'}
   };
   const METRICS = {
-    adv_degree:'число проходимых соседей',
-    adv_weighted_degree:'взвешенная связность',
-    adv_betweenness:'посредничество',
-    adv_closeness:'близость',
-    adv_k_core:'ядро / периферия',
-    adv_corridor_edges_incident:'связи-коридоры',
-    adv_barrier_edges_incident:'связи-барьеры',
-    adv_blocked_edges_incident:'снятые барьером связи'
+    adv_degree:'Продвинутый граф · число проходимых соседей',
+    adv_weighted_degree:'Продвинутый граф · взвешенная связность',
+    adv_betweenness:'Продвинутый граф · посредничество',
+    adv_closeness:'Продвинутый граф · близость',
+    adv_k_core:'Продвинутый граф · ядро / периферия',
+    adv_corridor_edges_incident:'Продвинутый граф · связи-коридоры',
+    adv_barrier_edges_incident:'Продвинутый граф · связи-барьеры',
+    adv_blocked_edges_incident:'Продвинутый граф · снятые барьером связи'
   };
-  function on(){ return $('toggleAdvancedConnectivityGraph')?.checked===true; }
-  function metric(){ return $('advancedConnectivityMetricSelect')?.value || 'adv_weighted_degree'; }
+  const SHORT_METRICS = Object.fromEntries(Object.entries(METRICS).map(([k,v])=>[k, v.replace(/^Продвинутый граф ·\s*/, '')]));
+  const ADV_MODES = new Set(Object.keys(METRICS));
+  function edgesOn(){ return $('toggleAdvancedConnectivityEdges')?.checked===true; }
+  function nodesOn(){ return $('toggleAdvancedConnectivityNodes')?.checked===true; }
+  function anythingOn(){ return edgesOn() || nodesOn(); }
+  function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
+  function metric(){
+    const sel=$('advancedConnectivityMetricSelect');
+    if(sel?.value) return sel.value;
+    return isAdvMode() ? state.mode : 'adv_weighted_degree';
+  }
   function fmt(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
   function ensurePanes(){
     if(!state.map) return;
-    if(!state.map.getPane('advancedConnectivityEdgePane')){ const p=state.map.createPane('advancedConnectivityEdgePane'); p.style.zIndex=875; p.style.pointerEvents='auto'; }
-    if(!state.map.getPane('advancedConnectivityNodePane')){ const p=state.map.createPane('advancedConnectivityNodePane'); p.style.zIndex=915; p.style.pointerEvents='auto'; }
+    if(!state.map.getPane('advancedConnectivityEdgePane')){ const p=state.map.createPane('advancedConnectivityEdgePane'); p.style.zIndex=876; p.style.pointerEvents='auto'; }
+    if(!state.map.getPane('advancedConnectivityNodePane')){ const p=state.map.createPane('advancedConnectivityNodePane'); p.style.zIndex=916; p.style.pointerEvents='auto'; }
+  }
+  function ensureAdvancedModeOptions(){
+    const sel=$('modeSelect');
+    if(!sel) return;
+    Object.entries(METRICS).forEach(([value,title])=>{
+      if(sel.querySelector(`option[value="${value}"]`)) return;
+      const opt=document.createElement('option');
+      opt.value=value;
+      opt.textContent=title.replace(/^Продвинутый граф ·\s*/, '');
+      opt.dataset.group='Продвинутый граф потенциальной связности';
+      const before=sel.querySelector('option[value="nb_river_pct"]') || sel.querySelector('option[value="district_age"]') || null;
+      sel.insertBefore(opt, before);
+    });
   }
   function ensureControls(){
+    ensureAdvancedModeOptions();
     const panel=document.querySelector('.topology-layer-controls-v92') || document.querySelector('.toggles');
-    if(!panel || $('toggleAdvancedConnectivityGraph')) return;
-    const box=document.createElement('div');
-    box.className='advanced-connectivity-controls-v129';
+    if(!panel) return;
+    let box=document.querySelector('.advanced-connectivity-controls-v129');
+    if(!box){ box=document.createElement('div'); box.className='advanced-connectivity-controls-v129'; panel.appendChild(box); }
+    if(box.dataset.v130Ready==='1') return;
+    box.dataset.v130Ready='1';
     box.innerHTML=`<div class="topology-layer-title-v92">Продвинутый граф · коридоры и барьеры</div>
-      <label class="topology-inline-field-v92 advanced-connectivity-toggle-v129"><span><input type="checkbox" id="toggleAdvancedConnectivityGraph"> Показать граф потенциальной связности</span></label>
-      <label class="topology-inline-field-v92"><span>Метрика узлов</span><select id="advancedConnectivityMetricSelect">${Object.entries(METRICS).map(([k,v])=>`<option value="${k}" ${k==='adv_weighted_degree'?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
-      <div class="mini-muted">Поверх обычной смежности учитывает Сибирский тракт/исторические дороги до 1897 г., судоходные реки для ранних слоёв, железные дороги с конца XIX–XX вв., а также барьеры рельефа &gt;400 м и несудоходных рек. Это эвристический слой, не замена базовой топологии.</div>`;
-    panel.appendChild(box);
-    $('toggleAdvancedConnectivityGraph')?.addEventListener('change',()=>{ render(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
-    $('advancedConnectivityMetricSelect')?.addEventListener('change',()=>{ render(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+      <label class="topology-inline-field-v92 advanced-connectivity-toggle-v129"><span><input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности</span></label>
+      <label class="topology-inline-field-v92 advanced-connectivity-toggle-v129"><span><input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки</span></label>
+      <label class="topology-inline-field-v92"><span>Метрика узлов</span><select id="advancedConnectivityMetricSelect">${Object.entries(SHORT_METRICS).map(([k,v])=>`<option value="${k}" ${k==='adv_weighted_degree'?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+      <div class="mini-muted">Рёбра и узлы теперь включаются раздельно, как в обычном графе смежности. Слой не зависит от режима заливки карты; выбранная метрика влияет на цвет и размер узлов.</div>`;
+    ['toggleAdvancedConnectivityEdges','toggleAdvancedConnectivityNodes'].forEach(id=>{
+      $(id)?.addEventListener('change',()=>{ render(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
+    });
+    $('advancedConnectivityMetricSelect')?.addEventListener('change',()=>{
+      render();
+      updateLegend(state.currentGeoJSON,state._lastVals||[]);
+    });
   }
   async function loadEdges(year){ const p=state.manifest?.layers?.connectivity_edges?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
   async function loadNodes(year){ const p=state.manifest?.layers?.connectivity_nodes?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
   function nodeId(f){ return String(f?.properties?.unit_id || f?.properties?.topology_node_id || ''); }
+  function adminIds(){ return new Set((state.currentGeoJSON?.features||[]).map(f=>String(featureId(f))).filter(Boolean)); }
   function edgeStyle(f){
     const p=f.properties||{}; const k=p.adv_edge_class || 'normal_contact'; const s=EDGE[k]||EDGE.normal_contact;
     const strength=Number(p.adv_strength)||0;
@@ -14861,62 +14893,134 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     return {pane:'advancedConnectivityEdgePane', color:s.color, weight:k==='blocked_highland'?s.weight:w, opacity:k==='blocked_highland'?.85:.88, dashArray:s.dash, lineCap:'round', lineJoin:'round', className:'advanced-connectivity-edge-v129'};
   }
   function nodeStyle(f, vals){
-    const p=f.properties||{}; const v=Number(p[metric()]); const r=Math.max(4.2, Math.min(13, 4.5+Math.sqrt(Math.max(0,Number(p.adv_weighted_degree)||0))*1.2));
-    return {pane:'advancedConnectivityNodePane', radius:r, color:'#111827', weight:1.3, fillColor:valueColor(Number.isFinite(v)?v:0, vals), fillOpacity:.92, opacity:1, bubblingMouseEvents:false, interactive:true};
+    const p=f.properties||{}; const v=Number(p[metric()]);
+    const base=Number(p.adv_weighted_degree);
+    const r=Math.max(4.5, Math.min(14, 4.8+Math.sqrt(Math.max(0,Number.isFinite(base)?base:0))*1.22));
+    return {pane:'advancedConnectivityNodePane', radius:r, color:'#111827', weight:1.35, fillColor:valueColor(Number.isFinite(v)?v:0, vals), fillOpacity:.93, opacity:1, bubblingMouseEvents:false, interactive:true};
   }
   function findAdmin(f){ const id=nodeId(f); return (state.currentGeoJSON?.features||[]).find(a=>String(featureId(a))===id || String(a.properties?.unit_id||'')===id) || null; }
+  function clearAdvancedLayers(){ clearLayer('advancedConnectivityEdges'); clearLayer('advancedConnectivityNodes'); state.layers.advancedConnectivityEdges=null; state.layers.advancedConnectivityNodes=null; }
+  function applyVisibility(){
+    if(!state.map) return;
+    const e=state.layers.advancedConnectivityEdges;
+    const n=state.layers.advancedConnectivityNodes;
+    if(e){ if(edgesOn() && !state.map.hasLayer(e)) e.addTo(state.map); if(!edgesOn() && state.map.hasLayer(e)) state.map.removeLayer(e); if(edgesOn() && e.bringToFront) e.bringToFront(); }
+    if(n){ if(nodesOn() && !state.map.hasLayer(n)) n.addTo(state.map); if(!nodesOn() && state.map.hasLayer(n)) state.map.removeLayer(n); if(nodesOn() && n.bringToFront) n.bringToFront(); }
+  }
   async function render(){
-    try{ clearLayer('advancedConnectivityGraph'); }catch(_){ }
+    try{ clearAdvancedLayers(); }catch(_){ }
     state.advancedConnectivityStats={year:state.year, counts:{}, total:0, nodes:0};
-    if(!state.map || !state.currentGeoJSON || !on()) return;
+    if(!state.map || !state.currentGeoJSON || !anythingOn()) return;
     ensurePanes();
+    const allowed=adminIds();
+    if(!allowed.size) return;
     const [nodes,edges]=await Promise.all([loadNodes(state.year), loadEdges(state.year)]);
-    const nodeFeatures=(nodes.features||[]).filter(f=>Number.isFinite(Number(f.properties?.adv_degree)));
+    const nodeFeatures=(nodes.features||[]).filter(f=>allowed.has(nodeId(f)) && Number.isFinite(Number(f.properties?.adv_degree)));
     const nodeIds=new Set(nodeFeatures.map(nodeId));
     const edgeFeatures=(edges.features||[]).filter(e=>nodeIds.has(String(e.properties?.adv_source_id||e.properties?.source_id)) && nodeIds.has(String(e.properties?.adv_target_id||e.properties?.target_id)));
     const counts=edgeFeatures.reduce((a,e)=>{ const k=e.properties?.adv_edge_class||'normal_contact'; a[k]=(a[k]||0)+1; return a; },{});
     state.advancedConnectivityStats={year:state.year, counts, total:edgeFeatures.length, nodes:nodeFeatures.length};
     const vals=nodeFeatures.map(f=>Number(f.properties?.[metric()])).filter(Number.isFinite);
-    const group=L.layerGroup();
-    if(edgeFeatures.length){
-      group.addLayer(L.geoJSON({type:'FeatureCollection',features:edgeFeatures},{interactive:true,pane:'advancedConnectivityEdgePane',style:edgeStyle,onEachFeature:(f,l)=>{
+    if(edgesOn() && edgeFeatures.length){
+      const halo=L.geoJSON({type:'FeatureCollection',features:edgeFeatures},{interactive:false,pane:'advancedConnectivityEdgePane',style:f=>({pane:'advancedConnectivityEdgePane', color:'#fff8e6', weight:(edgeStyle(f).weight||2)+4.5, opacity:.42, lineCap:'round', lineJoin:'round'})});
+      const fg=L.geoJSON({type:'FeatureCollection',features:edgeFeatures},{interactive:true,pane:'advancedConnectivityEdgePane',style:edgeStyle,onEachFeature:(f,l)=>{
         const p=f.properties||{};
-        l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'продвинутый граф связности', extra:`${escapeHtml(p.adv_edge_label||p.adv_edge_class||'связь')} · impedance: ${fmt(p.adv_impedance)} · сила: ${fmt(p.adv_strength)} · дистанция: ${fmt(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`, delay:180}, e.originalEvent));
+        l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'ребро продвинутого графа связности', extra:`${escapeHtml(p.adv_edge_label||p.adv_edge_class||'связь')} · impedance: ${fmt(p.adv_impedance)} · сила: ${fmt(p.adv_strength)} · дистанция: ${fmt(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`, delay:120}, e.originalEvent));
         l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
-      }}));
+      }});
+      const group=L.layerGroup([halo,fg]);
+      state.layers.advancedConnectivityEdges=group; group.addTo(state.map);
     }
-    if(nodeFeatures.length){
-      group.addLayer(L.geoJSON({type:'FeatureCollection',features:nodeFeatures},{pane:'advancedConnectivityNodePane',pointToLayer:(f,latlng)=>L.circleMarker(latlng,nodeStyle(f,vals)),onEachFeature:(f,l)=>{
+    if(nodesOn() && nodeFeatures.length){
+      const layer=L.geoJSON({type:'FeatureCollection',features:nodeFeatures},{pane:'advancedConnectivityNodePane',pointToLayer:(f,latlng)=>L.circleMarker(latlng,nodeStyle(f,vals)),onEachFeature:(f,l)=>{
         const p=f.properties||{}; const m=metric();
-        l.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел продвинутого графа · ${METRICS[m]||m}`, extra:`значение: ${fmt(p[m])} · проходных соседей: ${fmt(p.adv_degree)} · коридоров: ${fmt(p.adv_corridor_edges_incident)} · барьеров: ${fmt(p.adv_barrier_edges_incident)} · компонент: ${fmt(p.adv_component_id)}`, delay:180}, e.originalEvent));
+        l.on('mouseover',e=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел продвинутого графа · ${SHORT_METRICS[m]||m}`, extra:`значение: ${fmt(p[m])} · проходных соседей: ${fmt(p.adv_degree)} · коридоров: ${fmt(p.adv_corridor_edges_incident)} · барьеров: ${fmt(p.adv_barrier_edges_incident)} · компонент: ${fmt(p.adv_component_id)}`, delay:120}, e.originalEvent));
         l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
         l.on('click',e=>{ L.DomEvent.stopPropagation(e); const adm=findAdmin(f); if(adm){ if(state.tool==='pan') toggleSelection(adm); showFeature(adm); } });
-      }}));
+      }});
+      state.layers.advancedConnectivityNodes=layer; layer.addTo(state.map);
     }
-    state.layers.advancedConnectivityGraph=group; group.addTo(state.map);
-    try{ group.eachLayer(l=>l.bringToFront && l.bringToFront()); }catch(_){ }
+    applyVisibility();
+    try{ state.layers.advancedConnectivityEdges?.eachLayer?.(l=>l.bringToFront && l.bringToFront()); state.layers.advancedConnectivityNodes?.bringToFront?.(); }catch(_){ }
     updateLegend(state.currentGeoJSON,state._lastVals||[]);
   }
-  const prevClear=clearYearLayers;
-  clearYearLayers=function clearYearLayersV129(){ prevClear.apply(this,arguments); clearLayer('advancedConnectivityGraph'); };
-  const prevRefreshAll=refreshAll;
-  refreshAll=async function refreshAllV129(){ const result=await prevRefreshAll.apply(this,arguments); await render(); refreshVisibility(); return result; };
-  const prevVisibility=refreshVisibility;
-  refreshVisibility=function refreshVisibilityV129(){ const result=prevVisibility.apply(this,arguments); const layer=state.layers.advancedConnectivityGraph; if(layer){ if(on() && !state.map.hasLayer(layer)) layer.addTo(state.map); if(!on() && state.map.hasLayer(layer)) state.map.removeLayer(layer); if(on() && layer.bringToFront) layer.bringToFront(); } return result; };
-  const prevLegend=updateLegend;
-  updateLegend=function updateLegendV129(gj, vals){
-    prevLegend(gj, vals);
-    if(!on()) return;
-    const box=$('legendBox'); if(!box) return;
-    const stats=(state.advancedConnectivityStats && state.advancedConnectivityStats.year===state.year) ? state.advancedConnectivityStats : {counts:{},total:0,nodes:0};
-    let html='<hr><div class="legend-section">Продвинутый граф: коридоры и барьеры</div>';
-    Object.entries(EDGE).forEach(([k,s])=>{ const c=stats.counts?.[k]||0; if(c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)){ html+=`<div class="legend-row"><span class="advanced-edge-legend-v129" style="border-top-color:${s.color};border-top-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span><b>${num(c)}</b></div>`; } });
-    html+=`<div class="legend-row"><span class="advanced-node-legend-v129"></span><span>узлы, цвет/размер = ${escapeHtml(METRICS[metric()]||metric())}</span><b>${num(stats.nodes||0)}</b></div>`;
-    html+='<div class="mini-muted legend-scale-note-v67">Это эвристический граф потенциальной связности: рёбра с сильным рельефным барьером без коридора показаны, но исключены из сетевых метрик.</div>';
-    box.insertAdjacentHTML('beforeend',html);
+  const priorValField=valField;
+  valField=function valFieldV130(){ return isAdvMode() ? state.mode : priorValField(); };
+  try{ Object.keys(METRICS).forEach(m=>v67SequentialModes.add(m)); }catch(_){ }
+  if(typeof v67ChoroplethTitle==='function'){
+    const priorTitle=v67ChoroplethTitle;
+    v67ChoroplethTitle=function v67ChoroplethTitleV130(){ return isAdvMode() ? (METRICS[state.mode]||state.mode) : priorTitle(); };
+  }
+  if(typeof v98LegendAdminHtml==='function'){
+    const priorLegend=v98LegendAdminHtml;
+    v98LegendAdminHtml=function v98LegendAdminHtmlV130(features, vals){
+      if(!isAdvMode()) return priorLegend(features, vals);
+      let html=`<div class="legend-section">${escapeHtml(METRICS[state.mode]||state.mode)}</div>`;
+      const desc=(typeof v67ClassDescriptor==='function') ? v67ClassDescriptor(vals||[], state.mode) : null;
+      if(desc && typeof v67ColorFromClass==='function'){
+        const count=desc.thresholds.length+1;
+        desc.labels.forEach((label,i)=>{ html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      }else{
+        activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+      }
+      html += '<div class="mini-muted legend-scale-note-v67">Метрики эвристического графа потенциальной связности. Заливка АТЕ работает независимо от включения рёбер и узлов.</div>';
+      return html;
+    };
+  }
+  const priorAdminStyle=adminStyle;
+  adminStyle=function adminStyleV130(feature, vals){
+    const base=priorAdminStyle(feature, vals);
+    if(isAdvMode()){
+      const n=Number(feature?.properties?.[state.mode]);
+      if(Number.isFinite(n)){ base.fillColor=valueColor(n, vals||[]); base.fillOpacity=Math.max(base.fillOpacity||0.55,.68); }
+      else { base.fillColor='#d7d1c8'; base.fillOpacity=.24; base.dashArray=base.dashArray||'4 5'; }
+    }
+    return base;
   };
-  const prevBind=bindUi;
-  bindUi=function bindUiV129(){ const result=prevBind.apply(this,arguments); ensureControls(); return result; };
-  const boot=()=>ensureControls();
+  const priorShowFeature=showFeature;
+  showFeature=function showFeatureV130(f){
+    priorShowFeature(f);
+    const p=f?.properties||{}; const box=$('featureInfo');
+    if(!box || p.adv_degree==null) return;
+    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident'];
+    box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v130"><h3>Потенциальная связность · v130</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT_METRICS[k]||k)}</span><b>${fmt(p[k])}</b></div>`).join('')}<div class="mini-muted">Эти метрики рассчитаны по продвинутому графу коридоров и барьеров; базовая геометрическая смежность сохранена отдельно.</div></div>`);
+  };
+  function advancedLegendHtml(exportMode=false){
+    const stats=(state.advancedConnectivityStats && state.advancedConnectivityStats.year===state.year) ? state.advancedConnectivityStats : {counts:{},total:0,nodes:0};
+    let html='';
+    if(edgesOn()){
+      html+='<hr><div class="legend-section">Продвинутый граф: рёбра потенциальной связности</div>';
+      Object.entries(EDGE).forEach(([k,s])=>{ const c=stats.counts?.[k]||0; if(c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)){ html+=`<div class="legend-row"><span class="advanced-edge-legend-v129" style="border-top-color:${s.color};border-top-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span><b>${num(c)}</b></div>`; } });
+    }
+    if(nodesOn()){
+      html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
+      html+=`<div class="legend-row"><span class="advanced-node-legend-v129"></span><span>цвет/размер = ${escapeHtml(SHORT_METRICS[metric()]||metric())}</span><b>${num(stats.nodes||0)}</b></div>`;
+    }
+    if(html) html+='<div class="mini-muted legend-scale-note-v67">Эвристический граф потенциальной связности: транспортные коридоры усиливают связи, барьеры рельефа/рек ослабляют или снимают часть рёбер.</div>';
+    return html;
+  }
+  const priorUpdateLegend=updateLegend;
+  updateLegend=function updateLegendV130(gj, vals){
+    // v98BuildLegendHtml is patched below, so the same advanced-graph legend
+    // is used both on screen and in export without duplicating rows.
+    priorUpdateLegend(gj, vals);
+  };
+  if(typeof v98BuildLegendHtml==='function'){
+    const priorBuildLegend=v98BuildLegendHtml;
+    v98BuildLegendHtml=function v98BuildLegendHtmlV130(options={}){
+      let html=priorBuildLegend(options);
+      if(anythingOn()) html += advancedLegendHtml(!!options.exportMode);
+      return html;
+    };
+  }
+  const priorClear=clearYearLayers;
+  clearYearLayers=function clearYearLayersV130(){ priorClear.apply(this,arguments); clearAdvancedLayers(); };
+  const priorRefreshAll=refreshAll;
+  refreshAll=async function refreshAllV130(){ const result=await priorRefreshAll.apply(this,arguments); await render(); refreshVisibility(); return result; };
+  const priorVisibility=refreshVisibility;
+  refreshVisibility=function refreshVisibilityV130(){ const result=priorVisibility.apply(this,arguments); applyVisibility(); return result; };
+  const priorBind=bindUi;
+  bindUi=function bindUiV130(){ const result=priorBind.apply(this,arguments); ensureControls(); return result; };
+  const boot=()=>{ ensureControls(); try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
