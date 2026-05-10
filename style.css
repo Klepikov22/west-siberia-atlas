@@ -3351,3 +3351,45 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
 .advanced-edge-legend-v129{display:inline-block;width:34px;border-top:4px solid #777;border-radius:999px;margin-right:7px;vertical-align:middle}
 .advanced-node-legend-v129{display:inline-block;width:12px;height:12px;border-radius:999px;background:linear-gradient(135deg,#f7c948,#2b6cb0);border:1px solid #111827;margin-right:7px;vertical-align:middle}
 .advanced-connectivity-edge-v129{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18))}
+
+/* v132 advanced connectivity graph: ordinary edge layer + DOM node overlay */
+.advanced-connectivity-node-dom-layer-v132{
+  position:absolute;
+  inset:0;
+  z-index:920;
+  pointer-events:none;
+}
+.advanced-connectivity-dom-node-v132{
+  position:absolute;
+  display:block;
+  border:3px solid #fff8e6;
+  border-radius:999px;
+  box-shadow:0 0 0 2px rgba(17,24,39,.9), 0 4px 10px rgba(0,0,0,.25);
+  pointer-events:auto;
+  cursor:pointer;
+  padding:0;
+  outline:none;
+}
+.advanced-connectivity-dom-node-v132.corridor{ box-shadow:0 0 0 2px rgba(146,64,14,.95), 0 4px 12px rgba(0,0,0,.28); }
+.advanced-connectivity-dom-node-v132.selected{ box-shadow:0 0 0 3px #ff2a8a, 0 5px 14px rgba(0,0,0,.30); }
+.advanced-connectivity-dom-node-v132:hover{ transform:translate(-50%,-50%) scale(1.08); }
+.advanced-edge-legend-v132{
+  display:inline-block;
+  width:31px;
+  height:0;
+  border-top:4px var(--edge-style, solid) var(--edge-color, #64748b);
+  border-radius:999px;
+  margin-right:6px;
+  vertical-align:middle;
+}
+.advanced-node-legend-v132{
+  display:inline-block;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:#f59e0b;
+  border:3px solid #fff8e6;
+  box-shadow:0 0 0 2px #111827;
+  margin-right:8px;
+  vertical-align:middle;
+}

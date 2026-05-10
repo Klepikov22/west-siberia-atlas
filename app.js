@@ -1,4 +1,4 @@
-const APP_VERSION = '131';
+const APP_VERSION = '132';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -1256,7 +1256,7 @@ function updateStats(features){
   const avgDensity=avg(baseAte.map(f=>Number(f.properties.density)));
   const avgRail=avg(baseAte.map(f=>Number(f.properties.rail_length_km)));
   const avgRailD=avg(baseAte.map(f=>Number(f.properties.rail_density_km_1000)));
-  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v131</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v132</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const left=$('statsBox'); if(left) left.innerHTML=html;
   const right=$('rightStatsBox'); if(right) right.innerHTML=html;
   updateGroupAnalytics(features);
@@ -5073,7 +5073,7 @@ function updateStats(features){
   const avgRail=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_length_km)||0))/baseAte.length:0;
   const avgRailD=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_density_km_1000)||0))/baseAte.length:0;
   const extraUrban=(parts.strictCityTotal||parts.workerSettlementTotal)?`<div class="metric-line"><span>собственно города</span><b>${num(parts.strictCityTotal)}</b></div><div class="metric-line"><span>рабочие посёлки / ПГТ</span><b>${num(parts.workerSettlementTotal)}</b></div>`:'';
-  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v131</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v132</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const leftStats=$('statsBox'); if(leftStats) leftStats.innerHTML=html;
   const rightStats=$('rightStatsBox'); if(rightStats) rightStats.innerHTML=html;
   updateGroupAnalytics(features);
@@ -15027,4 +15027,323 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   bindUi=function bindUiV130(){ const result=priorBind.apply(this,arguments); ensureControls(); return result; };
   const boot=()=>{ ensureControls(); try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
+})();
+
+/* v132: hard-visible advanced connectivity graph, built like ordinary topology overlays.
+   Separate edge layer + DOM node overlay; survives base refreshVisibility ordering. */
+(function v132HardAdvancedConnectivityGraph(){
+  const EDGE = {
+    rail_corridor:{label:'коридор: железная дорога', color:'#b45309', weight:4.8, dash:null},
+    old_road_corridor:{label:'коридор: Сибирский тракт / исторические дороги', color:'#92400e', weight:4.3, dash:'10 4'},
+    navigable_river_corridor:{label:'коридор: судоходная река', color:'#0e7490', weight:4.2, dash:null},
+    mixed_corridor:{label:'смешанный транспортный коридор', color:'#7c2d12', weight:5.1, dash:null},
+    normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.6, dash:'3 6'},
+    minor_river_barrier:{label:'барьер: несудоходная река', color:'#1d4ed8', weight:3.1, dash:'2 5'},
+    highland_barrier:{label:'барьер: рельеф >400 м', color:'#991b1b', weight:3.4, dash:'7 4'},
+    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.6, dash:'2 4'}
+  };
+  const METRICS = {
+    adv_degree:'Продвинутый граф · число проходимых соседей',
+    adv_weighted_degree:'Продвинутый граф · взвешенная связность',
+    adv_betweenness:'Продвинутый граф · посредничество',
+    adv_closeness:'Продвинутый граф · близость',
+    adv_k_core:'Продвинутый граф · ядро / периферия',
+    adv_corridor_edges_incident:'Продвинутый граф · связи-коридоры',
+    adv_barrier_edges_incident:'Продвинутый граф · связи-барьеры',
+    adv_blocked_edges_incident:'Продвинутый граф · снятые барьером связи'
+  };
+  const SHORT = Object.fromEntries(Object.entries(METRICS).map(([k,v])=>[k,v.replace(/^Продвинутый граф ·\s*/,'')]));
+  const ADV_MODES = new Set(Object.keys(METRICS));
+  const EDGE_LAYER_KEY='advancedConnectivityEdgesV132';
+  const NODE_LAYER_ID='advancedConnectivityNodeDomLayerV132';
+
+  function edgesOn(){ return $('toggleAdvancedConnectivityEdges')?.checked===true; }
+  function nodesOn(){ return $('toggleAdvancedConnectivityNodes')?.checked===true; }
+  function anythingOn(){ return edgesOn() || nodesOn(); }
+  function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
+  function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
+  function fnum(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
+  function cleanId(v){ return String(v ?? '').trim(); }
+  function featureIds(f){
+    const p=f?.properties||{};
+    const ids=[p.unit_id, p.topology_node_id, typeof featureId==='function'?featureId(f):null].map(cleanId).filter(Boolean);
+    return [...new Set(ids)];
+  }
+  function allowedFeatures(){
+    const feats=state.currentGeoJSON?.features || [];
+    const normal = typeof v96IsNormalTopologyFeature==='function' ? v96IsNormalTopologyFeature : (f=>!(f?.properties?.topology_excluded || f?.properties?.adjacency_excluded));
+    return feats.filter(f=>{
+      try{ return normal(f); }catch(_){ return true; }
+    });
+  }
+  function allowedIds(){ return new Set(allowedFeatures().flatMap(featureIds)); }
+  function edgeSourceId(f){ const p=f?.properties||{}; return cleanId(p.adv_source_id || p.source_id); }
+  function edgeTargetId(f){ const p=f?.properties||{}; return cleanId(p.adv_target_id || p.target_id); }
+  async function loadEdges(year){ const p=state.manifest?.layers?.connectivity_edges?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
+  async function loadNodes(year){ const p=state.manifest?.layers?.connectivity_nodes?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
+  function getAdminById(id){ return (state.currentGeoJSON?.features||[]).find(f=>featureIds(f).includes(id)) || null; }
+  function getNodeId(f){ const p=f?.properties||{}; return cleanId(p.unit_id || p.topology_node_id || p.node_id); }
+
+  function ensureModeOptions(){
+    const sel=$('modeSelect'); if(!sel) return;
+    let group=[...sel.children].find(o=>o.tagName==='OPTGROUP' && o.label==='Продвинутый граф потенциальной связности');
+    if(!group){ group=document.createElement('optgroup'); group.label='Продвинутый граф потенциальной связности'; sel.appendChild(group); }
+    Object.entries(METRICS).forEach(([value,title])=>{
+      if(sel.querySelector(`option[value="${value}"]`)) return;
+      const opt=document.createElement('option'); opt.value=value; opt.textContent=title.replace(/^Продвинутый граф ·\s*/,'');
+      group.appendChild(opt);
+    });
+  }
+  function ensureLayerCheckboxes(){
+    const toggles=document.querySelector('.toggles'); if(!toggles) return;
+    const placeAfter=$('toggleTopologyCentroids')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || toggles.lastElementChild;
+    if(!$('toggleAdvancedConnectivityEdges')){
+      const lab=document.createElement('label'); lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности'; placeAfter?.after(lab);
+    }
+    if(!$('toggleAdvancedConnectivityNodes')){
+      const lab=document.createElement('label'); lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки'; ($('toggleAdvancedConnectivityEdges')?.closest('label')||placeAfter)?.after(lab);
+    }
+  }
+  function bindControls(){
+    ensureModeOptions(); ensureLayerCheckboxes();
+    ['toggleAdvancedConnectivityEdges','toggleAdvancedConnectivityNodes'].forEach(id=>{
+      const el=$(id); if(!el || el.dataset.v132AdvancedBound==='1') return;
+      el.dataset.v132AdvancedBound='1';
+      el.addEventListener('change',()=>{ scheduleRender(0); setTimeout(()=>scheduleRender(0),260); }, false);
+    });
+    const mode=$('modeSelect');
+    if(mode && mode.dataset.v132AdvancedModeBound!=='1'){
+      mode.dataset.v132AdvancedModeBound='1';
+      mode.addEventListener('change',()=>{ scheduleRender(30); setTimeout(()=>scheduleRender(0),260); }, false);
+    }
+  }
+
+  function ensureEdgePane(){
+    if(!state.map) return 'overlayPane';
+    if(!state.map.getPane('advancedConnectivityEdgePaneV132')){
+      const p=state.map.createPane('advancedConnectivityEdgePaneV132');
+      p.style.zIndex=890; p.style.pointerEvents='auto';
+    }
+    return 'advancedConnectivityEdgePaneV132';
+  }
+  function edgeStyle(f, halo=false){
+    const p=f.properties||{}; const k=p.adv_edge_class || 'normal_contact'; const s=EDGE[k] || EDGE.normal_contact;
+    const strength=Number(p.adv_strength)||0;
+    const base=(s.weight||2.8) + Math.min(2.2, Math.max(0, strength/18));
+    if(halo) return {pane:ensureEdgePane(), color:'#fff8e6', weight:base+5.6, opacity:.55, lineCap:'round', lineJoin:'round'};
+    return {pane:ensureEdgePane(), color:s.color, weight:k==='blocked_highland'?(s.weight||3.6):base, opacity:k==='blocked_highland'?.90:.92, dashArray:s.dash, lineCap:'round', lineJoin:'round', className:'advanced-connectivity-edge-v132'};
+  }
+  function clearEdges(){
+    try{ clearLayer(EDGE_LAYER_KEY); }catch(_){ }
+    try{ clearLayer('advancedConnectivityEdges'); }catch(_){ }
+    state.layers[EDGE_LAYER_KEY]=null; state.layers.advancedConnectivityEdges=null;
+  }
+  async function buildEdges(ids){
+    clearEdges();
+    if(!state.map || !edgesOn() || !ids.size) return {features:[], counts:{}};
+    const raw=await loadEdges(state.year);
+    const feats=(raw.features||[]).filter(e=>ids.has(edgeSourceId(e)) && ids.has(edgeTargetId(e)));
+    const counts=feats.reduce((a,e)=>{ const k=e.properties?.adv_edge_class||'normal_contact'; a[k]=(a[k]||0)+1; return a; },{});
+    if(!feats.length) return {features:[], counts};
+    const fc={type:'FeatureCollection',features:feats};
+    const group=L.layerGroup();
+    group.addLayer(L.geoJSON(fc,{interactive:false, pane:ensureEdgePane(), style:f=>edgeStyle(f,true)}));
+    group.addLayer(L.geoJSON(fc,{interactive:true, pane:ensureEdgePane(), style:f=>edgeStyle(f,false), onEachFeature:(f,l)=>{
+      const p=f.properties||{};
+      l.on('mouseover',e=>showHoverLater({title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`, subtitle:'ребро потенциальной связности', extra:`${escapeHtml(p.adv_edge_label||p.adv_edge_class||'связь')} · impedance: ${fnum(p.adv_impedance)} · сила: ${fnum(p.adv_strength)} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`, delay:90}, e.originalEvent));
+      l.on('mousemove',e=>moveHover(e.originalEvent)); l.on('mouseout',hideHover);
+    }}));
+    state.layers[EDGE_LAYER_KEY]=group; group.addTo(state.map); bringLayerGroupToFront(group);
+    return {features:feats, counts};
+  }
+
+  function getNodeDomLayer(){
+    if(!state.map) return null;
+    const container=state.map.getContainer?.(); if(!container) return null;
+    let layer=state._advancedConnectivityNodeDomLayerV132 || container.querySelector('#'+NODE_LAYER_ID);
+    if(!layer){ layer=document.createElement('div'); layer.id=NODE_LAYER_ID; layer.className='advanced-connectivity-node-dom-layer-v132'; container.appendChild(layer); }
+    state._advancedConnectivityNodeDomLayerV132=layer;
+    return layer;
+  }
+  function clearNodes(){
+    try{ clearLayer('advancedConnectivityNodes'); }catch(_){ }
+    const layer=state._advancedConnectivityNodeDomLayerV132 || document.getElementById(NODE_LAYER_ID);
+    if(layer) layer.replaceChildren();
+    state._advancedConnectivityDomNodesV132=[];
+    state.layers.advancedConnectivityNodes=null;
+  }
+  function nodeRadius(f){
+    const p=f.properties||{};
+    const base=Number(p.adv_weighted_degree);
+    const degree=Number(p.adv_degree);
+    return Math.max(9, Math.min(24, 9 + Math.sqrt(Math.max(0, Number.isFinite(base)?base:(Number.isFinite(degree)?degree:0)))*1.55));
+  }
+  function nodeColor(f, vals){
+    const p=f.properties||{}; const v=Number(p[metric()]);
+    try{ return valueColor(Number.isFinite(v)?v:0, vals?.length?vals:[0,1]); }catch(_){ return '#f59e0b'; }
+  }
+  function buildNodeElement(f, vals){
+    const p=f.properties||{}; const id=getNodeId(f); const r=nodeRadius(f);
+    const admin=getAdminById(id); const selected=admin && state.selectedIds?.has(featureId(admin));
+    const el=document.createElement('button'); el.type='button';
+    el.className='advanced-connectivity-dom-node-v132'+(selected?' selected':'')+((Number(p.adv_corridor_edges_incident)||0)>0?' corridor':'');
+    el.style.width=`${r*2}px`; el.style.height=`${r*2}px`; el.style.background=nodeColor(f, vals);
+    el.style.borderColor=selected?'#ff2a8a':'#fff8e6'; el.dataset.unitId=id;
+    el.title=`${p.name||'АТЕ'} — узел продвинутого графа; ${SHORT[metric()]||metric()}: ${fnum(p[metric()])}`;
+    ['mousedown','mouseup','click','dblclick','touchstart','touchend','wheel'].forEach(type=>el.addEventListener(type, ev=>ev.stopPropagation(), {passive:type==='wheel'?false:undefined}));
+    el.addEventListener('mouseover', ev=>showHoverLater({title:p.name||'АТЕ', subtitle:`узел потенциальной связности · ${SHORT[metric()]||metric()}`, extra:`значение: ${fnum(p[metric()])} · проходных соседей: ${fnum(p.adv_degree)} · коридоров: ${fnum(p.adv_corridor_edges_incident)} · барьеров: ${fnum(p.adv_barrier_edges_incident)} · компонент: ${fnum(p.adv_component_id)}`, delay:60}, ev));
+    el.addEventListener('mousemove', ev=>moveHover(ev)); el.addEventListener('mouseout', hideHover);
+    el.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); const adm=getAdminById(id); if(adm){ if(state.tool==='pan' && isSelectableFeature(adm)) toggleSelection(adm); showFeature(adm); scheduleRender(0); } });
+    return el;
+  }
+  function positionNodes(){
+    const layer=state._advancedConnectivityNodeDomLayerV132; if(!layer || !state.map) return;
+    layer.style.display=nodesOn()?'block':'none'; if(!nodesOn()) return;
+    (state._advancedConnectivityDomNodesV132||[]).forEach(item=>{ const pt=state.map.latLngToContainerPoint(item.latlng); item.el.style.transform=`translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%)`; });
+  }
+  function ensureNodeEvents(){
+    if(!state.map || state._advancedConnectivityNodeEventsV132) return;
+    state._advancedConnectivityNodeEventsV132=true;
+    const schedule=()=>{ cancelAnimationFrame(state._advancedConnectivityNodeRafV132); state._advancedConnectivityNodeRafV132=requestAnimationFrame(positionNodes); };
+    state.map.on('move zoom zoomend moveend viewreset resize', schedule);
+    window.addEventListener('resize', schedule, {passive:true});
+  }
+  async function buildNodes(ids){
+    clearNodes();
+    const layer=getNodeDomLayer();
+    if(!state.map || !nodesOn() || !ids.size || !layer){ if(layer) layer.style.display='none'; return []; }
+    ensureNodeEvents();
+    const raw=await loadNodes(state.year);
+    const feats=(raw.features||[]).filter(f=>ids.has(getNodeId(f)) && Number.isFinite(Number(f.properties?.adv_degree)) && f.geometry?.type==='Point');
+    const vals=feats.map(f=>Number(f.properties?.[metric()])).filter(Number.isFinite);
+    const nodes=[];
+    feats.forEach(f=>{
+      const c=f.geometry.coordinates||[]; const lng=Number(c[0]), lat=Number(c[1]);
+      if(!Number.isFinite(lat)||!Number.isFinite(lng)) return;
+      const el=buildNodeElement(f, vals); layer.appendChild(el); nodes.push({el, latlng:L.latLng(lat,lng), feature:f});
+    });
+    state._advancedConnectivityDomNodesV132=nodes;
+    state.layers.advancedConnectivityNodes={__domLayer:true, getLayers:()=>nodes, bringToFront:()=>{ try{ layer.style.zIndex=920; }catch(_){ } }};
+    positionNodes();
+    return feats;
+  }
+  function applyVisibility(){
+    const edgeLayer=state.layers[EDGE_LAYER_KEY];
+    if(edgeLayer && state.map){
+      if(edgesOn() && !state.map.hasLayer(edgeLayer)) edgeLayer.addTo(state.map);
+      if(!edgesOn() && state.map.hasLayer(edgeLayer)) state.map.removeLayer(edgeLayer);
+      if(edgesOn()) bringLayerGroupToFront(edgeLayer);
+    }
+    const dom=getNodeDomLayer(); if(dom) dom.style.display=nodesOn()?'block':'none';
+    positionNodes();
+  }
+  function refreshStats(edgeResult, nodeFeatures){
+    state.advancedConnectivityStats={
+      year:state.year,
+      counts:edgeResult?.counts||{},
+      total:edgeResult?.features?.length||0,
+      nodes:nodeFeatures?.length||0,
+      renderer:'v132_dom_nodes_regular_edges'
+    };
+  }
+  async function render(){
+    bindControls();
+    clearEdges(); clearNodes();
+    state.advancedConnectivityStats={year:state.year, counts:{}, total:0, nodes:0, renderer:'v132_dom_nodes_regular_edges'};
+    if(!state.map || !state.currentGeoJSON || !anythingOn()){ try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } return; }
+    const ids=allowedIds(); if(!ids.size){ try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } return; }
+    const edgeResult=await buildEdges(ids);
+    const nodeFeatures=await buildNodes(ids);
+    refreshStats(edgeResult, nodeFeatures);
+    applyVisibility();
+    try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
+  }
+  function scheduleRender(delay=40){ clearTimeout(state._advancedConnectivityRenderTimerV132); state._advancedConnectivityRenderTimerV132=setTimeout(()=>render().catch(e=>console.warn('v132 advanced connectivity render failed', e)), delay); }
+
+  // Make advanced metrics available in the main map mode selector and choropleth logic.
+  const priorValField=valField;
+  valField=function valFieldV132(){ return isAdvMode() ? state.mode : priorValField(); };
+  try{ Object.keys(METRICS).forEach(m=>v67SequentialModes.add(m)); }catch(_){ }
+  if(typeof v67ChoroplethTitle==='function'){
+    const priorTitle=v67ChoroplethTitle;
+    v67ChoroplethTitle=function v67ChoroplethTitleV132(){ return isAdvMode() ? (METRICS[state.mode]||state.mode) : priorTitle(); };
+  }
+  if(typeof v98LegendAdminHtml==='function'){
+    const priorAdminLegend=v98LegendAdminHtml;
+    v98LegendAdminHtml=function v98LegendAdminHtmlV132(features, vals){
+      if(!isAdvMode()) return priorAdminLegend(features, vals);
+      let html=`<div class="legend-section">${escapeHtml(METRICS[state.mode]||state.mode)}</div>`;
+      const desc=(typeof v67ClassDescriptor==='function') ? v67ClassDescriptor(vals||[], state.mode) : null;
+      if(desc && typeof v67ColorFromClass==='function'){
+        const count=desc.thresholds.length+1;
+        desc.labels.forEach((label,i)=>{ html += `<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      }else{
+        activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+      }
+      html += '<div class="mini-muted legend-scale-note-v67">Заливка АТЕ по метрикам продвинутого графа; рёбра и узлы включаются отдельными галочками.</div>';
+      return html;
+    };
+  }
+  const priorAdminStyle=adminStyle;
+  adminStyle=function adminStyleV132(feature, vals){
+    const base=priorAdminStyle(feature, vals);
+    if(isAdvMode()){
+      const n=Number(feature?.properties?.[state.mode]);
+      if(Number.isFinite(n)){ base.fillColor=valueColor(n, vals||[]); base.fillOpacity=Math.max(base.fillOpacity||0.55,.68); }
+      else { base.fillColor='#d7d1c8'; base.fillOpacity=.24; base.dashArray=base.dashArray||'4 5'; }
+    }
+    return base;
+  };
+  const priorShowFeature=showFeature;
+  showFeature=function showFeatureV132(f){
+    priorShowFeature(f);
+    const p=f?.properties||{}; const box=$('featureInfo');
+    if(!box || p.adv_degree==null || box.querySelector('.advanced-connectivity-object-v132')) return;
+    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident'];
+    box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v132"><h3>Потенциальная связность · v132</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT[k]||k)}</span><b>${fnum(p[k])}</b></div>`).join('')}<div class="mini-muted">Продвинутый граф учитывает транспортные коридоры и барьеры; обычная топологическая смежность сохранена отдельно.</div></div>`);
+  };
+
+  function v132LegendHtml(){
+    const stats=(state.advancedConnectivityStats && state.advancedConnectivityStats.year===state.year) ? state.advancedConnectivityStats : {counts:{}, total:0, nodes:0};
+    let html='';
+    if(edgesOn()){
+      html+='<hr><div class="legend-section">Продвинутый граф: рёбра потенциальной связности</div>';
+      Object.entries(EDGE).forEach(([k,s])=>{
+        const c=stats.counts?.[k]||0;
+        if(c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span><b>${num(c)}</b></div>`;
+      });
+      html += `<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}.</div>`;
+    }
+    if(nodesOn()){
+      html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
+      html+=`<div class="legend-row"><span class="advanced-node-legend-v132"></span><span>цвет/размер = ${escapeHtml(SHORT[metric()]||metric())}</span><b>${num(stats.nodes||0)}</b></div>`;
+    }
+    if(html) html+='<div class="mini-muted legend-scale-note-v67">Эвристический граф потенциальной связности: коридоры усиливают связи, барьеры ослабляют или снимают часть рёбер.</div>';
+    return html;
+  }
+  if(typeof v98BuildLegendHtml==='function'){
+    const priorBuild=v98BuildLegendHtml;
+    v98BuildLegendHtml=function v98BuildLegendHtmlV132(options={}){
+      let html=priorBuild(options);
+      // v131 appended an earlier advanced legend at the end; remove it and add the v132 one.
+      const idx=html.indexOf('<hr><div class="legend-section">Продвинутый граф:');
+      if(idx>=0) html=html.slice(0,idx);
+      if(anythingOn()) html += v132LegendHtml();
+      return html;
+    };
+  }
+
+  const priorClear=clearYearLayers;
+  clearYearLayers=function clearYearLayersV132(){ priorClear.apply(this,arguments); clearEdges(); clearNodes(); };
+  const priorRefreshAll=refreshAll;
+  refreshAll=async function refreshAllV132(){ const r=await priorRefreshAll.apply(this,arguments); scheduleRender(20); return r; };
+  const priorRefreshVisibility=refreshVisibility;
+  refreshVisibility=function refreshVisibilityV132(){ const r=priorRefreshVisibility.apply(this,arguments); applyVisibility(); return r; };
+  const priorUpdateStats=updateStatsAndSelection;
+  updateStatsAndSelection=function updateStatsAndSelectionV132(){ priorUpdateStats.apply(this,arguments); scheduleRender(60); };
+  const priorBind=bindUi;
+  bindUi=function bindUiV132(){ const r=priorBind.apply(this,arguments); bindControls(); return r; };
+
+  const boot=()=>{ bindControls(); scheduleRender(520); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
 })();
