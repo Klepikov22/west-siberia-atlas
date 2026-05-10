@@ -1,0 +1,2 @@
+year,nodes,edges,components,density,blocked_edges,blocked_highland_edges,blocked_wetland_edges,corridor_edges,barrier_edges,rail_corridor_edges,old_road_corridor_edges,navigable_river_corridor_edges,mixed_corridor_edges,minor_river_barrier_edges,main_watershed_barrier_edges,highland_barrier_edges,normal_contact_edges,avg_degree,avg_weighted_degree,avg_betweenness,avg_closeness,largest_component
+2021,280,519,25,0.013287,174,57,117,24,186,24,0,0,0,12,0,0,483,3.707143,7.29889,0.029291,0.085076,243

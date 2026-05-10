@@ -349,7 +349,7 @@
       "2021": "data/connectivity/nodes/connectivity_nodes_2021.geojson"
     },
     "connectivity_metrics": "data/connectivity/connectivity_metrics_by_year.json",
-    "connectivity_method": "data/connectivity/connectivity_method_v129.json",
+    "connectivity_method": "data/connectivity/connectivity_method_v134.json",
     "connectivity_reference": {
       "siberian_tract": "data/connectivity/reference/siberian_tract.geojson",
       "tomsk_roads_south": "data/connectivity/reference/tomsk_roads_south.geojson",
@@ -391,7 +391,7 @@
     "v107: для слоёв 1745/1765 Екатеринбургский объект переатрибутирован как Екатеринбургское ведомство в составе Тобольской провинции, исключён из сопоставимой статистики/динамики; Исетская провинция 1765 исключена как внешний контекст. Пересчитаны графовые и картометрические метрики динамики.",
     "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки."
   ],
-  "app_version": "133",
+  "app_version": "134",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -431,8 +431,12 @@
     {
       "version": "v133",
       "note": "Advanced connectivity edges redrawn as DOM/SVG overlay; export checkboxes for potential connectivity nodes/edges; advanced metrics grouped as separate map modes."
+    },
+    {
+      "version": "v134",
+      "note": "Продвинутый граф пересчитан по локальной точке перехода; ложные речные/ЖД связи через удалённые участки убраны; добавлены болотные разрывы и сниженный z-index SVG-слоёв."
     }
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v133"
+  "version": "v134"
 }

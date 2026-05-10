@@ -1,4 +1,4 @@
-const APP_VERSION = '133';
+const APP_VERSION = '134';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -14986,7 +14986,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     priorShowFeature(f);
     const p=f?.properties||{}; const box=$('featureInfo');
     if(!box || p.adv_degree==null) return;
-    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident'];
+    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident','adv_wetland_blocked_edges_incident','adv_main_watershed_edges_incident'];
     box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v130"><h3>Потенциальная связность · v131</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT_METRICS[k]||k)}</span><b>${fmt(p[k])}</b></div>`).join('')}<div class="mini-muted">Эти метрики рассчитаны по продвинутому графу коридоров и барьеров; базовая геометрическая смежность сохранена отдельно.</div></div>`);
   };
   function advancedLegendHtml(exportMode=false){
@@ -15131,7 +15131,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const strength=Number(p.adv_strength)||0;
     const base=(s.weight||2.8) + Math.min(2.2, Math.max(0, strength/18));
     if(halo) return {pane:ensureEdgePane(), color:'#fff8e6', weight:base+5.6, opacity:.55, lineCap:'round', lineJoin:'round'};
-    return {pane:ensureEdgePane(), color:s.color, weight:k==='blocked_highland'?(s.weight||3.6):base, opacity:k==='blocked_highland'?.90:.92, dashArray:s.dash, lineCap:'round', lineJoin:'round', className:'advanced-connectivity-edge-v132'};
+    return {pane:ensureEdgePane(), color:s.color, weight:(k==='blocked_highland'||k==='blocked_wetland')?(s.weight||3.6):base, opacity:k==='blocked_highland'?.90:.92, dashArray:s.dash, lineCap:'round', lineJoin:'round', className:'advanced-connectivity-edge-v132'};
   }
   function clearEdges(){
     try{ clearLayer(EDGE_LAYER_KEY); }catch(_){ }
@@ -15223,7 +15223,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const el=buildNodeElement(f, vals); layer.appendChild(el); nodes.push({el, latlng:L.latLng(lat,lng), feature:f});
     });
     state._advancedConnectivityDomNodesV132=nodes;
-    state.layers.advancedConnectivityNodes={__domLayer:true, getLayers:()=>nodes, bringToFront:()=>{ try{ layer.style.zIndex=920; }catch(_){ } }};
+    state.layers.advancedConnectivityNodes={__domLayer:true, getLayers:()=>nodes, bringToFront:()=>{ try{ layer.style.zIndex=660; }catch(_){ } }};
     positionNodes();
     return feats;
   }
@@ -15299,7 +15299,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     priorShowFeature(f);
     const p=f?.properties||{}; const box=$('featureInfo');
     if(!box || p.adv_degree==null || box.querySelector('.advanced-connectivity-object-v132')) return;
-    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident'];
+    const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident','adv_wetland_blocked_edges_incident','adv_main_watershed_edges_incident'];
     box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v132"><h3>Потенциальная связность · v132</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT[k]||k)}</span><b>${fnum(p[k])}</b></div>`).join('')}<div class="mini-muted">Продвинутый граф учитывает транспортные коридоры и барьеры; обычная топологическая смежность сохранена отдельно.</div></div>`);
   };
 
@@ -15353,10 +15353,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
    This renderer draws potential-connectivity edges as a plain SVG overlay over the map container,
    while keeping advanced nodes and ordinary topology untouched. */
 (function v133AdvancedConnectivityEdgesAndExport(){
-  const APP_ADV_VERSION='v133';
+  const APP_ADV_VERSION='v134';
   const EDGE_SVG_LAYER_ID='advancedConnectivityEdgeSvgLayerV133';
   const EDGE_SVG_ID='advancedConnectivityEdgeSvgV133';
-  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v133'};
+  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v134'};
   const METRICS={
     adv_degree:'Потенциальная связность · проходимые соседи',
     adv_weighted_degree:'Потенциальная связность · взвешенная связность',
@@ -15365,7 +15365,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     adv_k_core:'Потенциальная связность · ядро / периферия',
     adv_corridor_edges_incident:'Потенциальная связность · связи-коридоры',
     adv_barrier_edges_incident:'Потенциальная связность · связи-барьеры',
-    adv_blocked_edges_incident:'Потенциальная связность · снятые барьером связи'
+    adv_blocked_edges_incident:'Потенциальная связность · снятые барьером связи',
+    adv_wetland_blocked_edges_incident:'Потенциальная связность · снятые болотами связи',
+    adv_main_watershed_edges_incident:'Потенциальная связность · связи через главные водоразделы'
   };
   const SHORT=Object.fromEntries(Object.entries(METRICS).map(([k,v])=>[k,v.replace(/^Потенциальная связность ·\s*/, '')]));
   const ADV_MODES=new Set(Object.keys(METRICS));
@@ -15376,8 +15378,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     mixed_corridor:{label:'смешанный транспортный коридор', color:'#7c2d12', weight:4.8, dash:''},
     normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.4, dash:'3 7'},
     minor_river_barrier:{label:'барьер: несудоходная река', color:'#1d4ed8', weight:2.8, dash:'2 6'},
+    main_watershed_barrier:{label:'барьер: главный водораздел', color:'#be123c', weight:3.0, dash:'12 4'},
     highland_barrier:{label:'барьер: рельеф >400 м', color:'#991b1b', weight:3.2, dash:'8 5'},
-    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.4, dash:'2 5'}
+    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.4, dash:'2 5'},
+    blocked_wetland:{label:'снято: болотный массив / заболоченный разрыв', color:'#365314', weight:3.4, dash:'1 5'}
   };
   function clean(v){ return String(v ?? '').trim(); }
   function edgesOn(){ return $('toggleAdvancedConnectivityEdges')?.checked===true; }
@@ -15442,7 +15446,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const layer=state._advancedConnectivityEdgeSvgLayerV133 || document.getElementById(EDGE_SVG_LAYER_ID);
     const svg=layer?.querySelector('svg'); if(svg) svg.replaceChildren();
     state._advancedConnectivityEdgeItemsV133=[];
-    state.layers.advancedConnectivityEdges={__domSvgLayer:true, getLayers:()=>state._advancedConnectivityEdgeItemsV133||[], bringToFront:()=>{ if(layer) layer.style.zIndex=905; }};
+    state.layers.advancedConnectivityEdges={__domSvgLayer:true, getLayers:()=>state._advancedConnectivityEdgeItemsV133||[], bringToFront:()=>{ if(layer) layer.style.zIndex=640; }};
     // Remove earlier Leaflet advanced-edge layers if they were created by v131/v132.
     try{ clearLayer('advancedConnectivityEdges'); }catch(_){ }
     try{ clearLayer('advancedConnectivityEdgesV132'); }catch(_){ }
@@ -15451,7 +15455,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const p=f.properties||{}; const k=p.adv_edge_class || 'normal_contact'; const s=EDGE[k]||EDGE.normal_contact;
     const strength=Number(p.adv_strength)||0;
     const w=(s.weight||2.4)+Math.min(2.2, Math.max(0,strength/18));
-    return {key:k, color:s.color, label:s.label, weight:k==='blocked_highland'?(s.weight||3.4):w, dash:s.dash||''};
+    return {key:k, color:s.color, label:s.label, weight:(k==='blocked_highland'||k==='blocked_wetland')?(s.weight||3.4):w, dash:s.dash||''};
   }
   function makeLine(tagClass, style, feature, isHalo=false){
     const line=document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -15468,7 +15472,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const p=feature.properties||{};
       line.addEventListener('mouseover', ev=>showHoverLater({
         title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`,
-        subtitle:'ребро потенциальной связности · SVG-слой v133',
+        subtitle:'ребро потенциальной связности · SVG-слой v134',
         extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · impedance: ${fnum(p.adv_impedance)} · сила: ${fnum(p.adv_strength)} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
         delay:70
       }, ev));
@@ -15507,7 +15511,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
       return;
     }
-    ensureEdgeEvents(); layer.style.display='block'; layer.style.zIndex=905;
+    ensureEdgeEvents(); layer.style.display='block'; layer.style.zIndex=640;
     const ids=allowedIds();
     if(!ids.size){ positionEdges(); return; }
     const raw=await loadEdges(state.year);
@@ -15526,7 +15530,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     });
     state._advancedConnectivityEdgeItemsV133=items;
     const prev=state.advancedConnectivityStats||{};
-    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v133'};
+    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v134'};
     positionEdges();
     try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
   }
@@ -15595,7 +15599,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
         const c=stats.counts?.[k]||0;
         if(exportMode || c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span>${!exportMode?`<b>${num(c)}</b>`:''}</div>`;
       });
-      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Отрисовка: SVG-слой v133.</div>`;
+      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Отрисовка: SVG-слой v134.</div>`;
     }
     if(showNodes){
       html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';

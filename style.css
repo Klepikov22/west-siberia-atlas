@@ -3356,7 +3356,7 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
 .advanced-connectivity-node-dom-layer-v132{
   position:absolute;
   inset:0;
-  z-index:920;
+  z-index:660;
   pointer-events:none;
 }
 .advanced-connectivity-dom-node-v132{
@@ -3398,7 +3398,7 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
 .advanced-connectivity-edge-svg-layer-v133{
   position:absolute;
   inset:0;
-  z-index:905;
+  z-index:640;
   pointer-events:none;
   overflow:hidden;
 }
