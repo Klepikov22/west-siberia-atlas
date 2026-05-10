@@ -1,4 +1,4 @@
-const APP_VERSION = '132';
+const APP_VERSION = '133';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15346,4 +15346,367 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 
   const boot=()=>{ bindControls(); scheduleRender(520); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+})();
+
+/* v133: robust DOM-SVG renderer for advanced connectivity edges + export checkboxes.
+   The v132 Leaflet edge layer could be hidden by pane/layer-order conflicts in some browsers.
+   This renderer draws potential-connectivity edges as a plain SVG overlay over the map container,
+   while keeping advanced nodes and ordinary topology untouched. */
+(function v133AdvancedConnectivityEdgesAndExport(){
+  const APP_ADV_VERSION='v133';
+  const EDGE_SVG_LAYER_ID='advancedConnectivityEdgeSvgLayerV133';
+  const EDGE_SVG_ID='advancedConnectivityEdgeSvgV133';
+  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v133'};
+  const METRICS={
+    adv_degree:'Потенциальная связность · проходимые соседи',
+    adv_weighted_degree:'Потенциальная связность · взвешенная связность',
+    adv_betweenness:'Потенциальная связность · посредничество',
+    adv_closeness:'Потенциальная связность · близость',
+    adv_k_core:'Потенциальная связность · ядро / периферия',
+    adv_corridor_edges_incident:'Потенциальная связность · связи-коридоры',
+    adv_barrier_edges_incident:'Потенциальная связность · связи-барьеры',
+    adv_blocked_edges_incident:'Потенциальная связность · снятые барьером связи'
+  };
+  const SHORT=Object.fromEntries(Object.entries(METRICS).map(([k,v])=>[k,v.replace(/^Потенциальная связность ·\s*/, '')]));
+  const ADV_MODES=new Set(Object.keys(METRICS));
+  const EDGE={
+    rail_corridor:{label:'коридор: железная дорога', color:'#b45309', weight:4.4, dash:''},
+    old_road_corridor:{label:'коридор: Сибирский тракт / исторические дороги', color:'#92400e', weight:4.1, dash:'10 5'},
+    navigable_river_corridor:{label:'коридор: судоходная река', color:'#0e7490', weight:4.0, dash:''},
+    mixed_corridor:{label:'смешанный транспортный коридор', color:'#7c2d12', weight:4.8, dash:''},
+    normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.4, dash:'3 7'},
+    minor_river_barrier:{label:'барьер: несудоходная река', color:'#1d4ed8', weight:2.8, dash:'2 6'},
+    highland_barrier:{label:'барьер: рельеф >400 м', color:'#991b1b', weight:3.2, dash:'8 5'},
+    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.4, dash:'2 5'}
+  };
+  function clean(v){ return String(v ?? '').trim(); }
+  function edgesOn(){ return $('toggleAdvancedConnectivityEdges')?.checked===true; }
+  function nodesOn(){ return $('toggleAdvancedConnectivityNodes')?.checked===true; }
+  function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
+  function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
+  function fnum(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
+  function featIds(f){ const p=f?.properties||{}; return [...new Set([p.unit_id,p.topology_node_id,typeof featureId==='function'?featureId(f):null].map(clean).filter(Boolean))]; }
+  function normalFeature(f){ try{ return typeof v96IsNormalTopologyFeature==='function' ? v96IsNormalTopologyFeature(f) : true; }catch(_){ return true; } }
+  function allowedFeatures(){ return (state.currentGeoJSON?.features||[]).filter(normalFeature); }
+  function allowedIds(){ return new Set(allowedFeatures().flatMap(featIds)); }
+  function edgeSourceId(f){ const p=f?.properties||{}; return clean(p.adv_source_id || p.source_id); }
+  function edgeTargetId(f){ const p=f?.properties||{}; return clean(p.adv_target_id || p.target_id); }
+  async function loadEdges(year){ const p=state.manifest?.layers?.connectivity_edges?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
+  async function loadNodes(year){ const p=state.manifest?.layers?.connectivity_nodes?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
+  function edgeCoords(f){
+    const g=f?.geometry||{};
+    let c=null;
+    if(g.type==='LineString') c=g.coordinates;
+    else if(g.type==='MultiLineString') c=(g.coordinates||[]).find(a=>Array.isArray(a) && a.length>=2);
+    if(!Array.isArray(c) || c.length<2) return null;
+    const a=c[0], b=c[c.length-1];
+    if(!Array.isArray(a)||!Array.isArray(b)) return null;
+    const lng1=Number(a[0]), lat1=Number(a[1]), lng2=Number(b[0]), lat2=Number(b[1]);
+    if(![lng1,lat1,lng2,lat2].every(Number.isFinite)) return null;
+    return {a:L.latLng(lat1,lng1), b:L.latLng(lat2,lng2)};
+  }
+  function ensureModeOptions(){
+    const sel=$('modeSelect'); if(!sel) return;
+    let group=[...sel.children].find(o=>o.tagName==='OPTGROUP' && o.label==='Продвинутый граф потенциальной связности');
+    if(!group){ group=document.createElement('optgroup'); group.label='Продвинутый граф потенциальной связности'; sel.appendChild(group); }
+    Object.entries(METRICS).forEach(([value,title])=>{
+      let opt=sel.querySelector(`option[value="${value}"]`);
+      if(!opt){ opt=document.createElement('option'); opt.value=value; }
+      opt.textContent=title.replace(/^Потенциальная связность ·\s*/, '');
+      group.appendChild(opt);
+    });
+  }
+  function ensureLayerCheckboxes(){
+    const toggles=document.querySelector('.toggles'); if(!toggles) return;
+    const placeAfter=$('toggleTopologyCentroids')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || toggles.lastElementChild;
+    if(!$('toggleAdvancedConnectivityEdges')){
+      const lab=document.createElement('label'); lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности'; placeAfter?.after(lab);
+    }
+    if(!$('toggleAdvancedConnectivityNodes')){
+      const lab=document.createElement('label'); lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки'; ($('toggleAdvancedConnectivityEdges')?.closest('label')||placeAfter)?.after(lab);
+    }
+  }
+  function getEdgeLayer(){
+    if(!state.map) return null;
+    const container=state.map.getContainer?.(); if(!container) return null;
+    let layer=state._advancedConnectivityEdgeSvgLayerV133 || container.querySelector('#'+EDGE_SVG_LAYER_ID);
+    if(!layer){
+      layer=document.createElement('div'); layer.id=EDGE_SVG_LAYER_ID; layer.className='advanced-connectivity-edge-svg-layer-v133';
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.id=EDGE_SVG_ID; svg.classList.add('advanced-connectivity-edge-svg-v133'); layer.appendChild(svg);
+      container.appendChild(layer);
+    }
+    state._advancedConnectivityEdgeSvgLayerV133=layer;
+    return layer;
+  }
+  function clearEdges(){
+    const layer=state._advancedConnectivityEdgeSvgLayerV133 || document.getElementById(EDGE_SVG_LAYER_ID);
+    const svg=layer?.querySelector('svg'); if(svg) svg.replaceChildren();
+    state._advancedConnectivityEdgeItemsV133=[];
+    state.layers.advancedConnectivityEdges={__domSvgLayer:true, getLayers:()=>state._advancedConnectivityEdgeItemsV133||[], bringToFront:()=>{ if(layer) layer.style.zIndex=905; }};
+    // Remove earlier Leaflet advanced-edge layers if they were created by v131/v132.
+    try{ clearLayer('advancedConnectivityEdges'); }catch(_){ }
+    try{ clearLayer('advancedConnectivityEdgesV132'); }catch(_){ }
+  }
+  function edgeStyleParts(f){
+    const p=f.properties||{}; const k=p.adv_edge_class || 'normal_contact'; const s=EDGE[k]||EDGE.normal_contact;
+    const strength=Number(p.adv_strength)||0;
+    const w=(s.weight||2.4)+Math.min(2.2, Math.max(0,strength/18));
+    return {key:k, color:s.color, label:s.label, weight:k==='blocked_highland'?(s.weight||3.4):w, dash:s.dash||''};
+  }
+  function makeLine(tagClass, style, feature, isHalo=false){
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.classList.add(tagClass);
+    line.setAttribute('stroke', isHalo ? '#fff8e6' : style.color);
+    line.setAttribute('stroke-width', isHalo ? String((style.weight||2)+6.2) : String(style.weight||2.4));
+    line.setAttribute('stroke-linecap','round');
+    line.setAttribute('stroke-linejoin','round');
+    line.setAttribute('fill','none');
+    line.setAttribute('opacity', isHalo ? '.62' : '.96');
+    if(!isHalo && style.dash) line.setAttribute('stroke-dasharray', style.dash);
+    if(!isHalo){
+      line.setAttribute('pointer-events','stroke');
+      const p=feature.properties||{};
+      line.addEventListener('mouseover', ev=>showHoverLater({
+        title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`,
+        subtitle:'ребро потенциальной связности · SVG-слой v133',
+        extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · impedance: ${fnum(p.adv_impedance)} · сила: ${fnum(p.adv_strength)} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
+        delay:70
+      }, ev));
+      line.addEventListener('mousemove', ev=>moveHover(ev));
+      line.addEventListener('mouseout', hideHover);
+    }
+    return line;
+  }
+  function positionEdges(){
+    const layer=state._advancedConnectivityEdgeSvgLayerV133 || document.getElementById(EDGE_SVG_LAYER_ID);
+    if(!layer || !state.map) return;
+    layer.style.display=edgesOn()?'block':'none';
+    if(!edgesOn()) return;
+    const svg=layer.querySelector('svg');
+    const rect=state.map.getContainer().getBoundingClientRect();
+    if(svg){ svg.setAttribute('width', String(Math.max(1, rect.width))); svg.setAttribute('height', String(Math.max(1, rect.height))); svg.setAttribute('viewBox', `0 0 ${Math.max(1, rect.width)} ${Math.max(1, rect.height)}`); }
+    (state._advancedConnectivityEdgeItemsV133||[]).forEach(item=>{
+      const a=state.map.latLngToContainerPoint(item.a), b=state.map.latLngToContainerPoint(item.b);
+      [item.halo,item.line].forEach(el=>{ el.setAttribute('x1',a.x.toFixed(1)); el.setAttribute('y1',a.y.toFixed(1)); el.setAttribute('x2',b.x.toFixed(1)); el.setAttribute('y2',b.y.toFixed(1)); });
+    });
+  }
+  function ensureEdgeEvents(){
+    if(!state.map || state._advancedConnectivityEdgeEventsV133) return;
+    state._advancedConnectivityEdgeEventsV133=true;
+    const schedule=()=>{ cancelAnimationFrame(state._advancedConnectivityEdgeRafV133); state._advancedConnectivityEdgeRafV133=requestAnimationFrame(positionEdges); };
+    state.map.on('move zoom zoomend moveend viewreset resize', schedule);
+    window.addEventListener('resize', schedule, {passive:true});
+  }
+  async function renderEdges(){
+    const token=(state._advancedConnectivityEdgeTokenV133||0)+1; state._advancedConnectivityEdgeTokenV133=token;
+    ensureLayerCheckboxes(); ensureModeOptions();
+    const layer=getEdgeLayer(); clearEdges();
+    if(!layer || !state.map || !state.currentGeoJSON || !edgesOn()){
+      if(layer) layer.style.display='none';
+      state.advancedConnectivityStats={year:state.year, ...EDGE_STATS_EMPTY};
+      try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
+      return;
+    }
+    ensureEdgeEvents(); layer.style.display='block'; layer.style.zIndex=905;
+    const ids=allowedIds();
+    if(!ids.size){ positionEdges(); return; }
+    const raw=await loadEdges(state.year);
+    if(token!==state._advancedConnectivityEdgeTokenV133) return;
+    const feats=(raw.features||[]).filter(e=>ids.has(edgeSourceId(e)) && ids.has(edgeTargetId(e)) && edgeCoords(e));
+    const counts=feats.reduce((a,e)=>{ const k=e.properties?.adv_edge_class||'normal_contact'; a[k]=(a[k]||0)+1; return a; },{});
+    const svg=layer.querySelector('svg'); if(!svg) return;
+    const items=[];
+    feats.forEach(f=>{
+      const coords=edgeCoords(f); if(!coords) return;
+      const st=edgeStyleParts(f);
+      const halo=makeLine('advanced-connectivity-edge-halo-v133', st, f, true);
+      const line=makeLine('advanced-connectivity-edge-line-v133', st, f, false);
+      svg.appendChild(halo); svg.appendChild(line);
+      items.push({a:coords.a,b:coords.b,halo,line,feature:f,style:st});
+    });
+    state._advancedConnectivityEdgeItemsV133=items;
+    const prev=state.advancedConnectivityStats||{};
+    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v133'};
+    positionEdges();
+    try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
+  }
+  function scheduleEdges(delay=35){ clearTimeout(state._advancedConnectivityEdgeTimerV133); state._advancedConnectivityEdgeTimerV133=setTimeout(()=>renderEdges().catch(e=>console.warn('v133 advanced connectivity edges failed', e)), delay); }
+  function bindControls(){
+    ensureLayerCheckboxes(); ensureModeOptions();
+    const edge=$('toggleAdvancedConnectivityEdges');
+    if(edge && edge.dataset.v133AdvEdgeBound!=='1'){
+      edge.dataset.v133AdvEdgeBound='1'; edge.addEventListener('change',()=>{ scheduleEdges(0); setTimeout(()=>scheduleEdges(0),260); }, false);
+    }
+    const nodes=$('toggleAdvancedConnectivityNodes');
+    if(nodes && nodes.dataset.v133AdvNodeBound!=='1'){
+      nodes.dataset.v133AdvNodeBound='1'; nodes.addEventListener('change',()=>{ setTimeout(()=>{ try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } },80); }, false);
+    }
+    const mode=$('modeSelect');
+    if(mode && mode.dataset.v133AdvModeBound!=='1'){
+      mode.dataset.v133AdvModeBound='1'; mode.addEventListener('change',()=>{ scheduleEdges(60); }, false);
+    }
+  }
+
+  // Choropleth hooks: make the potential-connectivity metrics first-class map modes.
+  const priorValField=typeof valField==='function' ? valField : null;
+  if(priorValField){ valField=function valFieldV133(){ return isAdvMode() ? state.mode : priorValField(); }; }
+  try{ Object.keys(METRICS).forEach(m=>v67SequentialModes.add(m)); }catch(_){ }
+  if(typeof v67ChoroplethTitle==='function'){
+    const priorTitle=v67ChoroplethTitle;
+    v67ChoroplethTitle=function v67ChoroplethTitleV133(){ return isAdvMode() ? (METRICS[state.mode]||state.mode) : priorTitle(); };
+  }
+  if(typeof v98LegendAdminHtml==='function'){
+    const priorAdminLegend=v98LegendAdminHtml;
+    v98LegendAdminHtml=function v98LegendAdminHtmlV133(features, vals){
+      if(!isAdvMode()) return priorAdminLegend(features, vals);
+      let html=`<div class="legend-section">${escapeHtml(METRICS[state.mode]||state.mode)}</div>`;
+      const desc=(typeof v67ClassDescriptor==='function') ? v67ClassDescriptor(vals||[], state.mode) : null;
+      if(desc && typeof v67ColorFromClass==='function'){
+        const count=desc.thresholds.length+1;
+        desc.labels.forEach((label,i)=>{ html+=`<div class="legend-row legend-row-class-v67"><span class="swatch" style="background:${v67ColorFromClass(i,count)}"></span><span>${escapeHtml(label)}</span></div>`; });
+      }else{
+        activeValueRamp().forEach((c,i,arr)=>{ html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
+      }
+      html+='<div class="mini-muted legend-scale-note-v67">Заливка АТЕ по метрикам продвинутого графа потенциальной связности.</div>';
+      return html;
+    };
+  }
+  if(typeof adminStyle==='function'){
+    const priorAdminStyle=adminStyle;
+    adminStyle=function adminStyleV133(feature, vals){
+      const base=priorAdminStyle(feature, vals);
+      if(isAdvMode()){
+        const n=Number(feature?.properties?.[state.mode]);
+        if(Number.isFinite(n)){ base.fillColor=valueColor(n, vals||[]); base.fillOpacity=Math.max(base.fillOpacity||0.55,.68); }
+        else { base.fillColor='#d7d1c8'; base.fillOpacity=.24; base.dashArray=base.dashArray||'4 5'; }
+      }
+      return base;
+    };
+  }
+  function advLegendHtml(exportMode=false){
+    const showEdges=exportMode ? !!ensureExportFlags().showAdvancedConnectivityEdges : edgesOn();
+    const showNodes=exportMode ? !!ensureExportFlags().showAdvancedConnectivityNodes : nodesOn();
+    if(!showEdges && !showNodes) return '';
+    const stats=(state.advancedConnectivityStats && state.advancedConnectivityStats.year===state.year) ? state.advancedConnectivityStats : EDGE_STATS_EMPTY;
+    let html='';
+    if(showEdges){
+      html+='<hr><div class="legend-section">Продвинутый граф: рёбра потенциальной связности</div>';
+      Object.entries(EDGE).forEach(([k,s])=>{
+        const c=stats.counts?.[k]||0;
+        if(exportMode || c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span>${!exportMode?`<b>${num(c)}</b>`:''}</div>`;
+      });
+      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Отрисовка: SVG-слой v133.</div>`;
+    }
+    if(showNodes){
+      html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
+      html+=`<div class="legend-row"><span class="advanced-node-legend-v132"></span><span>цвет/размер = ${escapeHtml(SHORT[metric()]||metric())}</span>${!exportMode?`<b>${num(stats.nodes||0)}</b>`:''}</div>`;
+    }
+    html+='<div class="mini-muted legend-scale-note-v67">Эвристическая модель потенциальной связности: транспортные коридоры усиливают связи, природные барьеры ослабляют или снимают часть рёбер.</div>';
+    return html;
+  }
+  if(typeof v98BuildLegendHtml==='function'){
+    const priorBuild=v98BuildLegendHtml;
+    v98BuildLegendHtml=function v98BuildLegendHtmlV133(options={}){
+      let html=priorBuild(options);
+      const idx=html.indexOf('<hr><div class="legend-section">Продвинутый граф:');
+      if(idx>=0) html=html.slice(0,idx);
+      html+=advLegendHtml(!!options.exportMode);
+      return html;
+    };
+  }
+
+  // Export controls and export map rendering for advanced connectivity layers.
+  const priorEnsureExportFlags=typeof ensureExportFlags==='function' ? ensureExportFlags : null;
+  ensureExportFlags=function ensureExportFlagsV133(){
+    const ex=priorEnsureExportFlags ? priorEnsureExportFlags() : (state.export || (state.export={}));
+    if(typeof ex.showAdvancedConnectivityEdges !== 'boolean') ex.showAdvancedConnectivityEdges=edgesOn();
+    if(typeof ex.showAdvancedConnectivityNodes !== 'boolean') ex.showAdvancedConnectivityNodes=nodesOn();
+    if(!ex.legendItems || typeof ex.legendItems!=='object') ex.legendItems={};
+    if(typeof ex.legendItems.advancedConnectivityEdges !== 'boolean') ex.legendItems.advancedConnectivityEdges=!!ex.showAdvancedConnectivityEdges;
+    if(typeof ex.legendItems.advancedConnectivityNodes !== 'boolean') ex.legendItems.advancedConnectivityNodes=!!ex.showAdvancedConnectivityNodes;
+    return ex;
+  };
+  function installExportControls(modal){
+    if(!modal) return;
+    const grid=modal.querySelector('.export-layer-grid, .export-layer-grid-v50, .export-layer-grid-v49, .export-option-grid');
+    if(grid && !$('exportShowAdvancedConnectivityEdges')){
+      grid.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="exportShowAdvancedConnectivityEdges"> Рёбра потенциальной связности</label>');
+    }
+    if(grid && !$('exportShowAdvancedConnectivityNodes')){
+      grid.insertAdjacentHTML('beforeend','<label><input type="checkbox" id="exportShowAdvancedConnectivityNodes"> Узлы потенциальной связности</label>');
+    }
+    [['exportShowAdvancedConnectivityEdges','showAdvancedConnectivityEdges','advancedConnectivityEdges'],['exportShowAdvancedConnectivityNodes','showAdvancedConnectivityNodes','advancedConnectivityNodes']].forEach(([id,flag,legendKey])=>{
+      const el=$(id); if(!el || el.dataset.v133ExportBound==='1') return;
+      el.dataset.v133ExportBound='1';
+      el.addEventListener('change',e=>{ const ex=ensureExportFlags(); ex[flag]=!!e.target.checked; if(ex.legendItems) ex.legendItems[legendKey]=!!e.target.checked; try{ v68FullSvgCache?.clear?.(); }catch(_){ } renderExportPreviewCard(); });
+    });
+  }
+  const priorEnsureExportModal=typeof ensureExportModal==='function' ? ensureExportModal : null;
+  if(priorEnsureExportModal){
+    ensureExportModal=function ensureExportModalV133(){ const modal=priorEnsureExportModal(); installExportControls(modal); return modal; };
+  }
+  const priorSyncExportDefaults=typeof syncExportDefaults==='function' ? syncExportDefaults : null;
+  if(priorSyncExportDefaults){
+    syncExportDefaults=function syncExportDefaultsV133(resetTitle=true){
+      priorSyncExportDefaults(resetTitle);
+      const ex=ensureExportFlags();
+      if($('exportShowAdvancedConnectivityEdges')) $('exportShowAdvancedConnectivityEdges').checked=!!ex.showAdvancedConnectivityEdges;
+      if($('exportShowAdvancedConnectivityNodes')) $('exportShowAdvancedConnectivityNodes').checked=!!ex.showAdvancedConnectivityNodes;
+    };
+  }
+  const priorOpenExport=typeof openExportMode==='function' ? openExportMode : null;
+  if(priorOpenExport){
+    openExportMode=async function openExportModeV133(){
+      const ex=ensureExportFlags();
+      ex.showAdvancedConnectivityEdges=edgesOn();
+      ex.showAdvancedConnectivityNodes=nodesOn();
+      if(ex.legendItems){ ex.legendItems.advancedConnectivityEdges=!!ex.showAdvancedConnectivityEdges; ex.legendItems.advancedConnectivityNodes=!!ex.showAdvancedConnectivityNodes; }
+      return await priorOpenExport();
+    };
+  }
+  async function addAdvancedConnectivityToExportMap(map, features){
+    const ex=ensureExportFlags();
+    if(!map || (!ex.showAdvancedConnectivityEdges && !ex.showAdvancedConnectivityNodes)) return;
+    const ids=new Set((features||[]).flatMap(featIds));
+    if(!ids.size) return;
+    if(ex.showAdvancedConnectivityEdges){
+      try{
+        const raw=await loadEdges(state.year);
+        const feats=(raw.features||[]).filter(e=>ids.has(edgeSourceId(e)) && ids.has(edgeTargetId(e)) && edgeCoords(e));
+        const halo=L.geoJSON({type:'FeatureCollection',features:feats},{interactive:false, style:f=>({color:'#fff8e6',weight:(edgeStyleParts(f).weight||2)+5.8,opacity:.58,lineCap:'round',lineJoin:'round'})});
+        const fg=L.geoJSON({type:'FeatureCollection',features:feats},{interactive:false, style:f=>{ const st=edgeStyleParts(f); return {color:st.color,weight:st.weight,opacity:.96,dashArray:st.dash,lineCap:'round',lineJoin:'round'}; }});
+        halo.addTo(map); fg.addTo(map);
+      }catch(e){ console.warn('v133 export advanced edges skipped', e); }
+    }
+    if(ex.showAdvancedConnectivityNodes){
+      try{
+        const raw=await loadNodes(state.year);
+        const feats=(raw.features||[]).filter(f=>ids.has(clean(f.properties?.unit_id || f.properties?.topology_node_id || f.properties?.node_id)) && f.geometry?.type==='Point');
+        const vals=feats.map(f=>Number(f.properties?.[metric()])).filter(Number.isFinite);
+        L.geoJSON({type:'FeatureCollection',features:feats},{interactive:false, pointToLayer:(f,latlng)=>{
+          const p=f.properties||{}; const v=Number(p[metric()]); const base=Number(p.adv_weighted_degree)||Number(p.adv_degree)||1; const r=Math.max(3.8,Math.min(8.5,3.8+Math.sqrt(Math.max(0,base))*0.85));
+          let fill='#f6c85f'; try{ fill=valueColor(Number.isFinite(v)?v:0, vals); }catch(_){ }
+          return L.circleMarker(latlng,{radius:r,color:'#111827',weight:1.1,fillColor:fill,fillOpacity:.94,opacity:1});
+        }}).addTo(map);
+      }catch(e){ console.warn('v133 export advanced nodes skipped', e); }
+    }
+  }
+  const priorAddExport=typeof addExportVectorLayers==='function' ? addExportVectorLayers : null;
+  if(priorAddExport){
+    addExportVectorLayers=async function addExportVectorLayersV133(map, features){
+      await priorAddExport(map, features);
+      await addAdvancedConnectivityToExportMap(map, features);
+    };
+  }
+
+  const priorRefreshAll=typeof refreshAll==='function' ? refreshAll : null;
+  if(priorRefreshAll){ refreshAll=async function refreshAllV133(){ const r=await priorRefreshAll.apply(this,arguments); scheduleEdges(80); return r; }; }
+  const priorRefreshVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
+  if(priorRefreshVisibility){ refreshVisibility=function refreshVisibilityV133(){ const r=priorRefreshVisibility.apply(this,arguments); const layer=getEdgeLayer(); if(layer) layer.style.display=edgesOn()?'block':'none'; positionEdges(); return r; }; }
+  const priorUpdateStats=typeof updateStatsAndSelection==='function' ? updateStatsAndSelection : null;
+  if(priorUpdateStats){ updateStatsAndSelection=function updateStatsAndSelectionV133(){ priorUpdateStats.apply(this,arguments); scheduleEdges(70); }; }
+  const priorBind=typeof bindUi==='function' ? bindUi : null;
+  if(priorBind){ bindUi=function bindUiV133(){ const r=priorBind.apply(this,arguments); bindControls(); return r; }; }
+  const boot=()=>{ try{ bindControls(); scheduleEdges(900); }catch(e){ console.warn('v133 advanced connectivity boot failed', e); } };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,250);
 })();

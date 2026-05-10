@@ -3393,3 +3393,27 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
   margin-right:8px;
   vertical-align:middle;
 }
+
+/* v133: guaranteed-visible SVG overlay for advanced connectivity edges */
+.advanced-connectivity-edge-svg-layer-v133{
+  position:absolute;
+  inset:0;
+  z-index:905;
+  pointer-events:none;
+  overflow:hidden;
+}
+.advanced-connectivity-edge-svg-v133{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  overflow:visible;
+  pointer-events:none;
+}
+.advanced-connectivity-edge-line-v133{
+  pointer-events:stroke;
+  filter:drop-shadow(0 1px 1.2px rgba(0,0,0,.26));
+}
+.advanced-connectivity-edge-halo-v133{
+  pointer-events:none;
+}

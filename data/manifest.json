@@ -391,7 +391,7 @@
     "v107: для слоёв 1745/1765 Екатеринбургский объект переатрибутирован как Екатеринбургское ведомство в составе Тобольской провинции, исключён из сопоставимой статистики/динамики; Исетская провинция 1765 исключена как внешний контекст. Пересчитаны графовые и картометрические метрики динамики.",
     "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки."
   ],
-  "app_version": "132",
+  "app_version": "133",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -427,8 +427,12 @@
     },
     "v130: advanced connectivity graph split into independent edge/node layers; advanced metrics joined to admin layers for map modes.",
     "v131: advanced connectivity controls moved into ordinary layer checkbox list; separate advanced mini-panel removed; railway lengths recalculated geodesically after clipping to avoid Web Mercator inflation.",
-    "v132: advanced connectivity graph rebuilt with ordinary-layer logic: separate edge layer + DOM node overlay, robust refresh after filters/selection/year changes; advanced legend rebuilt for map/export; railway length attributes remain geodesic v131/v132 and aggregate dynamically from attributes for current selections."
+    "v132: advanced connectivity graph rebuilt with ordinary-layer logic: separate edge layer + DOM node overlay, robust refresh after filters/selection/year changes; advanced legend rebuilt for map/export; railway length attributes remain geodesic v131/v132 and aggregate dynamically from attributes for current selections.",
+    {
+      "version": "v133",
+      "note": "Advanced connectivity edges redrawn as DOM/SVG overlay; export checkboxes for potential connectivity nodes/edges; advanced metrics grouped as separate map modes."
+    }
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v132"
+  "version": "v133"
 }
