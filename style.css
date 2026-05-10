@@ -3336,5 +3336,18 @@ body.dark .boundary-chart-legend-item{background:rgba(255,255,255,.06)}
 .boundary-charts-body{padding:14px 22px 20px;overflow:auto}.boundary-chart-panel{margin:0 0 18px;padding:14px;border-radius:18px;background:rgba(255,255,255,.64);border:1px solid rgba(112,90,60,.13)}body.dark .boundary-chart-panel{background:rgba(255,255,255,.045);border-color:rgba(255,245,210,.10)}.boundary-chart-panel h3{margin:0 0 8px;font-size:16px}
 .boundary-chart-scroll{overflow-x:auto;overflow-y:hidden;padding-bottom:4px}.boundary-chart-svg{width:100%;min-width:940px;height:auto;display:block}.boundary-chart-grid{stroke:rgba(74,62,46,.22);stroke-width:.8;stroke-dasharray:3 5}.boundary-chart-axis{stroke:rgba(62,51,37,.55);stroke-width:1.1}.boundary-chart-axis-label,.boundary-chart-year,.boundary-chart-axis-title{fill:#5f5548;font-size:11px}.boundary-chart-axis-title{font-size:12px;font-weight:700}body.dark .boundary-chart-grid{stroke:rgba(230,220,200,.18)}body.dark .boundary-chart-axis{stroke:rgba(230,220,200,.46)}body.dark .boundary-chart-axis-label,body.dark .boundary-chart-year,body.dark .boundary-chart-axis-title{fill:#d9cfbd}
 .boundary-chart-svg rect[data-nbtip]{cursor:crosshair;transition:opacity .12s}.boundary-chart-svg rect[data-nbtip]:hover{opacity:.78}
-.boundary-charts-tooltip{position:fixed;z-index:6000;max-width:250px;white-space:pre-line;padding:9px 10px;border-radius:12px;background:#201b15;color:#fff4dd;font-size:12px;line-height:1.35;box-shadow:0 10px 28px rgba(0,0,0,.32);pointer-events:none}.boundary-charts-tooltip[hidden]{display:none}
 @media(max-width:900px){.boundary-charts-shell{width:96vw;max-height:92vh}.boundary-charts-head{padding:14px}.boundary-charts-body{padding:12px}.boundary-charts-legend{padding:6px 14px 12px}.boundary-charts-note{margin-left:14px;margin-right:14px}}
+
+/* v128 boundary-factor chart controls and line-layer legends */
+.boundary-charts-controls-v128{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 22px 6px;border-bottom:1px solid rgba(100,82,58,.10)}
+.boundary-charts-controls-v128 label{font-weight:700;font-size:13px;color:#5a4b38}.boundary-charts-controls-v128 select{border:1px solid rgba(90,74,50,.24);border-radius:10px;padding:6px 9px;background:#fffaf0;color:#2d261b;max-width:260px}
+body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3;border-color:rgba(255,245,210,.18)}body.dark .boundary-charts-controls-v128 label{color:#dbcdae}
+.boundary-charts-actions button.active,.boundary-charts-actions button[aria-pressed="true"]{background:#32271a;color:#fff4df;border-color:#32271a}body.dark .boundary-charts-actions button.active,body.dark .boundary-charts-actions button[aria-pressed="true"]{background:#f0dfbd;color:#171b20;border-color:#f0dfbd}
+.legend-line-v128{display:inline-block;width:28px;margin-right:7px;border-top-width:4px;vertical-align:middle;border-radius:4px}.export-legend-wrap .legend-line-v128{width:26px}
+
+/* v129 advanced connectivity graph */
+.advanced-connectivity-controls-v129{margin-top:10px;padding:10px 10px;border:1px solid rgba(120,95,55,.20);border-radius:14px;background:rgba(255,250,238,.55)}
+.advanced-connectivity-toggle-v129 span{display:flex;gap:6px;align-items:center;font-weight:700;color:#3b3228}
+.advanced-edge-legend-v129{display:inline-block;width:34px;border-top:4px solid #777;border-radius:999px;margin-right:7px;vertical-align:middle}
+.advanced-node-legend-v129{display:inline-block;width:12px;height:12px;border-radius:999px;background:linear-gradient(135deg,#f7c948,#2b6cb0);border:1px solid #111827;margin-right:7px;vertical-align:middle}
+.advanced-connectivity-edge-v129{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18))}
