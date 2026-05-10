@@ -1,4 +1,4 @@
-const APP_VERSION = '130';
+const APP_VERSION = '131';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -1256,7 +1256,7 @@ function updateStats(features){
   const avgDensity=avg(baseAte.map(f=>Number(f.properties.density)));
   const avgRail=avg(baseAte.map(f=>Number(f.properties.rail_length_km)));
   const avgRailD=avg(baseAte.map(f=>Number(f.properties.rail_density_km_1000)));
-  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское население</span><b>${num(urbanTotal)}</b></div><div class="metric-line"><span>сельское население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v131</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const left=$('statsBox'); if(left) left.innerHTML=html;
   const right=$('rightStatsBox'); if(right) right.innerHTML=html;
   updateGroupAnalytics(features);
@@ -5073,7 +5073,7 @@ function updateStats(features){
   const avgRail=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_length_km)||0))/baseAte.length:0;
   const avgRailD=baseAte.length?sum(baseAte.map(f=>Number(f.properties.rail_density_km_1000)||0))/baseAte.length:0;
   const extraUrban=(parts.strictCityTotal||parts.workerSettlementTotal)?`<div class="metric-line"><span>собственно города</span><b>${num(parts.strictCityTotal)}</b></div><div class="metric-line"><span>рабочие посёлки / ПГТ</span><b>${num(parts.workerSettlementTotal)}</b></div>`:'';
-  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
+  const html=`<div class="stats-scope ${all?'':'selected-scope'}">${all?'Показанный слой':'Выборка'} · ${state.year}</div><div class="stat-grid"><div class="stat"><div class="k">объектов</div><div class="v">${fmt.format(features.length)}</div></div><div class="stat"><div class="k">население</div><div class="v">${num(total)}</div></div><div class="stat"><div class="k">площадь, км²</div><div class="v">${num(area)}</div></div><div class="stat"><div class="k">плотность</div><div class="v">${density?density.toFixed(2).replace('.',','):'—'}</div><div class="sub">чел./км²</div></div></div><div class="analytics-block"><h3>Базовая статистика</h3><div class="metric-line"><span>городское / несельское население</span><b>${num(urbanTotal)}</b></div>${extraUrban}<div class="metric-line"><span>сельское / прочее население</span><b>${num(ruralTotal)}</b></div><div class="metric-line"><span>доля городского / несельского</span><b>${pct(urbanShare)}</b></div><div class="metric-line"><span>активных ЖД-сегментов</span><b>${num(railwayCount)}</b></div><div class="metric-line"><span>ЖД внутри АТЕ, км</span><b>${num(sum(rails))}</b><div class="sub">геодезическая длина v131</div></div></div><div class="analytics-block"><h3>Средние по АТЕ ≥ 700 км²</h3><div class="metric-line"><span>учтено АТЕ</span><b>${num(baseAte.length)}</b></div><div class="metric-line"><span>средняя площадь</span><b>${num(avgArea)} км²</b></div><div class="metric-line"><span>среднее население</span><b>${num(avgPop)}</b></div><div class="metric-line"><span>средняя плотность</span><b>${num1(avgDensity)}</b></div><div class="metric-line"><span>средняя длина ЖД</span><b>${num1(avgRail)} км</b></div><div class="metric-line"><span>средняя плотность ЖД</span><b>${num1(avgRailD)} км/1000 км²</b></div></div>`;
   const leftStats=$('statsBox'); if(leftStats) leftStats.innerHTML=html;
   const rightStats=$('rightStatsBox'); if(rightStats) rightStats.innerHTML=html;
   updateGroupAnalytics(features);
@@ -14809,8 +14809,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 })();
 
 
-/* v130: advanced connectivity graph as independent edge/node layers + map modes */
-(function v130AdvancedConnectivityGraph(){
+/* v131: advanced connectivity graph integrated into ordinary graph controls + map modes */
+(function v131AdvancedConnectivityGraph(){
   const EDGE = {
     rail_corridor:{label:'коридор: железная дорога', color:'#b45309', weight:4.2, dash:null},
     old_road_corridor:{label:'коридор: Сибирский тракт / исторические дороги', color:'#92400e', weight:3.8, dash:'9 4'},
@@ -14838,8 +14838,6 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function anythingOn(){ return edgesOn() || nodesOn(); }
   function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
   function metric(){
-    const sel=$('advancedConnectivityMetricSelect');
-    if(sel?.value) return sel.value;
     return isAdvMode() ? state.mode : 'adv_weighted_degree';
   }
   function fmt(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
@@ -14863,23 +14861,29 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   }
   function ensureControls(){
     ensureAdvancedModeOptions();
-    const panel=document.querySelector('.topology-layer-controls-v92') || document.querySelector('.toggles');
-    if(!panel) return;
-    let box=document.querySelector('.advanced-connectivity-controls-v129');
-    if(!box){ box=document.createElement('div'); box.className='advanced-connectivity-controls-v129'; panel.appendChild(box); }
-    if(box.dataset.v130Ready==='1') return;
-    box.dataset.v130Ready='1';
-    box.innerHTML=`<div class="topology-layer-title-v92">Продвинутый граф · коридоры и барьеры</div>
-      <label class="topology-inline-field-v92 advanced-connectivity-toggle-v129"><span><input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности</span></label>
-      <label class="topology-inline-field-v92 advanced-connectivity-toggle-v129"><span><input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки</span></label>
-      <label class="topology-inline-field-v92"><span>Метрика узлов</span><select id="advancedConnectivityMetricSelect">${Object.entries(SHORT_METRICS).map(([k,v])=>`<option value="${k}" ${k==='adv_weighted_degree'?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></label>
-      <div class="mini-muted">Рёбра и узлы теперь включаются раздельно, как в обычном графе смежности. Слой не зависит от режима заливки карты; выбранная метрика влияет на цвет и размер узлов.</div>`;
+    // v131: advanced connectivity is controlled like the ordinary topological graph:
+    // two top-level checkboxes in the main layer list + map modes in the common mode selector.
+    const old=document.querySelector('.advanced-connectivity-controls-v129');
+    if(old) old.remove();
+    const toggles=document.querySelector('.toggles');
+    if(toggles){
+      const anchor=$('toggleTopologyCentroids')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || toggles.lastElementChild;
+      if(!$('toggleAdvancedConnectivityEdges')){
+        const lab=document.createElement('label');
+        lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности';
+        anchor?.after(lab);
+      }
+      if(!$('toggleAdvancedConnectivityNodes')){
+        const lab=document.createElement('label');
+        lab.innerHTML='<input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки';
+        const e=$('toggleAdvancedConnectivityEdges')?.closest('label') || anchor;
+        e?.after(lab);
+      }
+    }
     ['toggleAdvancedConnectivityEdges','toggleAdvancedConnectivityNodes'].forEach(id=>{
-      $(id)?.addEventListener('change',()=>{ render(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
-    });
-    $('advancedConnectivityMetricSelect')?.addEventListener('change',()=>{
-      render();
-      updateLegend(state.currentGeoJSON,state._lastVals||[]);
+      const el=$(id); if(!el || el.dataset.v131AdvancedBound==='1') return;
+      el.dataset.v131AdvancedBound='1';
+      el.addEventListener('change',()=>{ render(); refreshVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }, true);
     });
   }
   async function loadEdges(year){ const p=state.manifest?.layers?.connectivity_edges?.[String(year)]; return p ? await loadJson(p) : {type:'FeatureCollection',features:[]}; }
@@ -14983,7 +14987,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const p=f?.properties||{}; const box=$('featureInfo');
     if(!box || p.adv_degree==null) return;
     const rows=['adv_degree','adv_weighted_degree','adv_betweenness','adv_closeness','adv_k_core','adv_corridor_edges_incident','adv_barrier_edges_incident','adv_blocked_edges_incident'];
-    box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v130"><h3>Потенциальная связность · v130</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT_METRICS[k]||k)}</span><b>${fmt(p[k])}</b></div>`).join('')}<div class="mini-muted">Эти метрики рассчитаны по продвинутому графу коридоров и барьеров; базовая геометрическая смежность сохранена отдельно.</div></div>`);
+    box.insertAdjacentHTML('beforeend', `<div class="analytics-block advanced-connectivity-object-v130"><h3>Потенциальная связность · v131</h3>${rows.map(k=>`<div class="info-row"><span>${escapeHtml(SHORT_METRICS[k]||k)}</span><b>${fmt(p[k])}</b></div>`).join('')}<div class="mini-muted">Эти метрики рассчитаны по продвинутому графу коридоров и барьеров; базовая геометрическая смежность сохранена отдельно.</div></div>`);
   };
   function advancedLegendHtml(exportMode=false){
     const stats=(state.advancedConnectivityStats && state.advancedConnectivityStats.year===state.year) ? state.advancedConnectivityStats : {counts:{},total:0,nodes:0};
