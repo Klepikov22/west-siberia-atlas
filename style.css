@@ -3417,3 +3417,23 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
 .advanced-connectivity-edge-halo-v133{
   pointer-events:none;
 }
+
+
+/* v136: advanced connectivity edge filters */
+.advanced-connectivity-filter-panel-v136{
+  grid-column:1 / -1;
+  margin:4px 0 8px;
+  padding:9px 10px;
+  border:1px solid rgba(120,95,55,.20);
+  border-radius:13px;
+  background:rgba(255,250,238,.55);
+  display:grid;
+  gap:7px;
+}
+.advanced-filter-row-v136{display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;font-weight:700;color:var(--text)}
+.advanced-filter-row-v136 select{min-width:0;width:100%;padding:6px 8px;border-radius:9px;border:1px solid rgba(90,74,50,.24);background:#fffaf0;color:#2d261b}
+.advanced-filter-row-v136 input[type=range]{width:100%;min-width:0}.advanced-filter-row-v136 b{font-variant-numeric:tabular-nums;color:#6b4b22}
+.advanced-filter-check-v136{display:flex!important;align-items:center;gap:7px;font-size:12px;font-weight:750;color:var(--text);padding:4px 0!important;border:0!important;background:transparent!important;min-height:0!important}
+#advFilterStatusV136{font-size:11px;line-height:1.25}
+body.dark .advanced-connectivity-filter-panel-v136{background:rgba(20,24,30,.40);border-color:rgba(255,245,210,.16)}
+body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;border-color:rgba(255,245,210,.18)}
