@@ -1,4 +1,4 @@
-const APP_VERSION = '136';
+const APP_VERSION = '137';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15399,7 +15399,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const APP_ADV_VERSION='v136';
   const EDGE_SVG_LAYER_ID='advancedConnectivityEdgeSvgLayerV133';
   const EDGE_SVG_ID='advancedConnectivityEdgeSvgV133';
-  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v136'};
+  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v137'};
   const METRICS={
     adv_degree:'Потенциальная связность · проходимые соседи',
     adv_weighted_degree:'Потенциальная связность · взвешенная связность',
@@ -15410,21 +15410,34 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     adv_barrier_edges_incident:'Потенциальная связность · связи-барьеры',
     adv_blocked_edges_incident:'Потенциальная связность · снятые барьером связи',
     adv_wetland_blocked_edges_incident:'Потенциальная связность · снятые болотами связи',
-    adv_main_watershed_edges_incident:'Потенциальная связность · связи через главные водоразделы'
+    adv_main_watershed_edges_incident:'Потенциальная связность · связи через главные водоразделы',
+    adv_rail_edges_incident:'Потенциальная связность · ЖД-компонента',
+    adv_old_road_edges_incident:'Потенциальная связность · трактовая / дорожная компонента',
+    adv_navigable_river_edges_incident:'Потенциальная связность · речная судоходная компонента',
+    adv_wetland_impedance_edges_incident:'Потенциальная связность · болотный импеданс',
+    adv_relief_impedance_edges_incident:'Потенциальная связность · рельефный импеданс',
+    adv_watershed_impedance_edges_incident:'Потенциальная связность · водораздельный импеданс',
+    adv_avg_edge_strength_incident:'Потенциальная связность · средняя сила рёбер',
+    adv_avg_edge_impedance_incident:'Потенциальная связность · средний импеданс рёбер'
   };
   const SHORT=Object.fromEntries(Object.entries(METRICS).map(([k,v])=>[k,v.replace(/^Потенциальная связность ·\s*/, '')]));
   const ADV_MODES=new Set(Object.keys(METRICS));
   const EDGE={
-    rail_corridor:{label:'коридор: железная дорога', color:'#b45309', weight:4.4, dash:''},
-    old_road_corridor:{label:'коридор: Сибирский тракт / исторические дороги', color:'#92400e', weight:4.1, dash:'10 5'},
-    navigable_river_corridor:{label:'коридор: судоходная река', color:'#0e7490', weight:4.0, dash:''},
-    mixed_corridor:{label:'смешанный транспортный коридор', color:'#7c2d12', weight:4.8, dash:''},
-    normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.4, dash:'3 7'},
-    minor_river_barrier:{label:'барьер: несудоходная река', color:'#1d4ed8', weight:2.8, dash:'2 6'},
-    main_watershed_barrier:{label:'барьер: главный водораздел', color:'#be123c', weight:3.0, dash:'12 4'},
-    highland_barrier:{label:'барьер: рельеф >400 м', color:'#991b1b', weight:3.2, dash:'8 5'},
-    blocked_highland:{label:'снято: рельеф >400 м без коридора', color:'#7f1d1d', weight:3.4, dash:'2 5'},
-    blocked_wetland:{label:'снято: болотный массив / заболоченный разрыв', color:'#365314', weight:3.4, dash:'1 5'}
+    mixed_corridor:{label:'смешанный коридор', color:'#7c2d12', weight:5.0, dash:''},
+    mixed_corridor_impedance:{label:'смешанный коридор + импеданс', color:'#9f1239', weight:5.0, dash:'12 4'},
+    rail_corridor:{label:'ЖД-коридор', color:'#b45309', weight:4.7, dash:''},
+    rail_with_impedance:{label:'ЖД-коридор + природный импеданс', color:'#b45309', weight:4.5, dash:'12 4'},
+    old_road_corridor:{label:'Сибирский тракт / историческая дорога', color:'#92400e', weight:4.3, dash:'10 5'},
+    old_road_with_impedance:{label:'тракт / дорога + природный импеданс', color:'#92400e', weight:4.1, dash:'8 4 2 4'},
+    navigable_river_corridor:{label:'судоходная речная связь', color:'#0e7490', weight:4.2, dash:''},
+    navigable_river_with_impedance:{label:'судоходная река + природный импеданс', color:'#0e7490', weight:4.0, dash:'12 4'},
+    normal_contact:{label:'обычное соседство', color:'#64748b', weight:2.35, dash:'3 7'},
+    normal_wetland_impedance:{label:'обычное соседство + болотный импеданс', color:'#4d7c0f', weight:3.0, dash:'1 5'},
+    normal_relief_impedance:{label:'обычное соседство + рельефный импеданс', color:'#991b1b', weight:3.1, dash:'8 5'},
+    normal_watershed_impedance:{label:'обычное соседство + главный водораздел', color:'#be123c', weight:3.0, dash:'12 4'},
+    normal_minor_river_impedance:{label:'обычное соседство + несудоходная река', color:'#1d4ed8', weight:2.8, dash:'2 6'},
+    normal_multiple_impedance:{label:'обычное соседство + несколько барьеров', color:'#312e81', weight:3.2, dash:'4 4'},
+    blocked_high_impedance:{label:'практически разорвано высоким импедансом', color:'#111827', weight:3.5, dash:'2 5'}
   };
   function clean(v){ return String(v ?? '').trim(); }
   function edgesOn(){ return $('toggleAdvancedConnectivityEdges')?.checked===true; }
@@ -15541,7 +15554,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     const p=f.properties||{}; const k=p.adv_edge_class || 'normal_contact'; const s=EDGE[k]||EDGE.normal_contact;
     const strength=Number(p.adv_strength)||0;
     const w=(s.weight||2.4)+Math.min(2.2, Math.max(0,strength/18));
-    return {key:k, color:s.color, label:s.label, weight:(k==='blocked_highland'||k==='blocked_wetland')?(s.weight||3.4):w, dash:s.dash||''};
+    return {key:k, color:s.color, label:s.label, weight:(k==='blocked_high_impedance'||k==='blocked_highland'||k==='blocked_wetland')?(s.weight||3.4):w, dash:s.dash||''};
   }
   function makeLine(tagClass, style, feature, isHalo=false){
     const line=document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -15558,8 +15571,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const p=feature.properties||{};
       line.addEventListener('mouseover', ev=>showHoverLater({
         title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`,
-        subtitle:'ребро потенциальной связности · SVG-слой v136',
-        extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · impedance: ${fnum(p.adv_impedance)} · сила: ${fnum(p.adv_strength)} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
+        subtitle:'ребро потенциальной связности · компонентная модель v137',
+        extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · сила: ${fnum(p.adv_strength)} · impedance: ${fnum(p.adv_impedance)} · коридоры: ${escapeHtml(p.adv_corridor_profile||'none')} · барьеры: ${escapeHtml(p.adv_barrier_profile||'none')} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
         delay:70
       }, ev));
       line.addEventListener('mousemove', ev=>moveHover(ev));
@@ -15616,7 +15629,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     });
     state._advancedConnectivityEdgeItemsV133=items;
     const prev=state.advancedConnectivityStats||{};
-    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v136'};
+    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v137'};
     positionEdges();
     try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
   }
@@ -15699,13 +15712,13 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
         const c=stats.counts?.[k]||0;
         if(exportMode || c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span>${!exportMode?`<b>${num(c)}</b>`:''}</div>`;
       });
-      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Отрисовка: SVG-слой v136. ${escapeHtml(advFilterLabel())}.</div>`;
+      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Компонентная модель v137. ${escapeHtml(advFilterLabel())}.</div>`;
     }
     if(showNodes){
       html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
       html+=`<div class="legend-row"><span class="advanced-node-legend-v132"></span><span>цвет/размер = ${escapeHtml(SHORT[metric()]||metric())}</span>${!exportMode?`<b>${num(stats.nodes||0)}</b>`:''}</div>`;
     }
-    html+='<div class="mini-muted legend-scale-note-v67">Эвристическая модель потенциальной связности: транспортные коридоры усиливают связи, природные барьеры ослабляют или снимают часть рёбер.</div>';
+    html+='<div class="mini-muted legend-scale-note-v67">Компонентная модель потенциальной связности: речная, дорожная и ЖД-компоненты усиливают связь; болотный, рельефный и водораздельный импеданс ослабляют её.</div>';
     return html;
   }
   if(typeof v98BuildLegendHtml==='function'){
