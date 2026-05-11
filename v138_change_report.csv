@@ -1,0 +1,11 @@
+change,details
+version,Updated project version to v138
+connectivity_model,"Potential-connectivity graph remains component-based, but corridor/barrier length now affects scores, impedance, strength and edge class"
+rail_length_component,"Added adv_rail_local_km and node-level adv_rail_local_km_incident; rail score is distance score multiplied by local-length factor"
+navigable_river_length_component,"Added adv_navigable_river_local_km and node-level adv_navigable_river_local_km_incident; navigable river score is length-weighted"
+road_length_component,"Added adv_old_road_local_km and node-level adv_old_road_local_km_incident"
+barrier_length_component,"Added adv_relief_barrier_km and adv_main_watershed_barrier_km; rельефный and водораздельный impedance now depend on local barrier expression"
+map_modes,"Added choropleth modes for local length of rail, road, navigable river, relief barrier and main watershed barrier incident to units"
+tooltip,"Advanced edge tooltip now shows local corridor/barrier lengths"
+method,"Updated connectivity_method_v138.json with length-weighted component method"
+checks,"node --check app.js OK; selected GeoJSON/JSON files parsed OK; ZIP verified"

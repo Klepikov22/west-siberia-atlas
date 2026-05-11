@@ -1,4 +1,4 @@
-const APP_VERSION = '137';
+const APP_VERSION = '138';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15399,7 +15399,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const APP_ADV_VERSION='v136';
   const EDGE_SVG_LAYER_ID='advancedConnectivityEdgeSvgLayerV133';
   const EDGE_SVG_ID='advancedConnectivityEdgeSvgV133';
-  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v137'};
+  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v138'};
   const METRICS={
     adv_degree:'Потенциальная связность · проходимые соседи',
     adv_weighted_degree:'Потенциальная связность · взвешенная связность',
@@ -15414,6 +15414,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     adv_rail_edges_incident:'Потенциальная связность · ЖД-компонента',
     adv_old_road_edges_incident:'Потенциальная связность · трактовая / дорожная компонента',
     adv_navigable_river_edges_incident:'Потенциальная связность · речная судоходная компонента',
+    adv_rail_local_km_incident:'Потенциальная связность · локальная длина ЖД-коридоров',
+    adv_old_road_local_km_incident:'Потенциальная связность · локальная длина трактов/дорог',
+    adv_navigable_river_local_km_incident:'Потенциальная связность · локальная длина судоходных рек',
+    adv_relief_barrier_km_incident:'Потенциальная связность · локальная длина рельефных барьеров',
+    adv_main_watershed_barrier_km_incident:'Потенциальная связность · локальная длина главных водоразделов',
     adv_wetland_impedance_edges_incident:'Потенциальная связность · болотный импеданс',
     adv_relief_impedance_edges_incident:'Потенциальная связность · рельефный импеданс',
     adv_watershed_impedance_edges_incident:'Потенциальная связность · водораздельный импеданс',
@@ -15571,8 +15576,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const p=feature.properties||{};
       line.addEventListener('mouseover', ev=>showHoverLater({
         title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`,
-        subtitle:'ребро потенциальной связности · компонентная модель v137',
-        extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · сила: ${fnum(p.adv_strength)} · impedance: ${fnum(p.adv_impedance)} · коридоры: ${escapeHtml(p.adv_corridor_profile||'none')} · барьеры: ${escapeHtml(p.adv_barrier_profile||'none')} · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
+        subtitle:'ребро потенциальной связности · компонентная модель v138',
+        extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · сила: ${fnum(p.adv_strength)} · impedance: ${fnum(p.adv_impedance)} · коридоры: ${escapeHtml(p.adv_corridor_profile||'none')} · длины: ЖД ${fnum(p.adv_rail_local_km)} км, тракт ${fnum(p.adv_old_road_local_km)} км, река ${fnum(p.adv_navigable_river_local_km)} км · барьеры: ${escapeHtml(p.adv_barrier_profile||'none')} · рельеф ${fnum(p.adv_relief_barrier_km)} км, водораздел ${fnum(p.adv_main_watershed_barrier_km)} км · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
         delay:70
       }, ev));
       line.addEventListener('mousemove', ev=>moveHover(ev));
@@ -15629,7 +15634,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     });
     state._advancedConnectivityEdgeItemsV133=items;
     const prev=state.advancedConnectivityStats||{};
-    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v137'};
+    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v138'};
     positionEdges();
     try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
   }
@@ -15712,13 +15717,13 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
         const c=stats.counts?.[k]||0;
         if(exportMode || c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span>${!exportMode?`<b>${num(c)}</b>`:''}</div>`;
       });
-      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Компонентная модель v137. ${escapeHtml(advFilterLabel())}.</div>`;
+      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Компонентная модель v138. ${escapeHtml(advFilterLabel())}.</div>`;
     }
     if(showNodes){
       html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
       html+=`<div class="legend-row"><span class="advanced-node-legend-v132"></span><span>цвет/размер = ${escapeHtml(SHORT[metric()]||metric())}</span>${!exportMode?`<b>${num(stats.nodes||0)}</b>`:''}</div>`;
     }
-    html+='<div class="mini-muted legend-scale-note-v67">Компонентная модель потенциальной связности: речная, дорожная и ЖД-компоненты усиливают связь; болотный, рельефный и водораздельный импеданс ослабляют её.</div>';
+    html+='<div class="mini-muted legend-scale-note-v67">Компонентная модель потенциальной связности v138: речная, дорожная и ЖД-компоненты усиливают связь с учётом локальной длины коридора; болотный, рельефный и водораздельный импеданс ослабляют её с учётом выраженности барьера.</div>';
     return html;
   }
   if(typeof v98BuildLegendHtml==='function'){
