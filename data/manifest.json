@@ -349,7 +349,7 @@
       "2021": "data/connectivity/nodes/connectivity_nodes_2021.geojson"
     },
     "connectivity_metrics": "data/connectivity/connectivity_metrics_by_year.json",
-    "connectivity_method": "data/connectivity/connectivity_method_v134.json",
+    "connectivity_method": "data/connectivity/connectivity_method_v135.json",
     "connectivity_reference": {
       "siberian_tract": "data/connectivity/reference/siberian_tract.geojson",
       "tomsk_roads_south": "data/connectivity/reference/tomsk_roads_south.geojson",
@@ -438,5 +438,5 @@
     }
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v134"
+  "version": "v135"
 }
