@@ -3431,9 +3431,41 @@ body.dark .boundary-charts-controls-v128 select{background:#242b31;color:#efe6d3
   gap:7px;
 }
 .advanced-filter-row-v136{display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px;font-weight:700;color:var(--text)}
+.advanced-filter-row-v139{grid-template-columns:76px minmax(72px,1fr) 64px 20px;gap:6px}.advanced-filter-number-v139{width:64px;min-width:0;padding:5px 6px;border-radius:8px;border:1px solid rgba(90,74,50,.24);background:#fffaf0;color:#2d261b;font-size:12px;font-weight:750}.advanced-filter-row-v139 b{font-size:11px;text-align:right}
 .advanced-filter-row-v136 select{min-width:0;width:100%;padding:6px 8px;border-radius:9px;border:1px solid rgba(90,74,50,.24);background:#fffaf0;color:#2d261b}
 .advanced-filter-row-v136 input[type=range]{width:100%;min-width:0}.advanced-filter-row-v136 b{font-variant-numeric:tabular-nums;color:#6b4b22}
 .advanced-filter-check-v136{display:flex!important;align-items:center;gap:7px;font-size:12px;font-weight:750;color:var(--text);padding:4px 0!important;border:0!important;background:transparent!important;min-height:0!important}
 #advFilterStatusV136{font-size:11px;line-height:1.25}
 body.dark .advanced-connectivity-filter-panel-v136{background:rgba(20,24,30,.40);border-color:rgba(255,245,210,.16)}
 body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;border-color:rgba(255,245,210,.18)}
+body.dark .advanced-filter-number-v139{background:#242b31;color:#efe6d3;border-color:rgba(255,245,210,.18)}
+
+/* v140: boundary level controls and legend */
+.admin-boundary-level-controls-v140{
+  margin:8px 0 10px;
+  padding:9px 10px;
+  border:1px solid rgba(132,110,82,.28);
+  border-radius:12px;
+  background:rgba(255,255,255,.55);
+  display:grid;
+  gap:6px;
+}
+.dark .admin-boundary-level-controls-v140{background:rgba(29,34,37,.58);border-color:rgba(228,209,164,.20)}
+.admin-boundary-level-controls-v140 label{display:flex;align-items:center;gap:7px;font-size:.88rem;line-height:1.25}
+.legend-line-v140{display:inline-block;width:26px;margin-right:8px;vertical-align:middle;border-top:3px solid #333;border-radius:3px}
+
+
+/* v141 export controls for administrative boundary level overlays */
+.export-boundary-levels-v141{
+  grid-column:1 / -1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px 10px;
+  padding:8px 9px;
+  border:1px solid rgba(105,112,95,.22);
+  border-radius:12px;
+  background:rgba(255,255,255,.42);
+}
+.export-boundary-levels-title-v141{grid-column:1 / -1;font-weight:700;color:#5b4e37;margin-bottom:2px}
+.dark .export-boundary-levels-v141{background:rgba(30,36,39,.44);border-color:rgba(228,209,164,.18)}
+.dark .export-boundary-levels-title-v141{color:#d8c798}
