@@ -1,4 +1,4 @@
-const APP_VERSION = '141';
+const APP_VERSION = '142';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15903,7 +15903,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       <label><input type="checkbox" id="toggleAdminBoundaryIntermediate"> Промежуточный уровень</label>
       <label><input type="checkbox" id="toggleAdminBoundaryLower"> Нижний уровень</label>
       <label><input type="checkbox" id="toggleAdminBoundaryDisputed"> Спорные / особые границы</label>
-      <div class="mini-muted">Линейный слой строится по внутренним топологическим границам АТЕ; прибрежные/океанические линии не показываются. Спорные и особые контуры вынесены отдельным пунктиром.</div>`;
+      <div class="mini-muted">Линейный слой пересобран из фактических общих границ полигонов АТЕ; графовые рёбра между центрами не используются. Прибрежные/океанические линии не показываются. Спорные и особые контуры вынесены отдельным пунктиром.</div>`;
     const anchor=$('toggleBoundaryMemorySegments')?.closest('label') || $('toggleNaturalBoundarySegments')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || $('toggleAdmin')?.closest('label');
     if(anchor && anchor.parentNode===toggles) anchor.insertAdjacentElement('afterend', wrap); else toggles.appendChild(wrap);
     bindControls();
@@ -15967,7 +15967,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const prevVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
   if(prevVisibility){ refreshVisibility=function refreshVisibilityV140(){ const r=prevVisibility.apply(this,arguments); refreshBoundaryLevelVisibility(); return r; }; }
   const prevLegend=typeof updateLegend==='function' ? updateLegend : null;
-  if(prevLegend){ updateLegend=function updateLegendV140(gj, vals){ prevLegend(gj, vals); const box=$('legendBox'); if(!box || !anyLevelOn()) return; box.insertAdjacentHTML('beforeend', `<hr><div class="legend-section">Границы уровней АТД</div>${legendHtml()}<div class="mini-muted legend-scale-note-v67">Обычные уровни построены по внутренним границам соседства, поэтому береговая линия океана не включается.</div>`); }; }
+  if(prevLegend){ updateLegend=function updateLegendV140(gj, vals){ prevLegend(gj, vals); const box=$('legendBox'); if(!box || !anyLevelOn()) return; box.insertAdjacentHTML('beforeend', `<hr><div class="legend-section">Границы уровней АТД</div>${legendHtml()}<div class="mini-muted legend-scale-note-v67">Обычные уровни построены по фактическим общим границам полигонов АТЕ; береговая линия океана не включается.</div>`); }; }
   // Optional export toggles: add the visible boundary lines to clean export map.
   async function addBoundaryLevelsToExportMap(map){
     if(!map || !anyLevelOn()) return;
@@ -16075,7 +16075,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       rows+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${st.color};border-top-style:${st.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(st.weight))}px"></span>${escapeHtml(st.label)}</div>`;
     });
     if(!rows) return '';
-    return `<hr><div class="legend-section">Границы уровней АТД</div>${rows}<div class="mini-muted legend-scale-note-v67">Линейные уровни построены по внутренним границам соседства; прибрежные/океанические линии не включаются.</div>`;
+    return `<hr><div class="legend-section">Границы уровней АТД</div>${rows}<div class="mini-muted legend-scale-note-v67">Линейные уровни построены по фактическим общим границам полигонов АТЕ; прибрежные/океанические линии не включаются.</div>`;
   }
   if(typeof v98BuildLegendHtml==='function'){
     const priorBuildLegend=v98BuildLegendHtml;
