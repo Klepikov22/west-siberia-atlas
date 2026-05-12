@@ -1,4 +1,4 @@
-const APP_VERSION = '144';
+const APP_VERSION = '145';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -16272,3 +16272,6 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const mo=new MutationObserver(()=>patchFilterPanel());
   try{ mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(_){ }
 })();
+
+
+/* v145: timeline layer import — Zapadno-Siberian Krai 1931 is registered in data/manifest.json as admin_1931.geojson. */
