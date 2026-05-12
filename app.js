@@ -1,4 +1,4 @@
-const APP_VERSION = '146';
+const APP_VERSION = '147';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -16448,4 +16448,132 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   if(prevBind){ bindUi=function bindUiV146(){ const r=prevBind.apply(this,arguments); ensureControls(); return r; }; }
   const boot=()=>{ ensureControls(); setTimeout(()=>rebuildUniversalLayers().catch(e=>console.warn('v146 universal boundaries failed',e)),500); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,300);
+})();
+
+
+/* v147: startup layer defaults + robust v138-style cost-graph filter controls.
+   Default map view now keeps only the ATE layer and railways on. The metric/parent
+   filter panels are collapsed in index.html. This patch also restores the compact
+   v138 strength slider while preserving the later cost-graph/component semantics. */
+(function v147DefaultsAndCostGraphFilter(){
+  function q(id){ return document.getElementById(id); }
+  const DEFAULTS={
+    toggleHydro:false,
+    toggleAdmin:true,
+    toggleCenters:false,
+    toggleCenterPointLabels:false,
+    toggleRailways:true,
+    toggleCircles:false,
+    toggleTopologyEdgesMain:false,
+    toggleTopologyCentroids:false,
+    toggleAdvancedConnectivityEdges:false,
+    toggleAdvancedConnectivityNodes:false,
+    toggleNaturalBoundarySegments:false,
+    toggleBoundaryMemorySegments:false,
+    toggleAdminBoundaryUpper:false,
+    toggleAdminBoundaryIntermediate:false,
+    toggleAdminBoundaryLower:false,
+    toggleAdminBoundaryDisputed:false
+  };
+  function applyStartupDefaults(){
+    Object.entries(DEFAULTS).forEach(([id,value])=>{
+      const el=q(id);
+      if(el && el.type==='checkbox' && el.dataset.v147DefaultApplied!=='1'){
+        el.checked=!!value;
+        el.dataset.v147DefaultApplied='1';
+      }
+    });
+    [['metricFilters','collapseMetricFilters'],['parentFilterBar','collapseParentFilter']].forEach(([panelId,btnId])=>{
+      const panel=q(panelId), btn=q(btnId);
+      if(panel){ panel.classList.add('is-collapsed'); }
+      if(btn){ btn.setAttribute('aria-expanded','false'); btn.textContent='Развернуть'; }
+    });
+  }
+  function panelHtml(){
+    return `<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
+      <label class="advanced-filter-row-v136 advanced-filter-row-v144 v147-strength-row"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
+      <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144 v147-impedance-row"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
+      <label class="advanced-filter-check-v136"><input id="advOnlyCorridorEdgesV136" type="checkbox"> Только коридоры</label>
+      <label class="advanced-filter-check-v136"><input id="advIncludeBlockedEdgesV136" type="checkbox"> Показывать снятые барьерами</label>
+      <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
+  }
+  function compactNumber(n){
+    if(!Number.isFinite(n)) return '—';
+    if(Math.abs(n)>=1000) return Math.round(n).toLocaleString('ru-RU');
+    return String(Number.isInteger(n)?n:Number(n.toFixed(2))).replace('.',',');
+  }
+  function getFilterState(){
+    const range=q('advMinStrengthRangeV136');
+    const num=q('advMinStrengthNumberV139');
+    const rawMin=(num && String(num.value).trim()!=='') ? num.value : (range?.value ?? '0');
+    let minStrength=Number(rawMin);
+    if(!Number.isFinite(minStrength)) minStrength=0;
+    minStrength=Math.max(0, Math.min(10, minStrength));
+    const select=q('advMaxImpedanceSelectV136');
+    const maxNum=q('advMaxImpedanceNumberV139');
+    const rawMax=(maxNum && String(maxNum.value).trim()!=='') ? maxNum.value : (select?.value ?? 'all');
+    let maxImpedance=rawMax==='all' ? Infinity : Number(rawMax);
+    if(!Number.isFinite(maxImpedance) || maxImpedance<0) maxImpedance=Infinity;
+    return {minStrength,maxImpedance,onlyCorridors:!!q('advOnlyCorridorEdgesV136')?.checked,includeBlocked:!!q('advIncludeBlockedEdgesV136')?.checked};
+  }
+  function labelText(){
+    const fs=getFilterState();
+    const parts=[];
+    if(fs.minStrength>0) parts.push(`сила ≥ ${String(fs.minStrength).replace('.',',')}`);
+    if(fs.maxImpedance!==Infinity) parts.push(`импеданс ≤ ${compactNumber(fs.maxImpedance)}`);
+    if(fs.onlyCorridors) parts.push('только коридоры');
+    if(fs.includeBlocked) parts.push('включая снятые');
+    return parts.length ? parts.join(' · ') : 'без доп. фильтра';
+  }
+  function forceCostGraphRefresh(){
+    const edge=q('toggleAdvancedConnectivityEdges');
+    try{ edge?.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
+    try{ if(typeof updateLegend==='function') updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
+  }
+  function syncControls(sourceId=''){
+    const fs=getFilterState();
+    const range=q('advMinStrengthRangeV136'), num=q('advMinStrengthNumberV139'), val=q('advMinStrengthValueV136');
+    if(range && sourceId!=='advMinStrengthRangeV136') range.value=String(fs.minStrength);
+    if(num && sourceId!=='advMinStrengthNumberV139') num.value=String(fs.minStrength);
+    if(val) val.textContent=String(fs.minStrength).replace('.',',');
+    const select=q('advMaxImpedanceSelectV136'), maxNum=q('advMaxImpedanceNumberV139');
+    if(sourceId==='advMaxImpedanceSelectV136' && select){
+      if(select.value==='all'){ if(maxNum) maxNum.value=''; }
+      else if(maxNum) maxNum.value=select.value;
+    }else if(sourceId==='advMaxImpedanceNumberV139' && maxNum && select){
+      const v=String(maxNum.value||'').trim();
+      if(v==='') select.value='all';
+      else { const opt=[...select.options].find(o=>o.value===v); if(opt) select.value=v; }
+    }else if(select && maxNum){
+      if(fs.maxImpedance===Infinity){ select.value='all'; maxNum.value=''; }
+      else { const s=String(fs.maxImpedance); maxNum.value=s; const opt=[...select.options].find(o=>o.value===s); if(opt) select.value=s; }
+    }
+    const status=q('advFilterStatusV136'); if(status) status.textContent='Фильтр рёбер: '+labelText();
+  }
+  function bindFilterControls(){
+    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceSelectV136','advMaxImpedanceNumberV139','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
+      const el=q(id); if(!el || el.dataset.v147CostFilterBound==='1') return;
+      el.dataset.v147CostFilterBound='1';
+      const h=()=>{ syncControls(id); forceCostGraphRefresh(); };
+      el.addEventListener('input',h,false);
+      el.addEventListener('change',h,false);
+    });
+    syncControls();
+  }
+  function restoreCostFilterPanel(){
+    const panel=q('advancedConnectivityFilterPanelV136');
+    if(!panel) return;
+    if(panel.dataset.v147Restored!=='1'){
+      panel.innerHTML=panelHtml();
+      panel.dataset.v147Restored='1';
+    }
+    bindFilterControls();
+  }
+  function tick(){ applyStartupDefaults(); restoreCostFilterPanel(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ tick(); setTimeout(tick,250); setTimeout(tick,1200); },{once:true});
+  else { tick(); setTimeout(tick,250); setTimeout(tick,1200); }
+  try{
+    const mo=new MutationObserver(()=>restoreCostFilterPanel());
+    mo.observe(document.documentElement,{childList:true,subtree:true});
+  }catch(_){ }
 })();
