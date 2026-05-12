@@ -1,4 +1,4 @@
-const APP_VERSION = '143';
+const APP_VERSION = '144';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15160,9 +15160,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
       host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Мин. сила</span><input id="advMinStrengthRangeV136" type="range" min="0" max="100" step="0.5" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="100" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Макс. импеданс</span><input id="advMaxImpedanceRangeV139" type="range" min="10" max="5000" step="10" value="1000"><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" value="1000"><b>≤</b></label>
-        <label class="advanced-filter-check-v136"><input type="checkbox" id="advMaxImpedanceUnlimitedV139" checked> без ограничения импеданса</label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v144"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -15570,9 +15569,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
       host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Мин. сила</span><input id="advMinStrengthRangeV136" type="range" min="0" max="100" step="0.5" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="100" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Макс. импеданс</span><input id="advMaxImpedanceRangeV139" type="range" min="10" max="5000" step="10" value="1000"><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" value="1000"><b>≤</b></label>
-        <label class="advanced-filter-check-v136"><input type="checkbox" id="advMaxImpedanceUnlimitedV139" checked> без ограничения импеданса</label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v144"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -16235,4 +16233,42 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,200);
+})();
+
+
+/* v144: restore compact v138-style potential-connectivity filter with numeric inputs.
+   The strength slider is back to the v138 0–10 scale; max impedance is controlled
+   by the old preset select plus an optional exact number field. */
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function patchFilterPanel(){
+    const panel=$('advancedConnectivityFilterPanelV136');
+    if(!panel || panel.dataset.v144Patched==='1') return;
+    panel.dataset.v144Patched='1';
+    const minRange=$('advMinStrengthRangeV136');
+    const minNum=$('advMinStrengthNumberV139');
+    const maxSelect=$('advMaxImpedanceSelectV136');
+    const maxNum=$('advMaxImpedanceNumberV139');
+    if(minRange){ minRange.min='0'; minRange.max='10'; minRange.step='0.25'; }
+    if(minNum){ minNum.min='0'; minNum.max='10'; minNum.step='0.25'; }
+    if(maxSelect && maxNum){
+      maxSelect.addEventListener('change',()=>{
+        if(maxSelect.value==='all') maxNum.value='';
+        else maxNum.value=String(maxSelect.value);
+        maxNum.dispatchEvent(new Event('input',{bubbles:true}));
+      }, false);
+      maxNum.addEventListener('input',()=>{
+        const v=String(maxNum.value||'').trim();
+        if(v==='') maxSelect.value='all';
+        else {
+          const opt=[...maxSelect.options].find(o=>o.value===v);
+          if(opt) maxSelect.value=v;
+        }
+      }, false);
+    }
+  }
+  document.addEventListener('DOMContentLoaded',()=>{ setTimeout(patchFilterPanel,150); setTimeout(patchFilterPanel,900); }, false);
+  document.addEventListener('change',e=>{ if(e.target && (e.target.id==='toggleAdvancedConnectivityEdges' || e.target.id==='toggleAdvancedConnectivityNodes')) setTimeout(patchFilterPanel,50); }, true);
+  const mo=new MutationObserver(()=>patchFilterPanel());
+  try{ mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(_){ }
 })();

@@ -3469,3 +3469,23 @@ body.dark .advanced-filter-number-v139{background:#242b31;color:#efe6d3;border-c
 .export-boundary-levels-title-v141{grid-column:1 / -1;font-weight:700;color:#5b4e37;margin-bottom:2px}
 .dark .export-boundary-levels-v141{background:rgba(30,36,39,.44);border-color:rgba(228,209,164,.18)}
 .dark .export-boundary-levels-title-v141{color:#d8c798}
+
+/* v144: compact, v138-style filter for the cost-connectivity graph + exact number inputs */
+.advanced-connectivity-filter-panel-v136{
+  overflow:hidden;
+}
+.advanced-filter-row-v144{
+  grid-template-columns:86px minmax(82px,1fr) 58px 24px!important;
+  gap:6px!important;
+  align-items:center;
+}
+.advanced-filter-row-v144 span{font-size:11px;line-height:1.15}
+.advanced-filter-row-v144 input[type=range]{min-width:0;width:100%}
+.advanced-filter-row-v144 select{min-width:0;width:100%;font-size:11px;padding:5px 6px}
+.advanced-filter-row-v144 .advanced-filter-number-v139{width:58px;min-width:0;padding:4px 5px;font-size:11px;text-align:right}
+.advanced-filter-row-v144 b{min-width:0;text-align:right;font-size:11px}
+.advanced-filter-impedance-row-v144{grid-template-columns:86px minmax(92px,1fr) 58px 18px!important}
+@media (max-width:1280px){
+  .advanced-filter-row-v144,.advanced-filter-impedance-row-v144{grid-template-columns:78px minmax(72px,1fr) 52px 16px!important;gap:5px!important}
+  .advanced-filter-row-v144 .advanced-filter-number-v139{width:52px}
+}
