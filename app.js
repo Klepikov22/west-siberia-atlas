@@ -1,4 +1,4 @@
-const APP_VERSION = '142';
+const APP_VERSION = '143';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15882,10 +15882,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 /* v140: dynamic administrative boundary linework by division level */
 (function v140AdminBoundaryLevelLines(){
   const STYLE={
-    upper:{label:'верхний уровень АТД', color:'#24170f', weight:3.2, opacity:.92, dash:null},
-    intermediate:{label:'промежуточный уровень АТД', color:'#2563eb', weight:2.25, opacity:.86, dash:'10 4'},
-    lower:{label:'нижний уровень АТД', color:'#475569', weight:1.15, opacity:.56, dash:null},
-    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.4, opacity:.92, dash:'7 5 2 5'}
+    upper:{label:'верхний уровень АТД', color:'#1f1712', weight:4.4, opacity:.98, dash:null},
+    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', weight:2.6, opacity:.92, dash:null},
+    lower:{label:'нижний уровень АТД', color:'#4b5563', weight:1.15, opacity:.58, dash:null},
+    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.5, opacity:.94, dash:'7 5 2 5'}
   };
   const LAYERS={upper:'adminBoundaryUpper',intermediate:'adminBoundaryIntermediate',lower:'adminBoundaryLower',disputed:'adminBoundaryDisputed'};
   const TOGGLES={upper:'toggleAdminBoundaryUpper',intermediate:'toggleAdminBoundaryIntermediate',lower:'toggleAdminBoundaryLower',disputed:'toggleAdminBoundaryDisputed'};
@@ -15903,7 +15903,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       <label><input type="checkbox" id="toggleAdminBoundaryIntermediate"> Промежуточный уровень</label>
       <label><input type="checkbox" id="toggleAdminBoundaryLower"> Нижний уровень</label>
       <label><input type="checkbox" id="toggleAdminBoundaryDisputed"> Спорные / особые границы</label>
-      <div class="mini-muted">Линейный слой пересобран из фактических общих границ полигонов АТЕ; графовые рёбра между центрами не используются. Прибрежные/океанические линии не показываются. Спорные и особые контуры вынесены отдельным пунктиром.</div>`;
+      <div class="mini-muted">Линейный слой пересобран как полные контуры АТЕ и иерархических диссольвов: нижний, промежуточный, верхний уровни. Океаническая береговая линия вырезана; графовые рёбра между центрами не используются.</div>`;
     const anchor=$('toggleBoundaryMemorySegments')?.closest('label') || $('toggleNaturalBoundarySegments')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || $('toggleAdmin')?.closest('label');
     if(anchor && anchor.parentNode===toggles) anchor.insertAdjacentElement('afterend', wrap); else toggles.appendChild(wrap);
     bindControls();
@@ -15911,6 +15911,18 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function bindControls(){
     Object.values(TOGGLES).forEach(id=>{ const el=$(id); if(!el || el.dataset.v140Bound==='1') return; el.dataset.v140Bound='1'; el.addEventListener('change',()=>{ refreshBoundaryLevelVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }); });
   }
+
+  function ensurePanes(mapRef=state.map){
+    if(!mapRef || !mapRef.createPane) return;
+    if(!mapRef.getPane('adminBoundaryLevelPane')){
+      const p=mapRef.createPane('adminBoundaryLevelPane'); p.style.zIndex=645; p.style.pointerEvents='none';
+    }
+    if(!mapRef.getPane('adminBoundaryUpperPane')){
+      const p=mapRef.createPane('adminBoundaryUpperPane'); p.style.zIndex=670; p.style.pointerEvents='none';
+    }
+  }
+  function paneFor(level,mapRef=state.map){ ensurePanes(mapRef); return level==='upper' ? 'adminBoundaryUpperPane' : 'adminBoundaryLevelPane'; }
+
   function styleFor(feature){
     const level=feature?.properties?.level || 'lower'; const s=STYLE[level]||STYLE.lower;
     return {color:s.color, weight:s.weight, opacity:s.opacity, dashArray:s.dash, lineCap:'round', lineJoin:'round', fill:false};
@@ -15935,7 +15947,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     try{
       const gj=await loadBoundaryLevels(); if(!gj) return;
       Object.entries(LAYERS).forEach(([level,layerName])=>{
-        state.layers[layerName]=L.geoJSON(gj,{filter:f=>String(f?.properties?.level||'')===level, interactive:true, style:styleFor, onEachFeature:onEach});
+        state.layers[layerName]=L.geoJSON(gj,{pane:paneFor(level), filter:f=>String(f?.properties?.level||'')===level, interactive:true, style:styleFor, onEachFeature:onEach});
       });
       refreshBoundaryLevelVisibility();
     }catch(e){ console.warn('v140 boundary level lines failed', e); }
@@ -15948,8 +15960,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       if(show && !state.map.hasLayer(layer)) layer.addTo(state.map);
       if(!show && state.map.hasLayer(layer)) state.map.removeLayer(layer);
     });
-    // Draw order: lower below, then intermediate, upper, disputed.
-    ['lower','intermediate','upper','disputed'].forEach(level=>{ const layer=state.layers[LAYERS[level]]; if(layer && state.map.hasLayer(layer) && layer.bringToFront) layer.bringToFront(); });
+    // Draw order: lower below, then intermediate and disputed; upper boundaries must stay on top.
+    ['lower','intermediate','disputed','upper'].forEach(level=>{ const layer=state.layers[LAYERS[level]]; if(layer && state.map.hasLayer(layer) && layer.bringToFront) layer.bringToFront(); });
   }
   function legendHtml(){
     let html='';
@@ -15967,7 +15979,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const prevVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
   if(prevVisibility){ refreshVisibility=function refreshVisibilityV140(){ const r=prevVisibility.apply(this,arguments); refreshBoundaryLevelVisibility(); return r; }; }
   const prevLegend=typeof updateLegend==='function' ? updateLegend : null;
-  if(prevLegend){ updateLegend=function updateLegendV140(gj, vals){ prevLegend(gj, vals); const box=$('legendBox'); if(!box || !anyLevelOn()) return; box.insertAdjacentHTML('beforeend', `<hr><div class="legend-section">Границы уровней АТД</div>${legendHtml()}<div class="mini-muted legend-scale-note-v67">Обычные уровни построены по фактическим общим границам полигонов АТЕ; береговая линия океана не включается.</div>`); }; }
+  if(prevLegend){ updateLegend=function updateLegendV140(gj, vals){ prevLegend(gj, vals); const box=$('legendBox'); if(!box || !anyLevelOn()) return; box.insertAdjacentHTML('beforeend', `<hr><div class="legend-section">Границы уровней АТД</div>${legendHtml()}<div class="mini-muted legend-scale-note-v67">Уровни построены как полные контуры полигонов/диссольвов АТЕ; океаническая береговая линия вырезана.</div>`); }; }
   // Optional export toggles: add the visible boundary lines to clean export map.
   async function addBoundaryLevelsToExportMap(map){
     if(!map || !anyLevelOn()) return;
@@ -15975,7 +15987,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const gj=await loadBoundaryLevels(); if(!gj) return;
       Object.keys(TOGGLES).forEach(level=>{
         if(!levelOn(level)) return;
-        L.geoJSON(gj,{filter:f=>String(f?.properties?.level||'')===level, interactive:false, style:styleFor}).addTo(map);
+        L.geoJSON(gj,{pane:paneFor(level,map), filter:f=>String(f?.properties?.level||'')===level, interactive:false, style:styleFor}).addTo(map);
       });
     }catch(e){ console.warn('v140 export boundary levels skipped', e); }
   }
@@ -15997,10 +16009,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     ['disputed','AdminBoundaryDisputed','Границы АТД: спорные / особые']
   ];
   const STYLE={
-    upper:{label:'верхний уровень АТД', color:'#24170f', weight:3.2, opacity:.92, dash:null},
-    intermediate:{label:'промежуточный уровень АТД', color:'#2563eb', weight:2.25, opacity:.86, dash:'10 4'},
-    lower:{label:'нижний уровень АТД', color:'#475569', weight:1.15, opacity:.56, dash:null},
-    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.4, opacity:.92, dash:'7 5 2 5'}
+    upper:{label:'верхний уровень АТД', color:'#1f1712', weight:4.4, opacity:.98, dash:null},
+    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', weight:2.6, opacity:.92, dash:null},
+    lower:{label:'нижний уровень АТД', color:'#4b5563', weight:1.15, opacity:.58, dash:null},
+    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.5, opacity:.94, dash:'7 5 2 5'}
   };
   function $(id){ return document.getElementById(id); }
   function key(level){ return 'adminBoundary'+level[0].toUpperCase()+level.slice(1); }
@@ -16075,7 +16087,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       rows+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${st.color};border-top-style:${st.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(st.weight))}px"></span>${escapeHtml(st.label)}</div>`;
     });
     if(!rows) return '';
-    return `<hr><div class="legend-section">Границы уровней АТД</div>${rows}<div class="mini-muted legend-scale-note-v67">Линейные уровни построены по фактическим общим границам полигонов АТЕ; прибрежные/океанические линии не включаются.</div>`;
+    return `<hr><div class="legend-section">Границы уровней АТД</div>${rows}<div class="mini-muted legend-scale-note-v67">Линейные уровни построены как полные контуры полигонов/диссольвов АТЕ; океаническая береговая линия вырезана.</div>`;
   }
   if(typeof v98BuildLegendHtml==='function'){
     const priorBuildLegend=v98BuildLegendHtml;

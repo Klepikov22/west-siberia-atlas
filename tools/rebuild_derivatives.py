@@ -2,7 +2,7 @@
 """
 Rebuild derived GeoJSON layers from the authoritative base inputs.
 
-v142 scope:
+v143 scope:
 - rebuilds administrative boundary-level overlays from data/admin/admin_YYYY.geojson;
 - writes data/derived_manifest.json with source hashes and generated outputs;
 - intentionally treats generated layers as rebuildable cache, not hand-edited sources.
@@ -23,7 +23,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 from pyproj import Geod
 from shapely.geometry import GeometryCollection, LineString, MultiLineString, mapping, shape
-from shapely.ops import linemerge
+from shapely.ops import linemerge, unary_union
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -181,93 +181,183 @@ def rounded_geom(geom, ndigits: int = 6):
     return geom
 
 
+OCEAN_MASK_CACHE = None
+
+def load_ocean_mask():
+    """Return a small buffer around the Arctic Ocean polygon used only to suppress coastline linework."""
+    global OCEAN_MASK_CACHE
+    if OCEAN_MASK_CACHE is not None:
+        return OCEAN_MASK_CACHE
+    candidates = [
+        DATA / "hydro" / "water_ocean_lakes_west_siberia.geojson",
+        DATA / "hydro" / "water_ocean_lakes_full.geojson",
+    ]
+    ocean_geoms = []
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            gj = load_json(path)
+        except Exception:
+            continue
+        for f in gj.get("features", []):
+            props = f.get("properties", {}) or {}
+            vals = " ".join(str(props.get(k, "")) for k in ("water_kind", "layer", "type", "featurecla", "name", "name_ru")).lower()
+            if "ocean" in vals or "море" in vals or "карское" in vals or "ледовит" in vals:
+                try:
+                    ocean_geoms.append(shape(f.get("geometry")))
+                except Exception:
+                    pass
+    if not ocean_geoms:
+        OCEAN_MASK_CACHE = False
+        return None
+    try:
+        # Degree buffer is intentionally small: it removes only coast-adjacent linework,
+        # not inland administrative boundaries.
+        OCEAN_MASK_CACHE = unary_union(ocean_geoms).buffer(0.045)
+        return OCEAN_MASK_CACHE
+    except Exception:
+        OCEAN_MASK_CACHE = False
+        return None
+
+
+def safe_shape(geometry):
+    try:
+        g = shape(geometry)
+        if not g.is_valid:
+            try:
+                from shapely.validation import make_valid
+                g = make_valid(g)
+            except Exception:
+                g = g.buffer(0)
+        return g
+    except Exception:
+        return None
+
+
+def geom_key(props: Dict[str, Any], fallback: str, *names: str) -> str:
+    for name in names:
+        v = clean_id(props.get(name))
+        if v and v.lower() not in ("none", "null", "nan"):
+            return v
+    return fallback
+
+
+def key_upper(props: Dict[str, Any], uid: str) -> str:
+    return geom_key(props, uid, "admin_superparent", "admin_parent", "_admin_parent")
+
+
+def key_intermediate(props: Dict[str, Any], uid: str) -> str:
+    return geom_key(props, key_upper(props, uid), "admin_intermediate", "admin_parent", "_admin_parent", "admin_superparent")
+
+
+def trim_ocean_linework(geom, ocean_mask):
+    if geom is None or geom.is_empty:
+        return []
+    parts = list(iter_line_parts(geom))
+    out = []
+    for line in parts:
+        g = line
+        if ocean_mask is not None:
+            try:
+                lb = line.bounds; ob = ocean_mask.bounds
+                intersects_bbox = not (lb[2] < ob[0] or lb[0] > ob[2] or lb[3] < ob[1] or lb[1] > ob[3])
+                if intersects_bbox:
+                    g = line.difference(ocean_mask)
+            except Exception:
+                g = line
+        for part in iter_line_parts(g):
+            if geodesic_km(part) >= 0.12:
+                out.append(part)
+    return out
+
+
+def build_group_boundary(geoms_by_key: Dict[str, List[Any]], ocean_mask=None):
+    """Build full outlines around dissolved groups; remove only Arctic coastline fragments."""
+    boundary_parts: List[LineString] = []
+    group_count = 0
+    for key, geoms in geoms_by_key.items():
+        valid = [g for g in geoms if g is not None and not g.is_empty]
+        if not valid:
+            continue
+        group_count += 1
+        try:
+            dissolved = unary_union(valid)
+            b = dissolved.boundary
+        except Exception:
+            # Fallback: use individual boundaries for this group.
+            try:
+                b = GeometryCollection([g.boundary for g in valid])
+            except Exception:
+                continue
+        boundary_parts.extend(trim_ocean_linework(b, ocean_mask))
+
+    if not boundary_parts:
+        return None, 0.0, group_count
+    try:
+        # Keep this fast: linework is a visual cache. Duplicated coincident lines are acceptable
+        # and much cheaper than full overlay dissolution for all historical years.
+        merged = linemerge(MultiLineString(boundary_parts))
+    except Exception:
+        merged = MultiLineString(boundary_parts)
+    merged = rounded_geom(merged)
+    km = sum(geodesic_km(part) for part in iter_line_parts(merged))
+    return merged, km, group_count
+
+
 def build_boundary_levels_for_year(admin_path: Path) -> Dict[str, Any]:
     gj = load_json(admin_path)
     features = gj.get("features", [])
-    by_id: Dict[str, Dict[str, Any]] = {}
-    geom_by_id: Dict[str, Any] = {}
-    for f in features:
+    ocean_mask = load_ocean_mask()
+
+    unit_geoms: Dict[str, List[Any]] = defaultdict(list)
+    intermediate_geoms: Dict[str, List[Any]] = defaultdict(list)
+    upper_geoms: Dict[str, List[Any]] = defaultdict(list)
+    disputed_geoms: Dict[str, List[Any]] = defaultdict(list)
+
+    for idx, f in enumerate(features):
         props = f.get("properties", {}) or {}
-        uid = clean_id(props.get("unit_id") or f.get("id"))
-        if not uid:
+        uid = clean_id(props.get("unit_id") or f.get("id") or f"unit_{idx}")
+        geom = safe_shape(f.get("geometry"))
+        if geom is None or geom.is_empty:
             continue
-        by_id[uid] = props
-        try:
-            geom_by_id[uid] = shape(f.get("geometry"))
-        except Exception:
-            pass
+        unit_geoms[uid].append(geom)
+        intermediate_geoms[key_intermediate(props, uid)].append(geom)
+        upper_geoms[key_upper(props, uid)].append(geom)
+        if prop_text_has_marker(props):
+            disputed_geoms[uid].append(geom)
 
-    pairs = set()
-    for uid, props in by_id.items():
-        for vid in as_adjacent_ids(props.get("adjacent_unit_ids")):
-            if vid in by_id and vid != uid:
-                pairs.add(tuple(sorted((uid, vid))))
-
-    # Fallback for years where adjacency was not populated: use spatial boundary intersections.
-    # This is intentionally conservative and only used when no stored rook adjacency exists.
-    if not pairs:
-        ids = list(geom_by_id)
-        for i, uid in enumerate(ids):
-            b1 = geom_by_id[uid].boundary
-            for vid in ids[i + 1:]:
-                try:
-                    inter = b1.intersection(geom_by_id[vid].boundary)
-                    if any(geodesic_km(part) >= 1.0 for part in iter_line_parts(inter)):
-                        pairs.add((uid, vid))
-                except Exception:
-                    continue
-
-    grouped: Dict[str, List[LineString]] = defaultdict(list)
-    pair_count_by_level = defaultdict(int)
-    km_by_level = defaultdict(float)
-
-    for uid, vid in sorted(pairs):
-        g1, g2 = geom_by_id.get(uid), geom_by_id.get(vid)
-        if g1 is None or g2 is None:
-            continue
-        try:
-            inter = g1.boundary.intersection(g2.boundary)
-        except Exception:
-            continue
-        lines = []
-        for line in iter_line_parts(inter):
-            km = geodesic_km(line)
-            if km >= 0.2:
-                lines.append(line)
-        if not lines:
-            continue
-        level = classify_boundary(by_id[uid], by_id[vid])
-        pair_count_by_level[level] += 1
-        for line in lines:
-            grouped[level].append(line)
-            km_by_level[level] += geodesic_km(line)
+    level_specs = [
+        ("lower", unit_geoms, "полные контуры нижних АТЕ"),
+        ("intermediate", intermediate_geoms, "полные контуры промежуточных групп АТЕ"),
+        ("upper", upper_geoms, "полные контуры верхнеуровневых АТЕ"),
+        ("disputed", disputed_geoms, "контуры спорных / особых объектов"),
+    ]
 
     out_features = []
-    for level in ("lower", "intermediate", "upper", "disputed"):
-        lines = grouped.get(level, [])
-        if not lines:
+    for level, groups, note_kind in level_specs:
+        if not groups:
             continue
-        try:
-            merged = linemerge(MultiLineString(lines))
-        except Exception:
-            merged = MultiLineString(lines)
-        # linemerge may return LineString or MultiLineString. Keep one feature per level for speed.
-        merged = rounded_geom(merged)
+        geom, km, group_count = build_group_boundary(groups, ocean_mask=ocean_mask)
+        if geom is None or km <= 0:
+            continue
         out_features.append({
             "type": "Feature",
             "properties": {
                 "level": level,
                 "level_label": LEVEL_LABELS[level],
                 "style_class": level,
-                "source": "derived_from_admin_polygon_shared_boundaries_v142",
-                "pairs_count": int(pair_count_by_level[level]),
-                "boundary_km": round(km_by_level[level], 3),
-                "note": "Построено по фактическим общим границам полигонов АТЕ; прямые графовые рёбра между центрами не используются; внешняя береговая линия океана не включается.",
+                "source": "derived_from_admin_polygon_outlines_v143",
+                "groups_count": int(group_count),
+                "boundary_km": round(km, 3),
+                "note": (
+                    f"{note_kind}; слой построен из фактических полигональных границ admin_YYYY.geojson. "
+                    "Графовые рёбра между центрами не используются. Прибрежные фрагменты у океана вырезаны по океанической маске."
+                ),
             },
-            "geometry": mapping(merged),
+            "geometry": mapping(geom),
         })
     return {"type": "FeatureCollection", "features": out_features}
-
 
 def rebuild_admin_boundary_levels(years: List[int] | None = None) -> List[Dict[str, Any]]:
     BOUNDARY_DIR.mkdir(parents=True, exist_ok=True)
@@ -304,8 +394,8 @@ def write_summary(rows: List[Dict[str, Any]], path: Path) -> None:
 def update_manifest() -> None:
     manifest_path = DATA / "manifest.json"
     manifest = load_json(manifest_path)
-    manifest["app_version"] = 142
-    manifest["version"] = "v142"
+    manifest["app_version"] = 143
+    manifest["version"] = "v143"
     layers = manifest.setdefault("layers", {})
     years = manifest.get("years") or []
     layers["admin_boundary_levels"] = {
@@ -313,18 +403,18 @@ def update_manifest() -> None:
         if (BOUNDARY_DIR / f"admin_boundary_levels_{y}.geojson").exists()
     }
     note = (
-        "v142: производные слои считаются rebuildable cache. Источник истины — базовые admin/hydro/railways/reference слои; "
-        "границы уровней АТД пересобираются из фактических общих границ полигонов, а не из графовых рёбер."
+        "v143: производные слои считаются rebuildable cache. Источник истины — базовые admin/hydro/railways/reference слои; "
+        "границы уровней АТД пересобираются из полных контуров полигонов/диссольвов по иерархии, а не из графовых рёбер."
     )
     if isinstance(manifest.get("notes"), list):
         if note not in manifest["notes"]:
             manifest["notes"].append(note)
     else:
-        manifest.setdefault("notes", {})["derived_data_architecture_v142"] = note
+        manifest.setdefault("notes", {})["derived_data_architecture_v143"] = note
     dump_json(manifest_path, manifest)
 
     derived = {
-        "version": "v142",
+        "version": "v143",
         "principle": "derived layers are rebuildable cache, not authoritative source data",
         "authoritative_sources": {
             "admin": sorted(str(p.relative_to(ROOT)) for p in ADMIN_DIR.glob("admin_*.geojson")),
@@ -340,7 +430,7 @@ def update_manifest() -> None:
             str(p.relative_to(ROOT)): file_sha256(p)
             for p in sorted(ADMIN_DIR.glob("admin_*.geojson"))
         },
-        "note": "v142 implements the architecture for boundary-level overlays first. Natural-boundary metrics and cost-graph layers remain generated files, but are marked as next candidates for the same rebuild pipeline.",
+        "note": "v143 rebuilds complete admin boundary outlines by dissolved hierarchy. Natural-boundary metrics and cost-graph layers remain generated files, but are marked as next candidates for the same rebuild pipeline.",
     }
     dump_json(DATA / "derived_manifest.json", derived)
 
@@ -356,9 +446,9 @@ def main() -> None:
     rows = []
     if args.boundary_levels or args.all:
         rows = rebuild_admin_boundary_levels(args.years)
-        write_summary(rows, ROOT / "v142_admin_boundary_levels_summary.csv")
+        write_summary(rows, ROOT / "v143_admin_boundary_levels_summary.csv")
     update_manifest()
-    print(f"v142 rebuild complete: boundary level files={len(rows)}")
+    print(f"v143 rebuild complete: boundary level files={len(rows)}")
 
 
 if __name__ == "__main__":
