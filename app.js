@@ -1,4 +1,4 @@
-const APP_VERSION = '145';
+const APP_VERSION = '146';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -16275,3 +16275,177 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 
 
 /* v145: timeline layer import — Zapadno-Siberian Krai 1931 is registered in data/manifest.json as admin_1931.geojson. */
+
+
+/* v146: universal always-on-top administrative boundary overlays.
+   This is an emergency/robust renderer independent of the older v140/v143 line cache logic.
+   Lower-level boundaries are drawn directly from the current admin polygons; intermediate/upper
+   boundaries use the rebuildable boundary cache when available and fall back to admin outlines.
+   Every level has its own high Leaflet pane, so boundaries stay above thematic fills, graphs,
+   hydrography and other analytical overlays, but still below the UI panels. */
+(function v146UniversalAdminBoundaryOverlay(){
+  const LEVELS=['lower','intermediate','disputed','upper'];
+  const TOGGLE={
+    upper:'toggleAdminBoundaryUpper',
+    intermediate:'toggleAdminBoundaryIntermediate',
+    lower:'toggleAdminBoundaryLower',
+    disputed:'toggleAdminBoundaryDisputed'
+  };
+  const LAYER={
+    upper:'adminBoundaryUniversalUpperV146',
+    intermediate:'adminBoundaryUniversalIntermediateV146',
+    lower:'adminBoundaryUniversalLowerV146',
+    disputed:'adminBoundaryUniversalDisputedV146'
+  };
+  const STYLE={
+    lower:{label:'нижний уровень АТД', color:'#4b5563', halo:'#fff8e6', weight:1.35, haloWeight:3.6, opacity:.72, dash:null, pane:'adminBoundaryUniversalLowerPaneV146', z:945},
+    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', halo:'#fff8e6', weight:2.7, haloWeight:5.2, opacity:.95, dash:null, pane:'adminBoundaryUniversalIntermediatePaneV146', z:965},
+    disputed:{label:'спорные / особые границы', color:'#be185d', halo:'#fff8e6', weight:2.5, haloWeight:5.2, opacity:.95, dash:'7 5 2 5', pane:'adminBoundaryUniversalDisputedPaneV146', z:980},
+    upper:{label:'верхний уровень АТД', color:'#19130f', halo:'#fff8e6', weight:4.9, haloWeight:8.2, opacity:.99, dash:null, pane:'adminBoundaryUniversalUpperPaneV146', z:1005}
+  };
+  function $(id){ return document.getElementById(id); }
+  function on(level){ return !!$(TOGGLE[level])?.checked; }
+  function anyOn(){ return LEVELS.some(on); }
+  function ensurePanes(mapRef=state.map){
+    if(!mapRef?.createPane) return;
+    LEVELS.forEach(level=>{
+      const st=STYLE[level];
+      let pane=mapRef.getPane(st.pane);
+      if(!pane) pane=mapRef.createPane(st.pane);
+      pane.style.zIndex=String(st.z);
+      pane.style.pointerEvents='none';
+    });
+  }
+  function baseLineStyle(level, halo=false){
+    const st=STYLE[level];
+    return {
+      pane:st.pane,
+      color: halo ? st.halo : st.color,
+      weight: halo ? st.haloWeight : st.weight,
+      opacity: halo ? .72 : st.opacity,
+      dashArray: halo ? null : st.dash,
+      lineCap:'round',
+      lineJoin:'round',
+      fill:false,
+      fillOpacity:0,
+      interactive:false
+    };
+  }
+  function hasFeatures(gj){ return !!(gj && Array.isArray(gj.features) && gj.features.length); }
+  function boundaryPathForYear(){
+    const y=String(state.year);
+    return state.manifest?.layers?.admin_boundary_levels?.[y] || `data/admin_boundary_levels/admin_boundary_levels_${y}.geojson`;
+  }
+  async function loadBoundaryCache(){
+    try{ return await loadJson(boundaryPathForYear()); }catch(_){ return null; }
+  }
+  function byLevel(gj, level){
+    if(!hasFeatures(gj)) return {type:'FeatureCollection', features:[]};
+    return {type:'FeatureCollection', features:gj.features.filter(f=>String(f?.properties?.level||'')===level)};
+  }
+  function currentAdminGJ(){
+    const gj=state.currentGeoJSON;
+    if(hasFeatures(gj)) return gj;
+    return null;
+  }
+  function layerGroupFromGeoJSON(gj, level){
+    if(!hasFeatures(gj)) return null;
+    ensurePanes();
+    const halo=L.geoJSON(gj,{pane:STYLE[level].pane, interactive:false, style:()=>baseLineStyle(level,true)});
+    const fg=L.geoJSON(gj,{pane:STYLE[level].pane, interactive:false, style:()=>baseLineStyle(level,false)});
+    return L.layerGroup([halo, fg]);
+  }
+  function clearUniversal(){
+    Object.values(LAYER).forEach(name=>{
+      const lyr=state.layers?.[name];
+      if(lyr && state.map?.hasLayer?.(lyr)) state.map.removeLayer(lyr);
+      if(state.layers) delete state.layers[name];
+    });
+  }
+  async function rebuildUniversalLayers(){
+    if(!state.map) return;
+    clearUniversal();
+    ensurePanes();
+    const admin=currentAdminGJ();
+    if(!admin) return;
+    const cache=await loadBoundaryCache();
+
+    // Lower-level overlay: always draw directly from current admin polygons. This is the most robust
+    // way to show every reconstructed ATE boundary even if a derived file is stale or broken.
+    state.layers[LAYER.lower]=layerGroupFromGeoJSON(admin,'lower');
+
+    // Higher levels: prefer dissolved line cache; fallback to admin outlines so the overlay never fails.
+    ['intermediate','upper','disputed'].forEach(level=>{
+      const part=byLevel(cache, level);
+      let lyr=layerGroupFromGeoJSON(part,level);
+      if(!lyr && level!=='disputed') lyr=layerGroupFromGeoJSON(admin,level);
+      if(lyr) state.layers[LAYER[level]]=lyr;
+    });
+    refreshUniversalVisibility();
+  }
+  function refreshUniversalVisibility(){
+    if(!state.map) return;
+    LEVELS.forEach(level=>{
+      const lyr=state.layers?.[LAYER[level]];
+      if(!lyr) return;
+      const show=on(level);
+      if(show && !state.map.hasLayer(lyr)) lyr.addTo(state.map);
+      if(!show && state.map.hasLayer(lyr)) state.map.removeLayer(lyr);
+    });
+    // Strict visual hierarchy: lower -> intermediate -> disputed -> upper.
+    ['lower','intermediate','disputed','upper'].forEach(level=>{
+      const lyr=state.layers?.[LAYER[level]];
+      if(lyr && state.map.hasLayer(lyr) && lyr.bringToFront) lyr.bringToFront();
+    });
+  }
+  function ensureControls(){
+    const toggles=document.querySelector('.toggles');
+    if(!toggles) return bindControls();
+    if(!$('adminBoundaryLevelControlsV140')){
+      const wrap=document.createElement('div');
+      wrap.id='adminBoundaryLevelControlsV140';
+      wrap.className='admin-boundary-level-controls-v140';
+      wrap.innerHTML=`
+        <div class="topology-layer-title-v92">Границы уровней АТД</div>
+        <label><input type="checkbox" id="toggleAdminBoundaryUpper"> Верхний уровень</label>
+        <label><input type="checkbox" id="toggleAdminBoundaryIntermediate"> Промежуточный уровень</label>
+        <label><input type="checkbox" id="toggleAdminBoundaryLower"> Нижний уровень</label>
+        <label><input type="checkbox" id="toggleAdminBoundaryDisputed"> Спорные / особые границы</label>
+        <div class="mini-muted">v146: универсальный оверлей границ поверх любых тематических слоёв. Нижний уровень берётся прямо из текущих полигонов АТЕ; верхние уровни — из иерархических контуров/кэша.</div>`;
+      const anchor=$('toggleTopologyEdgesMain')?.closest('label') || $('toggleAdmin')?.closest('label');
+      if(anchor && anchor.parentNode===toggles) anchor.insertAdjacentElement('afterend', wrap); else toggles.appendChild(wrap);
+    }else{
+      const note=$('adminBoundaryLevelControlsV140')?.querySelector('.mini-muted');
+      if(note) note.textContent='v146: универсальный оверлей границ поверх любых тематических слоёв; чем выше уровень, тем выше линия в визуальной иерархии.';
+    }
+    bindControls();
+  }
+  function bindControls(){
+    Object.values(TOGGLE).forEach(id=>{
+      const el=$(id); if(!el || el.dataset.v146UniversalBoundaryBound==='1') return;
+      el.dataset.v146UniversalBoundaryBound='1';
+      el.addEventListener('change',()=>{ refreshUniversalVisibility(); try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } },false);
+    });
+  }
+  function legendHtml(){
+    let rows='';
+    ['lower','intermediate','disputed','upper'].forEach(level=>{
+      if(!on(level)) return;
+      const st=STYLE[level];
+      rows+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${st.color};border-top-style:${st.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(st.weight))}px"></span>${escapeHtml(st.label)}</div>`;
+    });
+    return rows ? `<hr><div class="legend-section">Границы уровней АТД · оверлей</div>${rows}<div class="mini-muted legend-scale-note-v67">v146: линии выводятся отдельными верхними pane поверх любых режимов карты. Нижний уровень рисуется из текущих полигонов АТЕ; верхний уровень имеет максимальный приоритет отрисовки.</div>` : '';
+  }
+  const prevClear=typeof clearYearLayers==='function' ? clearYearLayers : null;
+  if(prevClear){ clearYearLayers=function clearYearLayersV146(){ prevClear.apply(this,arguments); clearUniversal(); }; }
+  const prevRefreshAll=typeof refreshAll==='function' ? refreshAll : null;
+  if(prevRefreshAll){ refreshAll=async function refreshAllV146(){ const r=await prevRefreshAll.apply(this,arguments); await rebuildUniversalLayers(); return r; }; }
+  const prevVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
+  if(prevVisibility){ refreshVisibility=function refreshVisibilityV146(){ const r=prevVisibility.apply(this,arguments); refreshUniversalVisibility(); return r; }; }
+  const prevLegend=typeof updateLegend==='function' ? updateLegend : null;
+  if(prevLegend){ updateLegend=function updateLegendV146(gj, vals){ prevLegend.apply(this,arguments); if(!anyOn()) return; const box=$('legendBox'); if(!box) return; box.insertAdjacentHTML('beforeend', legendHtml()); }; }
+  const prevBind=typeof bindUi==='function' ? bindUi : null;
+  if(prevBind){ bindUi=function bindUiV146(){ const r=prevBind.apply(this,arguments); ensureControls(); return r; }; }
+  const boot=()=>{ ensureControls(); setTimeout(()=>rebuildUniversalLayers().catch(e=>console.warn('v146 universal boundaries failed',e)),500); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,300);
+})();

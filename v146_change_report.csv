@@ -1,0 +1,5 @@
+change,details
+version,v146
+universal_boundary_overlay,"Added high-pane universal admin boundary overlays: lower/intermediate/upper/disputed"
+lower_boundaries,"Lower-level boundaries draw directly from current admin polygons for robustness"
+visual_priority,"Pane order lower < intermediate < disputed < upper; upper has highest z-index"
