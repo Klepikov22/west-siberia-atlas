@@ -1,4 +1,4 @@
-const APP_VERSION = '147';
+const APP_VERSION = '138';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -15063,18 +15063,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
   function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
   function advEdgeFilterState(){
-    const minRange=$('advMinStrengthRangeV136');
-    const minNum=$('advMinStrengthNumberV139');
-    const minStrength=Number((minNum && minNum.value!=='') ? minNum.value : (minRange?.value ?? 0));
-    const unlimited=$('advMaxImpedanceUnlimitedV139')?.checked===true;
-    const maxNum=$('advMaxImpedanceNumberV139');
-    const maxRange=$('advMaxImpedanceRangeV139');
-    const oldSelect=$('advMaxImpedanceSelectV136');
-    let maxImpedance=Infinity;
-    if(!unlimited){
-      const raw=(maxNum && maxNum.value!=='') ? maxNum.value : (maxRange?.value ?? oldSelect?.value ?? 'all');
-      maxImpedance=(raw==='all') ? Infinity : Number(raw);
-    }
+    const minStrength=Number($('advMinStrengthRangeV136')?.value ?? 0);
+    const maxImpRaw=$('advMaxImpedanceSelectV136')?.value || 'all';
+    const maxImpedance=maxImpRaw==='all' ? Infinity : Number(maxImpRaw);
     const includeBlocked=$('advIncludeBlockedEdgesV136')?.checked===true;
     const onlyCorridors=$('advOnlyCorridorEdgesV136')?.checked===true;
     return {minStrength:Number.isFinite(minStrength)?minStrength:0, maxImpedance:Number.isFinite(maxImpedance)?maxImpedance:Infinity, includeBlocked, onlyCorridors};
@@ -15098,22 +15089,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(fs.includeBlocked) parts.push('включая снятые');
     return parts.length ? parts.join(' · ') : 'без доп. фильтра';
   }
-  function syncAdvFilterLabels(sourceId=''){
+  function syncAdvFilterLabels(){
     const fs=advEdgeFilterState();
-    const minRange=$('advMinStrengthRangeV136');
-    const minNum=$('advMinStrengthNumberV139');
-    if(minRange && sourceId!=='advMinStrengthRangeV136') minRange.value=String(Math.max(Number(minRange.min||0), Math.min(Number(minRange.max||100), fs.minStrength)));
-    if(minNum && sourceId!=='advMinStrengthNumberV139') minNum.value=String(fs.minStrength);
     const a=$('advMinStrengthValueV136'); if(a) a.textContent=String(fs.minStrength).replace('.',',');
-    const maxRange=$('advMaxImpedanceRangeV139');
-    const maxNum=$('advMaxImpedanceNumberV139');
-    const unlimited=$('advMaxImpedanceUnlimitedV139')?.checked===true;
-    if(maxRange) maxRange.disabled=unlimited;
-    if(maxNum) maxNum.disabled=unlimited;
-    if(!unlimited && Number.isFinite(fs.maxImpedance)){
-      if(maxRange && sourceId!=='advMaxImpedanceRangeV139') maxRange.value=String(Math.max(Number(maxRange.min||0), Math.min(Number(maxRange.max||5000), fs.maxImpedance)));
-      if(maxNum && sourceId!=='advMaxImpedanceNumberV139') maxNum.value=String(fs.maxImpedance);
-    }
     const b=$('advFilterStatusV136'); if(b) b.textContent='Фильтр рёбер: '+advFilterLabel();
   }
   function fnum(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
@@ -15159,9 +15137,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     }
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
-      host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v144"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
+      host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер потенциальной связности</div>
+        <label class="advanced-filter-row-v136"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option></select></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -15421,7 +15399,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   const APP_ADV_VERSION='v136';
   const EDGE_SVG_LAYER_ID='advancedConnectivityEdgeSvgLayerV133';
   const EDGE_SVG_ID='advancedConnectivityEdgeSvgV133';
-  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v139_cost_graph'};
+  const EDGE_STATS_EMPTY={counts:{}, total:0, nodes:0, renderer:'dom_svg_edges_v138'};
   const METRICS={
     adv_degree:'Потенциальная связность · проходимые соседи',
     adv_weighted_degree:'Потенциальная связность · взвешенная связность',
@@ -15472,18 +15450,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
   function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
   function advEdgeFilterState(){
-    const minRange=$('advMinStrengthRangeV136');
-    const minNum=$('advMinStrengthNumberV139');
-    const minStrength=Number((minNum && minNum.value!=='') ? minNum.value : (minRange?.value ?? 0));
-    const unlimited=$('advMaxImpedanceUnlimitedV139')?.checked===true;
-    const maxNum=$('advMaxImpedanceNumberV139');
-    const maxRange=$('advMaxImpedanceRangeV139');
-    const oldSelect=$('advMaxImpedanceSelectV136');
-    let maxImpedance=Infinity;
-    if(!unlimited){
-      const raw=(maxNum && maxNum.value!=='') ? maxNum.value : (maxRange?.value ?? oldSelect?.value ?? 'all');
-      maxImpedance=(raw==='all') ? Infinity : Number(raw);
-    }
+    const minStrength=Number($('advMinStrengthRangeV136')?.value ?? 0);
+    const maxImpRaw=$('advMaxImpedanceSelectV136')?.value || 'all';
+    const maxImpedance=maxImpRaw==='all' ? Infinity : Number(maxImpRaw);
     const includeBlocked=$('advIncludeBlockedEdgesV136')?.checked===true;
     const onlyCorridors=$('advOnlyCorridorEdgesV136')?.checked===true;
     return {minStrength:Number.isFinite(minStrength)?minStrength:0, maxImpedance:Number.isFinite(maxImpedance)?maxImpedance:Infinity, includeBlocked, onlyCorridors};
@@ -15507,22 +15476,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(fs.includeBlocked) parts.push('включая снятые');
     return parts.length ? parts.join(' · ') : 'без доп. фильтра';
   }
-  function syncAdvFilterLabels(sourceId=''){
+  function syncAdvFilterLabels(){
     const fs=advEdgeFilterState();
-    const minRange=$('advMinStrengthRangeV136');
-    const minNum=$('advMinStrengthNumberV139');
-    if(minRange && sourceId!=='advMinStrengthRangeV136') minRange.value=String(Math.max(Number(minRange.min||0), Math.min(Number(minRange.max||100), fs.minStrength)));
-    if(minNum && sourceId!=='advMinStrengthNumberV139') minNum.value=String(fs.minStrength);
     const a=$('advMinStrengthValueV136'); if(a) a.textContent=String(fs.minStrength).replace('.',',');
-    const maxRange=$('advMaxImpedanceRangeV139');
-    const maxNum=$('advMaxImpedanceNumberV139');
-    const unlimited=$('advMaxImpedanceUnlimitedV139')?.checked===true;
-    if(maxRange) maxRange.disabled=unlimited;
-    if(maxNum) maxNum.disabled=unlimited;
-    if(!unlimited && Number.isFinite(fs.maxImpedance)){
-      if(maxRange && sourceId!=='advMaxImpedanceRangeV139') maxRange.value=String(Math.max(Number(maxRange.min||0), Math.min(Number(maxRange.max||5000), fs.maxImpedance)));
-      if(maxNum && sourceId!=='advMaxImpedanceNumberV139') maxNum.value=String(fs.maxImpedance);
-    }
     const b=$('advFilterStatusV136'); if(b) b.textContent='Фильтр рёбер: '+advFilterLabel();
   }
   function fnum(v){ const n=Number(v); if(!Number.isFinite(n)) return '—'; if(Math.abs(n)>=10 || Number.isInteger(n)) return num(n); return n.toFixed(3).replace('.',','); }
@@ -15568,9 +15524,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     }
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
-      host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v144"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
+      host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер потенциальной связности</div>
+        <label class="advanced-filter-row-v136"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option></select></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -15620,7 +15576,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       const p=feature.properties||{};
       line.addEventListener('mouseover', ev=>showHoverLater({
         title:`${p.source_name||'АТЕ'} — ${p.target_name||'АТЕ'}`,
-        subtitle:'ребро потенциальной связности · стоимостная модель v139',
+        subtitle:'ребро потенциальной связности · компонентная модель v138',
         extra:`${escapeHtml(p.adv_edge_label||style.label||p.adv_edge_class||'связь')} · сила: ${fnum(p.adv_strength)} · impedance: ${fnum(p.adv_impedance)} · коридоры: ${escapeHtml(p.adv_corridor_profile||'none')} · длины: ЖД ${fnum(p.adv_rail_local_km)} км, тракт ${fnum(p.adv_old_road_local_km)} км, река ${fnum(p.adv_navigable_river_local_km)} км · барьеры: ${escapeHtml(p.adv_barrier_profile||'none')} · рельеф ${fnum(p.adv_relief_barrier_km)} км, водораздел ${fnum(p.adv_main_watershed_barrier_km)} км · дистанция: ${fnum(p.adv_distance_km)} км${p.adv_passable===false?' · исключено из расчёта':''}`,
         delay:70
       }, ev));
@@ -15678,7 +15634,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     });
     state._advancedConnectivityEdgeItemsV133=items;
     const prev=state.advancedConnectivityStats||{};
-    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v139_cost_graph'};
+    state.advancedConnectivityStats={...prev, year:state.year, counts, total:items.length, nodes:prev.nodes||0, renderer:'dom_svg_edges_v138'};
     positionEdges();
     try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
   }
@@ -15693,18 +15649,18 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(nodes && nodes.dataset.v133AdvNodeBound!=='1'){
       nodes.dataset.v133AdvNodeBound='1'; nodes.addEventListener('change',()=>{ setTimeout(()=>{ try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } },80); }, false);
     }
-    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceRangeV139','advMaxImpedanceNumberV139','advMaxImpedanceUnlimitedV139','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
+    ['advMinStrengthRangeV136','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
       const el=$(id); if(!el || el.dataset.v136AdvFilterBound==='1') return;
       el.dataset.v136AdvFilterBound='1';
-      el.addEventListener('input',()=>{ syncAdvFilterLabels(id); scheduleEdges(0); }, false);
-      el.addEventListener('change',()=>{ syncAdvFilterLabels(id); scheduleEdges(0); }, false);
+      el.addEventListener('input',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
+      el.addEventListener('change',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
     });
     syncAdvFilterLabels();
-    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceRangeV139','advMaxImpedanceNumberV139','advMaxImpedanceUnlimitedV139','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
+    ['advMinStrengthRangeV136','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
       const el=$(id); if(!el || el.dataset.v136AdvFilterBound==='1') return;
       el.dataset.v136AdvFilterBound='1';
-      el.addEventListener('input',()=>{ syncAdvFilterLabels(id); scheduleEdges(0); }, false);
-      el.addEventListener('change',()=>{ syncAdvFilterLabels(id); scheduleEdges(0); }, false);
+      el.addEventListener('input',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
+      el.addEventListener('change',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
     });
     syncAdvFilterLabels();
     const mode=$('modeSelect');
@@ -15761,13 +15717,13 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
         const c=stats.counts?.[k]||0;
         if(exportMode || c>0 || ['rail_corridor','old_road_corridor','navigable_river_corridor','blocked_highland'].includes(k)) html+=`<div class="legend-row"><span class="advanced-edge-legend-v132" style="--edge-color:${s.color};--edge-style:${s.dash?'dashed':'solid'}"></span><span>${escapeHtml(s.label)}</span>${!exportMode?`<b>${num(c)}</b>`:''}</div>`;
       });
-      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Стоимостная компонентная модель v139. ${escapeHtml(advFilterLabel())}.</div>`;
+      if(!exportMode) html+=`<div class="mini-muted legend-scale-note-v67">Рёбра текущей выборки: ${num(stats.total||0)}. Компонентная модель v138. ${escapeHtml(advFilterLabel())}.</div>`;
     }
     if(showNodes){
       html+='<hr><div class="legend-section">Продвинутый граф: узлы</div>';
       html+=`<div class="legend-row"><span class="advanced-node-legend-v132"></span><span>цвет/размер = ${escapeHtml(SHORT[metric()]||metric())}</span>${!exportMode?`<b>${num(stats.nodes||0)}</b>`:''}</div>`;
     }
-    html+='<div class="mini-muted legend-scale-note-v67">Стоимостная компонентная модель потенциальной связности v139: речная, дорожная и ЖД-компоненты усиливают связь с учётом локальной длины коридора; болотный, рельефный и водораздельный импеданс ослабляют её с учётом выраженности барьера.</div>';
+    html+='<div class="mini-muted legend-scale-note-v67">Компонентная модель потенциальной связности v138: речная, дорожная и ЖД-компоненты усиливают связь с учётом локальной длины коридора; болотный, рельефный и водораздельный импеданс ослабляют её с учётом выраженности барьера.</div>';
     return html;
   }
   if(typeof v98BuildLegendHtml==='function'){
@@ -15875,705 +15831,4 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   if(priorBind){ bindUi=function bindUiV133(){ const r=priorBind.apply(this,arguments); bindControls(); return r; }; }
   const boot=()=>{ try{ bindControls(); scheduleEdges(900); }catch(e){ console.warn('v133 advanced connectivity boot failed', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,250);
-})();
-
-/* v140: dynamic administrative boundary linework by division level */
-(function v140AdminBoundaryLevelLines(){
-  const STYLE={
-    upper:{label:'верхний уровень АТД', color:'#1f1712', weight:4.4, opacity:.98, dash:null},
-    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', weight:2.6, opacity:.92, dash:null},
-    lower:{label:'нижний уровень АТД', color:'#4b5563', weight:1.15, opacity:.58, dash:null},
-    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.5, opacity:.94, dash:'7 5 2 5'}
-  };
-  const LAYERS={upper:'adminBoundaryUpper',intermediate:'adminBoundaryIntermediate',lower:'adminBoundaryLower',disputed:'adminBoundaryDisputed'};
-  const TOGGLES={upper:'toggleAdminBoundaryUpper',intermediate:'toggleAdminBoundaryIntermediate',lower:'toggleAdminBoundaryLower',disputed:'toggleAdminBoundaryDisputed'};
-  function levelOn(level){ return $(TOGGLES[level])?.checked===true; }
-  function anyLevelOn(){ return Object.keys(TOGGLES).some(levelOn); }
-  function ensureControls(){
-    const toggles=document.querySelector('.toggles'); if(!toggles) return;
-    if($('adminBoundaryLevelControlsV140')) return bindControls();
-    const wrap=document.createElement('div');
-    wrap.id='adminBoundaryLevelControlsV140';
-    wrap.className='admin-boundary-level-controls-v140';
-    wrap.innerHTML=`
-      <div class="topology-layer-title-v92">Границы уровней АТД</div>
-      <label><input type="checkbox" id="toggleAdminBoundaryUpper"> Верхний уровень</label>
-      <label><input type="checkbox" id="toggleAdminBoundaryIntermediate"> Промежуточный уровень</label>
-      <label><input type="checkbox" id="toggleAdminBoundaryLower"> Нижний уровень</label>
-      <label><input type="checkbox" id="toggleAdminBoundaryDisputed"> Спорные / особые границы</label>
-      <div class="mini-muted">Линейный слой пересобран как полные контуры АТЕ и иерархических диссольвов: нижний, промежуточный, верхний уровни. Океаническая береговая линия вырезана; графовые рёбра между центрами не используются.</div>`;
-    const anchor=$('toggleBoundaryMemorySegments')?.closest('label') || $('toggleNaturalBoundarySegments')?.closest('label') || $('toggleTopologyEdgesMain')?.closest('label') || $('toggleAdmin')?.closest('label');
-    if(anchor && anchor.parentNode===toggles) anchor.insertAdjacentElement('afterend', wrap); else toggles.appendChild(wrap);
-    bindControls();
-  }
-  function bindControls(){
-    Object.values(TOGGLES).forEach(id=>{ const el=$(id); if(!el || el.dataset.v140Bound==='1') return; el.dataset.v140Bound='1'; el.addEventListener('change',()=>{ refreshBoundaryLevelVisibility(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }); });
-  }
-
-  function ensurePanes(mapRef=state.map){
-    if(!mapRef || !mapRef.createPane) return;
-    if(!mapRef.getPane('adminBoundaryLevelPane')){
-      const p=mapRef.createPane('adminBoundaryLevelPane'); p.style.zIndex=645; p.style.pointerEvents='none';
-    }
-    if(!mapRef.getPane('adminBoundaryUpperPane')){
-      const p=mapRef.createPane('adminBoundaryUpperPane'); p.style.zIndex=670; p.style.pointerEvents='none';
-    }
-  }
-  function paneFor(level,mapRef=state.map){ ensurePanes(mapRef); return level==='upper' ? 'adminBoundaryUpperPane' : 'adminBoundaryLevelPane'; }
-
-  function styleFor(feature){
-    const level=feature?.properties?.level || 'lower'; const s=STYLE[level]||STYLE.lower;
-    return {color:s.color, weight:s.weight, opacity:s.opacity, dashArray:s.dash, lineCap:'round', lineJoin:'round', fill:false};
-  }
-  function onEach(feature, layer){
-    const p=feature.properties||{};
-    if(layer.bindTooltip){
-      const title=p.level_label || STYLE[p.level]?.label || 'граница АТД';
-      const sub=p.source_name&&p.target_name ? `${p.source_name} — ${p.target_name}` : '';
-      layer.bindTooltip(`<b>${escapeHtml(title)}</b>${sub?`<br>${escapeHtml(sub)}`:''}${p.boundary_km?`<br>${num1(p.boundary_km)} км`:''}`, {sticky:true, direction:'top', opacity:.92});
-    }
-  }
-  async function loadBoundaryLevels(){
-    const path=state.manifest?.layers?.admin_boundary_levels?.[String(state.year)];
-    if(!path) return null;
-    return await loadJson(path);
-  }
-  async function refreshBoundaryLevelLayers(){
-    Object.values(LAYERS).forEach(clearLayer);
-    const path=state.manifest?.layers?.admin_boundary_levels?.[String(state.year)];
-    if(!path) return;
-    try{
-      const gj=await loadBoundaryLevels(); if(!gj) return;
-      Object.entries(LAYERS).forEach(([level,layerName])=>{
-        state.layers[layerName]=L.geoJSON(gj,{pane:paneFor(level), filter:f=>String(f?.properties?.level||'')===level, interactive:true, style:styleFor, onEachFeature:onEach});
-      });
-      refreshBoundaryLevelVisibility();
-    }catch(e){ console.warn('v140 boundary level lines failed', e); }
-  }
-  function refreshBoundaryLevelVisibility(){
-    if(!state.map) return;
-    ['lower','intermediate','upper','disputed'].forEach(level=>{
-      const layer=state.layers[LAYERS[level]]; if(!layer) return;
-      const show=levelOn(level);
-      if(show && !state.map.hasLayer(layer)) layer.addTo(state.map);
-      if(!show && state.map.hasLayer(layer)) state.map.removeLayer(layer);
-    });
-    // Draw order: lower below, then intermediate and disputed; upper boundaries must stay on top.
-    ['lower','intermediate','disputed','upper'].forEach(level=>{ const layer=state.layers[LAYERS[level]]; if(layer && state.map.hasLayer(layer) && layer.bringToFront) layer.bringToFront(); });
-  }
-  function legendHtml(){
-    let html='';
-    Object.keys(TOGGLES).forEach(level=>{
-      if(!levelOn(level)) return;
-      const s=STYLE[level];
-      html+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${s.color};border-top-style:${s.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(s.weight))}px"></span>${escapeHtml(s.label)}</div>`;
-    });
-    return html;
-  }
-  const prevClear=typeof clearYearLayers==='function' ? clearYearLayers : null;
-  if(prevClear){ clearYearLayers=function clearYearLayersV140(){ prevClear.apply(this,arguments); Object.values(LAYERS).forEach(clearLayer); }; }
-  const prevRefreshAll=typeof refreshAll==='function' ? refreshAll : null;
-  if(prevRefreshAll){ refreshAll=async function refreshAllV140(){ const r=await prevRefreshAll.apply(this,arguments); await refreshBoundaryLevelLayers(); refreshBoundaryLevelVisibility(); return r; }; }
-  const prevVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
-  if(prevVisibility){ refreshVisibility=function refreshVisibilityV140(){ const r=prevVisibility.apply(this,arguments); refreshBoundaryLevelVisibility(); return r; }; }
-  const prevLegend=typeof updateLegend==='function' ? updateLegend : null;
-  if(prevLegend){ updateLegend=function updateLegendV140(gj, vals){ prevLegend(gj, vals); const box=$('legendBox'); if(!box || !anyLevelOn()) return; box.insertAdjacentHTML('beforeend', `<hr><div class="legend-section">Границы уровней АТД</div>${legendHtml()}<div class="mini-muted legend-scale-note-v67">Уровни построены как полные контуры полигонов/диссольвов АТЕ; океаническая береговая линия вырезана.</div>`); }; }
-  // Optional export toggles: add the visible boundary lines to clean export map.
-  async function addBoundaryLevelsToExportMap(map){
-    if(!map || !anyLevelOn()) return;
-    try{
-      const gj=await loadBoundaryLevels(); if(!gj) return;
-      Object.keys(TOGGLES).forEach(level=>{
-        if(!levelOn(level)) return;
-        L.geoJSON(gj,{pane:paneFor(level,map), filter:f=>String(f?.properties?.level||'')===level, interactive:false, style:styleFor}).addTo(map);
-      });
-    }catch(e){ console.warn('v140 export boundary levels skipped', e); }
-  }
-  const priorAddExport=typeof addExportVectorLayers==='function' ? addExportVectorLayers : null;
-  if(priorAddExport){ addExportVectorLayers=async function addExportVectorLayersV140(map, features){ await priorAddExport(map, features); await addBoundaryLevelsToExportMap(map); }; }
-  const prevBind=typeof bindUi==='function' ? bindUi : null;
-  if(prevBind){ bindUi=function bindUiV140(){ const r=prevBind.apply(this,arguments); ensureControls(); return r; }; }
-  const boot=()=>{ ensureControls(); refreshBoundaryLevelLayers(); try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){} };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,250);
-})();
-
-
-/* v141: export integration for dynamic administrative boundary level lines */
-(function v141AdminBoundaryLevelExportIntegration(){
-  const LEVELS=[
-    ['upper','AdminBoundaryUpper','Границы АТД: верхний уровень'],
-    ['intermediate','AdminBoundaryIntermediate','Границы АТД: промежуточный уровень'],
-    ['lower','AdminBoundaryLower','Границы АТД: нижний уровень'],
-    ['disputed','AdminBoundaryDisputed','Границы АТД: спорные / особые']
-  ];
-  const STYLE={
-    upper:{label:'верхний уровень АТД', color:'#1f1712', weight:4.4, opacity:.98, dash:null},
-    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', weight:2.6, opacity:.92, dash:null},
-    lower:{label:'нижний уровень АТД', color:'#4b5563', weight:1.15, opacity:.58, dash:null},
-    disputed:{label:'спорные / особые границы', color:'#be185d', weight:2.5, opacity:.94, dash:'7 5 2 5'}
-  };
-  function $(id){ return document.getElementById(id); }
-  function key(level){ return 'adminBoundary'+level[0].toUpperCase()+level.slice(1); }
-  function flag(level){ return 'showAdminBoundary'+level[0].toUpperCase()+level.slice(1); }
-  function exportId(level){ return 'exportShowAdminBoundary'+level[0].toUpperCase()+level.slice(1); }
-  function interactiveToggleId(level){ return 'toggleAdminBoundary'+level[0].toUpperCase()+level.slice(1); }
-  function interactiveOn(level){ const el=$(interactiveToggleId(level)); return !!(el && el.checked); }
-  function exportOn(level){ const ex=state.export||{}; return !!ex[flag(level)]; }
-  function anyExportOn(){ return LEVELS.some(([level])=>exportOn(level)); }
-  function normalizeExportFlags(ex, forceFromInteractive=false){
-    if(!ex || typeof ex!=='object') ex=state.export || (state.export={});
-    if(!ex.legendItems || typeof ex.legendItems!=='object') ex.legendItems={};
-    LEVELS.forEach(([level])=>{
-      const f=flag(level), k=key(level);
-      if(forceFromInteractive || typeof ex[f] !== 'boolean') ex[f]=interactiveOn(level);
-      if(forceFromInteractive || typeof ex.legendItems[k] !== 'boolean') ex.legendItems[k]=!!ex[f];
-    });
-    return ex;
-  }
-  const priorEnsure=typeof ensureExportFlags==='function' ? ensureExportFlags : null;
-  if(priorEnsure){
-    ensureExportFlags=function ensureExportFlagsV141(){
-      const ex=priorEnsure.apply(this,arguments);
-      return normalizeExportFlags(ex,false);
-    };
-  }
-  if(typeof v98ExportOrInteractiveLayerOn==='function'){
-    const priorLayerOn=v98ExportOrInteractiveLayerOn;
-    v98ExportOrInteractiveLayerOn=function v98ExportOrInteractiveLayerOnV141(layerKey, exportMode=false){
-      const match=LEVELS.find(([level])=>key(level)===layerKey);
-      if(match){
-        const level=match[0];
-        return exportMode ? exportOn(level) : interactiveOn(level);
-      }
-      return priorLayerOn.apply(this,arguments);
-    };
-  }
-  if(typeof v98DefaultLegendItems==='function'){
-    const priorDefault=v98DefaultLegendItems;
-    v98DefaultLegendItems=function v98DefaultLegendItemsV141(){
-      const o=priorDefault.apply(this,arguments) || {};
-      LEVELS.forEach(([level])=>{ o[key(level)]=interactiveOn(level); });
-      return o;
-    };
-  }
-  if(typeof v98SyncExportLayerDefaultsFromInteractive==='function'){
-    const priorSyncFromMap=v98SyncExportLayerDefaultsFromInteractive;
-    v98SyncExportLayerDefaultsFromInteractive=function v98SyncExportLayerDefaultsFromInteractiveV141(forceLegend=true){
-      priorSyncFromMap.apply(this,arguments);
-      normalizeExportFlags(state.export||{}, !!forceLegend);
-    };
-  }
-  if(typeof v98LegendControlDefs==='function'){
-    const priorDefs=v98LegendControlDefs;
-    v98LegendControlDefs=function v98LegendControlDefsV141(){
-      const base=(priorDefs.apply(this,arguments)||[]).filter(d=>!LEVELS.some(([level])=>d[0]===key(level)));
-      base.push(['adminBoundaryUpper','Границы: верхний уровень','adminBoundaryUpper']);
-      base.push(['adminBoundaryIntermediate','Границы: промежуточный уровень','adminBoundaryIntermediate']);
-      base.push(['adminBoundaryLower','Границы: нижний уровень','adminBoundaryLower']);
-      base.push(['adminBoundaryDisputed','Границы: спорные / особые','adminBoundaryDisputed']);
-      return base;
-    };
-  }
-  function boundaryLegendRows(exportMode=false){
-    const ex=ensureExportFlags();
-    let rows='';
-    LEVELS.forEach(([level])=>{
-      const k=key(level), st=STYLE[level];
-      const show=exportMode ? (!!ex[k] || (!!ex.legendItems?.[k] && exportOn(level))) : interactiveOn(level);
-      const enabled=exportMode ? (!!ex.legendItems?.[k] && exportOn(level)) : show;
-      if(!enabled) return;
-      rows+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${st.color};border-top-style:${st.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(st.weight))}px"></span>${escapeHtml(st.label)}</div>`;
-    });
-    if(!rows) return '';
-    return `<hr><div class="legend-section">Границы уровней АТД</div>${rows}<div class="mini-muted legend-scale-note-v67">Линейные уровни построены как полные контуры полигонов/диссольвов АТЕ; океаническая береговая линия вырезана.</div>`;
-  }
-  if(typeof v98BuildLegendHtml==='function'){
-    const priorBuildLegend=v98BuildLegendHtml;
-    v98BuildLegendHtml=function v98BuildLegendHtmlV141(options={}){
-      let html=priorBuildLegend.apply(this,arguments) || '';
-      if(options && options.exportMode) html+=boundaryLegendRows(true);
-      return html;
-    };
-    if(typeof exportLegendHtml==='function'){
-      exportLegendHtml=function exportLegendHtmlV141(){
-        return `<div class="export-legend-wrap export-legend-wrap-v98 export-legend-wrap-v100 export-legend-wrap-v141">${v98BuildLegendHtml({exportMode:true, includeTitle:false})}</div>`;
-      };
-    }
-  }
-  function installExportControls(modal){
-    if(!modal) return;
-    const grid=modal.querySelector('.export-layer-grid, .export-layer-grid-v50, .export-layer-grid-v49, .export-option-grid');
-    if(grid && !document.getElementById('exportBoundaryLevelsGroupV141')){
-      grid.insertAdjacentHTML('beforeend', `<div id="exportBoundaryLevelsGroupV141" class="export-boundary-levels-v141"><div class="mini-muted export-boundary-levels-title-v141">Границы уровней АТД</div></div>`);
-    }
-    const group=document.getElementById('exportBoundaryLevelsGroupV141') || grid;
-    LEVELS.forEach(([level, suffix, label])=>{
-      const id=exportId(level);
-      if(group && !document.getElementById(id)) group.insertAdjacentHTML('beforeend', `<label><input type="checkbox" id="${id}"> ${escapeHtml(label.replace('Границы АТД: ',''))}</label>`);
-      const el=document.getElementById(id); if(!el || el.dataset.v141Bound==='1') return;
-      el.dataset.v141Bound='1';
-      el.addEventListener('change', e=>{
-        const ex=ensureExportFlags();
-        ex[flag(level)]=!!e.target.checked;
-        if(ex.legendItems) ex.legendItems[key(level)]=!!e.target.checked;
-        try{ v68FullSvgCache?.clear?.(); }catch(_){ }
-        try{ v98RenderExportLegendControls?.(); }catch(_){ }
-        renderExportPreviewCard();
-      });
-    });
-    syncBoundaryExportCheckboxes();
-    try{ v98RenderExportLegendControls?.(); }catch(_){ }
-  }
-  function syncBoundaryExportCheckboxes(){
-    const ex=ensureExportFlags();
-    LEVELS.forEach(([level])=>{ const el=$(exportId(level)); if(el) el.checked=!!ex[flag(level)]; });
-  }
-  const priorEnsureModal=typeof ensureExportModal==='function' ? ensureExportModal : null;
-  if(priorEnsureModal){
-    ensureExportModal=function ensureExportModalV141(){
-      const modal=priorEnsureModal.apply(this,arguments);
-      installExportControls(modal);
-      return modal;
-    };
-  }
-  const priorSyncDefaults=typeof syncExportDefaults==='function' ? syncExportDefaults : null;
-  if(priorSyncDefaults){
-    syncExportDefaults=function syncExportDefaultsV141(resetTitle=true){
-      priorSyncDefaults.apply(this,arguments);
-      syncBoundaryExportCheckboxes();
-      try{ v98RenderExportLegendControls?.(); }catch(_){ }
-    };
-  }
-  const priorOpen=typeof openExportMode==='function' ? openExportMode : null;
-  if(priorOpen){
-    openExportMode=async function openExportModeV141(){
-      normalizeExportFlags(state.export||{}, true);
-      try{ v68FullSvgCache?.clear?.(); }catch(_){ }
-      return await priorOpen.apply(this,arguments);
-    };
-  }
-  async function loadBoundaryLevels(){
-    const path=state.manifest?.layers?.admin_boundary_levels?.[String(state.year)] || `data/admin_boundary_levels/admin_boundary_levels_${state.year}.geojson`;
-    try{ return await loadJson(path); }catch(e){ console.warn('v141 export boundary levels load failed', e); return null; }
-  }
-  function geomParts(geom){
-    if(!geom) return [];
-    if(geom.type==='LineString') return [geom.coordinates||[]];
-    if(geom.type==='MultiLineString') return geom.coordinates||[];
-    if(geom.type==='Polygon') return (geom.coordinates||[]).map(r=>r||[]);
-    if(geom.type==='MultiPolygon') return (geom.coordinates||[]).flatMap(poly=>(poly||[]).map(r=>r||[]));
-    return [];
-  }
-  function pathD(coords, project){
-    if(!Array.isArray(coords) || coords.length<2) return '';
-    let d='';
-    coords.forEach((c,i)=>{
-      if(!c || !Number.isFinite(Number(c[0])) || !Number.isFinite(Number(c[1]))) return;
-      const p=project(Number(c[0]), Number(c[1]));
-      d+=(d?' ':'')+(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);
-    });
-    return d.includes('L') ? d : '';
-  }
-  async function exportBoundaryLevelsSvg(){
-    const ex=ensureExportFlags();
-    if(!anyExportOn()) return '';
-    const features=(typeof v66ExportSourceFeatures==='function') ? v66ExportSourceFeatures(exportScopeFeatures()) : exportScopeFeatures();
-    if(!features?.length) return '';
-    const project=(typeof v98BuildExportProjection==='function') ? v98BuildExportProjection(features) : (lon,lat)=>makeExportProjection(geoBBoxFromFeatures(features), exportMapFieldRect(...exportMapSize()).w, exportMapFieldRect(...exportMapSize()).h)(lon,lat);
-    const gj=await loadBoundaryLevels();
-    const src=gj?.features||[];
-    const chunks=[];
-    LEVELS.forEach(([level])=>{
-      if(!ex[flag(level)]) return;
-      const st=STYLE[level];
-      const dash=st.dash ? ` stroke-dasharray="${st.dash}"` : '';
-      src.filter(f=>String(f?.properties?.level||'')===level).forEach(f=>{
-        geomParts(f.geometry).forEach(coords=>{
-          const d=pathD(coords, project); if(!d) return;
-          chunks.push(`<path d="${d}" fill="none" stroke="#fff8e6" stroke-width="${(st.weight+2.2).toFixed(1)}" stroke-opacity="0.70" stroke-linecap="round" stroke-linejoin="round"/>`);
-          chunks.push(`<path d="${d}" fill="none" stroke="${st.color}" stroke-width="${st.weight}" stroke-opacity="${st.opacity}"${dash} stroke-linecap="round" stroke-linejoin="round"/>`);
-        });
-      });
-    });
-    return chunks.length ? `<g class="export-admin-boundary-levels-v141" pointer-events="none">${chunks.join('')}</g>` : '';
-  }
-  const priorBuildSvg=typeof buildExportSvgMap==='function' ? buildExportSvgMap : null;
-  if(priorBuildSvg){
-    buildExportSvgMap=async function buildExportSvgMapV141(){
-      let svg=await priorBuildSvg.apply(this,arguments);
-      try{
-        const boundary=await exportBoundaryLevelsSvg();
-        if(boundary){
-          if(svg.includes('</g></g>')) svg=svg.replace('</g></g>', `${boundary}</g></g>`);
-          else svg=svg.replace('</svg>', `${boundary}</svg>`);
-        }
-      }catch(e){ console.warn('v141 export boundary SVG skipped', e); }
-      return svg;
-    };
-  }
-  const priorCache=typeof v68ExportMapCacheKey==='function' ? v68ExportMapCacheKey : null;
-  if(priorCache){
-    v68ExportMapCacheKey=function v68ExportMapCacheKeyV141(){
-      const base=priorCache.apply(this,arguments);
-      const ex=ensureExportFlags();
-      const bits=LEVELS.map(([level])=>`${level}:${ex[flag(level)]?'1':'0'}:${ex.legendItems?.[key(level)]?'1':'0'}`).join(',');
-      return `${base}§boundaryLevels:${bits}`;
-    };
-  }
-  if(typeof v69ExportPreviewShellSignature==='function'){
-    const priorShell=v69ExportPreviewShellSignature;
-    v69ExportPreviewShellSignature=function v69ExportPreviewShellSignatureV141(){
-      const ex=ensureExportFlags();
-      const bits=LEVELS.map(([level])=>`${level}:${ex[flag(level)]?'1':'0'}:${ex.legendItems?.[key(level)]?'1':'0'}`).join(',');
-      return `${priorShell.apply(this,arguments)}§boundaryLevels:${bits}`;
-    };
-  }
-  const boot=()=>{
-    try{ normalizeExportFlags(state.export||{}, false); }catch(_){ }
-    try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
-  };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,200);
-})();
-
-
-/* v144: restore compact v138-style potential-connectivity filter with numeric inputs.
-   The strength slider is back to the v138 0–10 scale; max impedance is controlled
-   by the old preset select plus an optional exact number field. */
-(function(){
-  function $(id){ return document.getElementById(id); }
-  function patchFilterPanel(){
-    const panel=$('advancedConnectivityFilterPanelV136');
-    if(!panel || panel.dataset.v144Patched==='1') return;
-    panel.dataset.v144Patched='1';
-    const minRange=$('advMinStrengthRangeV136');
-    const minNum=$('advMinStrengthNumberV139');
-    const maxSelect=$('advMaxImpedanceSelectV136');
-    const maxNum=$('advMaxImpedanceNumberV139');
-    if(minRange){ minRange.min='0'; minRange.max='10'; minRange.step='0.25'; }
-    if(minNum){ minNum.min='0'; minNum.max='10'; minNum.step='0.25'; }
-    if(maxSelect && maxNum){
-      maxSelect.addEventListener('change',()=>{
-        if(maxSelect.value==='all') maxNum.value='';
-        else maxNum.value=String(maxSelect.value);
-        maxNum.dispatchEvent(new Event('input',{bubbles:true}));
-      }, false);
-      maxNum.addEventListener('input',()=>{
-        const v=String(maxNum.value||'').trim();
-        if(v==='') maxSelect.value='all';
-        else {
-          const opt=[...maxSelect.options].find(o=>o.value===v);
-          if(opt) maxSelect.value=v;
-        }
-      }, false);
-    }
-  }
-  document.addEventListener('DOMContentLoaded',()=>{ setTimeout(patchFilterPanel,150); setTimeout(patchFilterPanel,900); }, false);
-  document.addEventListener('change',e=>{ if(e.target && (e.target.id==='toggleAdvancedConnectivityEdges' || e.target.id==='toggleAdvancedConnectivityNodes')) setTimeout(patchFilterPanel,50); }, true);
-  const mo=new MutationObserver(()=>patchFilterPanel());
-  try{ mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(_){ }
-})();
-
-
-/* v145: timeline layer import — Zapadno-Siberian Krai 1931 is registered in data/manifest.json as admin_1931.geojson. */
-
-
-/* v146: universal always-on-top administrative boundary overlays.
-   This is an emergency/robust renderer independent of the older v140/v143 line cache logic.
-   Lower-level boundaries are drawn directly from the current admin polygons; intermediate/upper
-   boundaries use the rebuildable boundary cache when available and fall back to admin outlines.
-   Every level has its own high Leaflet pane, so boundaries stay above thematic fills, graphs,
-   hydrography and other analytical overlays, but still below the UI panels. */
-(function v146UniversalAdminBoundaryOverlay(){
-  const LEVELS=['lower','intermediate','disputed','upper'];
-  const TOGGLE={
-    upper:'toggleAdminBoundaryUpper',
-    intermediate:'toggleAdminBoundaryIntermediate',
-    lower:'toggleAdminBoundaryLower',
-    disputed:'toggleAdminBoundaryDisputed'
-  };
-  const LAYER={
-    upper:'adminBoundaryUniversalUpperV146',
-    intermediate:'adminBoundaryUniversalIntermediateV146',
-    lower:'adminBoundaryUniversalLowerV146',
-    disputed:'adminBoundaryUniversalDisputedV146'
-  };
-  const STYLE={
-    lower:{label:'нижний уровень АТД', color:'#4b5563', halo:'#fff8e6', weight:1.35, haloWeight:3.6, opacity:.72, dash:null, pane:'adminBoundaryUniversalLowerPaneV146', z:945},
-    intermediate:{label:'промежуточный уровень АТД', color:'#dc2626', halo:'#fff8e6', weight:2.7, haloWeight:5.2, opacity:.95, dash:null, pane:'adminBoundaryUniversalIntermediatePaneV146', z:965},
-    disputed:{label:'спорные / особые границы', color:'#be185d', halo:'#fff8e6', weight:2.5, haloWeight:5.2, opacity:.95, dash:'7 5 2 5', pane:'adminBoundaryUniversalDisputedPaneV146', z:980},
-    upper:{label:'верхний уровень АТД', color:'#19130f', halo:'#fff8e6', weight:4.9, haloWeight:8.2, opacity:.99, dash:null, pane:'adminBoundaryUniversalUpperPaneV146', z:1005}
-  };
-  function $(id){ return document.getElementById(id); }
-  function on(level){ return !!$(TOGGLE[level])?.checked; }
-  function anyOn(){ return LEVELS.some(on); }
-  function ensurePanes(mapRef=state.map){
-    if(!mapRef?.createPane) return;
-    LEVELS.forEach(level=>{
-      const st=STYLE[level];
-      let pane=mapRef.getPane(st.pane);
-      if(!pane) pane=mapRef.createPane(st.pane);
-      pane.style.zIndex=String(st.z);
-      pane.style.pointerEvents='none';
-    });
-  }
-  function baseLineStyle(level, halo=false){
-    const st=STYLE[level];
-    return {
-      pane:st.pane,
-      color: halo ? st.halo : st.color,
-      weight: halo ? st.haloWeight : st.weight,
-      opacity: halo ? .72 : st.opacity,
-      dashArray: halo ? null : st.dash,
-      lineCap:'round',
-      lineJoin:'round',
-      fill:false,
-      fillOpacity:0,
-      interactive:false
-    };
-  }
-  function hasFeatures(gj){ return !!(gj && Array.isArray(gj.features) && gj.features.length); }
-  function boundaryPathForYear(){
-    const y=String(state.year);
-    return state.manifest?.layers?.admin_boundary_levels?.[y] || `data/admin_boundary_levels/admin_boundary_levels_${y}.geojson`;
-  }
-  async function loadBoundaryCache(){
-    try{ return await loadJson(boundaryPathForYear()); }catch(_){ return null; }
-  }
-  function byLevel(gj, level){
-    if(!hasFeatures(gj)) return {type:'FeatureCollection', features:[]};
-    return {type:'FeatureCollection', features:gj.features.filter(f=>String(f?.properties?.level||'')===level)};
-  }
-  function currentAdminGJ(){
-    const gj=state.currentGeoJSON;
-    if(hasFeatures(gj)) return gj;
-    return null;
-  }
-  function layerGroupFromGeoJSON(gj, level){
-    if(!hasFeatures(gj)) return null;
-    ensurePanes();
-    const halo=L.geoJSON(gj,{pane:STYLE[level].pane, interactive:false, style:()=>baseLineStyle(level,true)});
-    const fg=L.geoJSON(gj,{pane:STYLE[level].pane, interactive:false, style:()=>baseLineStyle(level,false)});
-    return L.layerGroup([halo, fg]);
-  }
-  function clearUniversal(){
-    Object.values(LAYER).forEach(name=>{
-      const lyr=state.layers?.[name];
-      if(lyr && state.map?.hasLayer?.(lyr)) state.map.removeLayer(lyr);
-      if(state.layers) delete state.layers[name];
-    });
-  }
-  async function rebuildUniversalLayers(){
-    if(!state.map) return;
-    clearUniversal();
-    ensurePanes();
-    const admin=currentAdminGJ();
-    if(!admin) return;
-    const cache=await loadBoundaryCache();
-
-    // Lower-level overlay: always draw directly from current admin polygons. This is the most robust
-    // way to show every reconstructed ATE boundary even if a derived file is stale or broken.
-    state.layers[LAYER.lower]=layerGroupFromGeoJSON(admin,'lower');
-
-    // Higher levels: prefer dissolved line cache; fallback to admin outlines so the overlay never fails.
-    ['intermediate','upper','disputed'].forEach(level=>{
-      const part=byLevel(cache, level);
-      let lyr=layerGroupFromGeoJSON(part,level);
-      if(!lyr && level!=='disputed') lyr=layerGroupFromGeoJSON(admin,level);
-      if(lyr) state.layers[LAYER[level]]=lyr;
-    });
-    refreshUniversalVisibility();
-  }
-  function refreshUniversalVisibility(){
-    if(!state.map) return;
-    LEVELS.forEach(level=>{
-      const lyr=state.layers?.[LAYER[level]];
-      if(!lyr) return;
-      const show=on(level);
-      if(show && !state.map.hasLayer(lyr)) lyr.addTo(state.map);
-      if(!show && state.map.hasLayer(lyr)) state.map.removeLayer(lyr);
-    });
-    // Strict visual hierarchy: lower -> intermediate -> disputed -> upper.
-    ['lower','intermediate','disputed','upper'].forEach(level=>{
-      const lyr=state.layers?.[LAYER[level]];
-      if(lyr && state.map.hasLayer(lyr) && lyr.bringToFront) lyr.bringToFront();
-    });
-  }
-  function ensureControls(){
-    const toggles=document.querySelector('.toggles');
-    if(!toggles) return bindControls();
-    if(!$('adminBoundaryLevelControlsV140')){
-      const wrap=document.createElement('div');
-      wrap.id='adminBoundaryLevelControlsV140';
-      wrap.className='admin-boundary-level-controls-v140';
-      wrap.innerHTML=`
-        <div class="topology-layer-title-v92">Границы уровней АТД</div>
-        <label><input type="checkbox" id="toggleAdminBoundaryUpper"> Верхний уровень</label>
-        <label><input type="checkbox" id="toggleAdminBoundaryIntermediate"> Промежуточный уровень</label>
-        <label><input type="checkbox" id="toggleAdminBoundaryLower"> Нижний уровень</label>
-        <label><input type="checkbox" id="toggleAdminBoundaryDisputed"> Спорные / особые границы</label>
-        <div class="mini-muted">v146: универсальный оверлей границ поверх любых тематических слоёв. Нижний уровень берётся прямо из текущих полигонов АТЕ; верхние уровни — из иерархических контуров/кэша.</div>`;
-      const anchor=$('toggleTopologyEdgesMain')?.closest('label') || $('toggleAdmin')?.closest('label');
-      if(anchor && anchor.parentNode===toggles) anchor.insertAdjacentElement('afterend', wrap); else toggles.appendChild(wrap);
-    }else{
-      const note=$('adminBoundaryLevelControlsV140')?.querySelector('.mini-muted');
-      if(note) note.textContent='v146: универсальный оверлей границ поверх любых тематических слоёв; чем выше уровень, тем выше линия в визуальной иерархии.';
-    }
-    bindControls();
-  }
-  function bindControls(){
-    Object.values(TOGGLE).forEach(id=>{
-      const el=$(id); if(!el || el.dataset.v146UniversalBoundaryBound==='1') return;
-      el.dataset.v146UniversalBoundaryBound='1';
-      el.addEventListener('change',()=>{ refreshUniversalVisibility(); try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } },false);
-    });
-  }
-  function legendHtml(){
-    let rows='';
-    ['lower','intermediate','disputed','upper'].forEach(level=>{
-      if(!on(level)) return;
-      const st=STYLE[level];
-      rows+=`<div class="legend-row"><span class="legend-line-v140" style="border-top-color:${st.color};border-top-style:${st.dash?'dashed':'solid'};border-top-width:${Math.max(2,Math.round(st.weight))}px"></span>${escapeHtml(st.label)}</div>`;
-    });
-    return rows ? `<hr><div class="legend-section">Границы уровней АТД · оверлей</div>${rows}<div class="mini-muted legend-scale-note-v67">v146: линии выводятся отдельными верхними pane поверх любых режимов карты. Нижний уровень рисуется из текущих полигонов АТЕ; верхний уровень имеет максимальный приоритет отрисовки.</div>` : '';
-  }
-  const prevClear=typeof clearYearLayers==='function' ? clearYearLayers : null;
-  if(prevClear){ clearYearLayers=function clearYearLayersV146(){ prevClear.apply(this,arguments); clearUniversal(); }; }
-  const prevRefreshAll=typeof refreshAll==='function' ? refreshAll : null;
-  if(prevRefreshAll){ refreshAll=async function refreshAllV146(){ const r=await prevRefreshAll.apply(this,arguments); await rebuildUniversalLayers(); return r; }; }
-  const prevVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
-  if(prevVisibility){ refreshVisibility=function refreshVisibilityV146(){ const r=prevVisibility.apply(this,arguments); refreshUniversalVisibility(); return r; }; }
-  const prevLegend=typeof updateLegend==='function' ? updateLegend : null;
-  if(prevLegend){ updateLegend=function updateLegendV146(gj, vals){ prevLegend.apply(this,arguments); if(!anyOn()) return; const box=$('legendBox'); if(!box) return; box.insertAdjacentHTML('beforeend', legendHtml()); }; }
-  const prevBind=typeof bindUi==='function' ? bindUi : null;
-  if(prevBind){ bindUi=function bindUiV146(){ const r=prevBind.apply(this,arguments); ensureControls(); return r; }; }
-  const boot=()=>{ ensureControls(); setTimeout(()=>rebuildUniversalLayers().catch(e=>console.warn('v146 universal boundaries failed',e)),500); };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,300);
-})();
-
-
-/* v147: startup layer defaults + robust v138-style cost-graph filter controls.
-   Default map view now keeps only the ATE layer and railways on. The metric/parent
-   filter panels are collapsed in index.html. This patch also restores the compact
-   v138 strength slider while preserving the later cost-graph/component semantics. */
-(function v147DefaultsAndCostGraphFilter(){
-  function q(id){ return document.getElementById(id); }
-  const DEFAULTS={
-    toggleHydro:false,
-    toggleAdmin:true,
-    toggleCenters:false,
-    toggleCenterPointLabels:false,
-    toggleRailways:true,
-    toggleCircles:false,
-    toggleTopologyEdgesMain:false,
-    toggleTopologyCentroids:false,
-    toggleAdvancedConnectivityEdges:false,
-    toggleAdvancedConnectivityNodes:false,
-    toggleNaturalBoundarySegments:false,
-    toggleBoundaryMemorySegments:false,
-    toggleAdminBoundaryUpper:false,
-    toggleAdminBoundaryIntermediate:false,
-    toggleAdminBoundaryLower:false,
-    toggleAdminBoundaryDisputed:false
-  };
-  function applyStartupDefaults(){
-    Object.entries(DEFAULTS).forEach(([id,value])=>{
-      const el=q(id);
-      if(el && el.type==='checkbox' && el.dataset.v147DefaultApplied!=='1'){
-        el.checked=!!value;
-        el.dataset.v147DefaultApplied='1';
-      }
-    });
-    [['metricFilters','collapseMetricFilters'],['parentFilterBar','collapseParentFilter']].forEach(([panelId,btnId])=>{
-      const panel=q(panelId), btn=q(btnId);
-      if(panel){ panel.classList.add('is-collapsed'); }
-      if(btn){ btn.setAttribute('aria-expanded','false'); btn.textContent='Развернуть'; }
-    });
-  }
-  function panelHtml(){
-    return `<div class="topology-layer-title-v92">Фильтр рёбер стоимостного графа</div>
-      <label class="advanced-filter-row-v136 advanced-filter-row-v144 v147-strength-row"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
-      <label class="advanced-filter-row-v136 advanced-filter-row-v144 advanced-filter-impedance-row-v144 v147-impedance-row"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"><b>≤</b></label>
-      <label class="advanced-filter-check-v136"><input id="advOnlyCorridorEdgesV136" type="checkbox"> Только коридоры</label>
-      <label class="advanced-filter-check-v136"><input id="advIncludeBlockedEdgesV136" type="checkbox"> Показывать снятые барьерами</label>
-      <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
-  }
-  function compactNumber(n){
-    if(!Number.isFinite(n)) return '—';
-    if(Math.abs(n)>=1000) return Math.round(n).toLocaleString('ru-RU');
-    return String(Number.isInteger(n)?n:Number(n.toFixed(2))).replace('.',',');
-  }
-  function getFilterState(){
-    const range=q('advMinStrengthRangeV136');
-    const num=q('advMinStrengthNumberV139');
-    const rawMin=(num && String(num.value).trim()!=='') ? num.value : (range?.value ?? '0');
-    let minStrength=Number(rawMin);
-    if(!Number.isFinite(minStrength)) minStrength=0;
-    minStrength=Math.max(0, Math.min(10, minStrength));
-    const select=q('advMaxImpedanceSelectV136');
-    const maxNum=q('advMaxImpedanceNumberV139');
-    const rawMax=(maxNum && String(maxNum.value).trim()!=='') ? maxNum.value : (select?.value ?? 'all');
-    let maxImpedance=rawMax==='all' ? Infinity : Number(rawMax);
-    if(!Number.isFinite(maxImpedance) || maxImpedance<0) maxImpedance=Infinity;
-    return {minStrength,maxImpedance,onlyCorridors:!!q('advOnlyCorridorEdgesV136')?.checked,includeBlocked:!!q('advIncludeBlockedEdgesV136')?.checked};
-  }
-  function labelText(){
-    const fs=getFilterState();
-    const parts=[];
-    if(fs.minStrength>0) parts.push(`сила ≥ ${String(fs.minStrength).replace('.',',')}`);
-    if(fs.maxImpedance!==Infinity) parts.push(`импеданс ≤ ${compactNumber(fs.maxImpedance)}`);
-    if(fs.onlyCorridors) parts.push('только коридоры');
-    if(fs.includeBlocked) parts.push('включая снятые');
-    return parts.length ? parts.join(' · ') : 'без доп. фильтра';
-  }
-  function forceCostGraphRefresh(){
-    const edge=q('toggleAdvancedConnectivityEdges');
-    try{ edge?.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
-    try{ if(typeof updateLegend==='function') updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ }
-  }
-  function syncControls(sourceId=''){
-    const fs=getFilterState();
-    const range=q('advMinStrengthRangeV136'), num=q('advMinStrengthNumberV139'), val=q('advMinStrengthValueV136');
-    if(range && sourceId!=='advMinStrengthRangeV136') range.value=String(fs.minStrength);
-    if(num && sourceId!=='advMinStrengthNumberV139') num.value=String(fs.minStrength);
-    if(val) val.textContent=String(fs.minStrength).replace('.',',');
-    const select=q('advMaxImpedanceSelectV136'), maxNum=q('advMaxImpedanceNumberV139');
-    if(sourceId==='advMaxImpedanceSelectV136' && select){
-      if(select.value==='all'){ if(maxNum) maxNum.value=''; }
-      else if(maxNum) maxNum.value=select.value;
-    }else if(sourceId==='advMaxImpedanceNumberV139' && maxNum && select){
-      const v=String(maxNum.value||'').trim();
-      if(v==='') select.value='all';
-      else { const opt=[...select.options].find(o=>o.value===v); if(opt) select.value=v; }
-    }else if(select && maxNum){
-      if(fs.maxImpedance===Infinity){ select.value='all'; maxNum.value=''; }
-      else { const s=String(fs.maxImpedance); maxNum.value=s; const opt=[...select.options].find(o=>o.value===s); if(opt) select.value=s; }
-    }
-    const status=q('advFilterStatusV136'); if(status) status.textContent='Фильтр рёбер: '+labelText();
-  }
-  function bindFilterControls(){
-    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceSelectV136','advMaxImpedanceNumberV139','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
-      const el=q(id); if(!el || el.dataset.v147CostFilterBound==='1') return;
-      el.dataset.v147CostFilterBound='1';
-      const h=()=>{ syncControls(id); forceCostGraphRefresh(); };
-      el.addEventListener('input',h,false);
-      el.addEventListener('change',h,false);
-    });
-    syncControls();
-  }
-  function restoreCostFilterPanel(){
-    const panel=q('advancedConnectivityFilterPanelV136');
-    if(!panel) return;
-    if(panel.dataset.v147Restored!=='1'){
-      panel.innerHTML=panelHtml();
-      panel.dataset.v147Restored='1';
-    }
-    bindFilterControls();
-  }
-  function tick(){ applyStartupDefaults(); restoreCostFilterPanel(); }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ tick(); setTimeout(tick,250); setTimeout(tick,1200); },{once:true});
-  else { tick(); setTimeout(tick,250); setTimeout(tick,1200); }
-  try{
-    const mo=new MutationObserver(()=>restoreCostFilterPanel());
-    mo.observe(document.documentElement,{childList:true,subtree:true});
-  }catch(_){ }
 })();

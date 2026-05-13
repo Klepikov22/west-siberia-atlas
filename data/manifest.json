@@ -22,7 +22,6 @@
     1923,
     1926,
     1930,
-    1931,
     1939,
     1947,
     1959,
@@ -56,7 +55,6 @@
       "1923": "data/admin/admin_1923.geojson",
       "1926": "data/admin/admin_1926.geojson",
       "1930": "data/admin/admin_1930.geojson",
-      "1931": "data/admin/admin_1931.geojson",
       "1939": "data/admin/admin_1939.geojson",
       "1947": "data/admin/admin_1947.geojson",
       "1959": "data/admin/admin_1959.geojson",
@@ -156,7 +154,6 @@
       "1923": "data/topology/topology_1923.geojson",
       "1926": "data/topology/topology_1926.geojson",
       "1930": "data/topology/topology_1930.geojson",
-      "1931": "data/topology/topology_1931.geojson",
       "1939": "data/topology/topology_1939.geojson",
       "1947": "data/topology/topology_1947.geojson",
       "1959": "data/topology/topology_1959.geojson",
@@ -190,7 +187,6 @@
       "1923": "data/topology/topology_1923.geojson",
       "1926": "data/topology/topology_1926.geojson",
       "1930": "data/topology/topology_1930.geojson",
-      "1931": "data/topology/topology_1931.geojson",
       "1939": "data/topology/topology_1939.geojson",
       "1947": "data/topology/topology_1947.geojson",
       "1959": "data/topology/topology_1959.geojson",
@@ -223,7 +219,6 @@
       "1923": "data/topology/topology_nodes_1923.geojson",
       "1926": "data/topology/topology_nodes_1926.geojson",
       "1930": "data/topology/topology_nodes_1930.geojson",
-      "1931": "data/topology/topology_nodes_1931.geojson",
       "1939": "data/topology/topology_nodes_1939.geojson",
       "1947": "data/topology/topology_nodes_1947.geojson",
       "1959": "data/topology/topology_nodes_1959.geojson",
@@ -354,45 +349,12 @@
       "2021": "data/connectivity/nodes/connectivity_nodes_2021.geojson"
     },
     "connectivity_metrics": "data/connectivity/connectivity_metrics_by_year.json",
-    "connectivity_method": "data/connectivity/connectivity_method_v139.json",
+    "connectivity_method": "data/connectivity/connectivity_method_v137.json",
     "connectivity_reference": {
       "siberian_tract": "data/connectivity/reference/siberian_tract.geojson",
       "tomsk_roads_south": "data/connectivity/reference/tomsk_roads_south.geojson",
       "navigable_rivers": "data/connectivity/reference/navigable_rivers.geojson",
       "elevation_over_400m": "data/connectivity/reference/elevation_over_400m.geojson"
-    },
-    "admin_boundary_levels": {
-      "1700": "data/admin_boundary_levels/admin_boundary_levels_1700.geojson",
-      "1719": "data/admin_boundary_levels/admin_boundary_levels_1719.geojson",
-      "1724": "data/admin_boundary_levels/admin_boundary_levels_1724.geojson",
-      "1727": "data/admin_boundary_levels/admin_boundary_levels_1727.geojson",
-      "1745": "data/admin_boundary_levels/admin_boundary_levels_1745.geojson",
-      "1765": "data/admin_boundary_levels/admin_boundary_levels_1765.geojson",
-      "1780": "data/admin_boundary_levels/admin_boundary_levels_1780.geojson",
-      "1783": "data/admin_boundary_levels/admin_boundary_levels_1783.geojson",
-      "1798": "data/admin_boundary_levels/admin_boundary_levels_1798.geojson",
-      "1805": "data/admin_boundary_levels/admin_boundary_levels_1805.geojson",
-      "1809": "data/admin_boundary_levels/admin_boundary_levels_1809.geojson",
-      "1821": "data/admin_boundary_levels/admin_boundary_levels_1821.geojson",
-      "1838": "data/admin_boundary_levels/admin_boundary_levels_1838.geojson",
-      "1848": "data/admin_boundary_levels/admin_boundary_levels_1848.geojson",
-      "1855": "data/admin_boundary_levels/admin_boundary_levels_1855.geojson",
-      "1876": "data/admin_boundary_levels/admin_boundary_levels_1876.geojson",
-      "1897": "data/admin_boundary_levels/admin_boundary_levels_1897.geojson",
-      "1914": "data/admin_boundary_levels/admin_boundary_levels_1914.geojson",
-      "1918": "data/admin_boundary_levels/admin_boundary_levels_1918.geojson",
-      "1923": "data/admin_boundary_levels/admin_boundary_levels_1923.geojson",
-      "1926": "data/admin_boundary_levels/admin_boundary_levels_1926.geojson",
-      "1930": "data/admin_boundary_levels/admin_boundary_levels_1930.geojson",
-      "1931": "data/admin_boundary_levels/admin_boundary_levels_1931.geojson",
-      "1939": "data/admin_boundary_levels/admin_boundary_levels_1939.geojson",
-      "1947": "data/admin_boundary_levels/admin_boundary_levels_1947.geojson",
-      "1959": "data/admin_boundary_levels/admin_boundary_levels_1959.geojson",
-      "1964": "data/admin_boundary_levels/admin_boundary_levels_1964.geojson",
-      "1970": "data/admin_boundary_levels/admin_boundary_levels_1970.geojson",
-      "1979": "data/admin_boundary_levels/admin_boundary_levels_1979.geojson",
-      "1989": "data/admin_boundary_levels/admin_boundary_levels_1989.geojson",
-      "2021": "data/admin_boundary_levels/admin_boundary_levels_2021.geojson"
     }
   },
   "notes": [
@@ -427,14 +389,9 @@
     "v85: системная нормализация спецстатусов ранних реконструкционных слоёв 1700–1848 гг.; спорные, двоеданческие, фронтирные и ведомственные территории исключены из аналитики/выборки, но сохраняются на карте; пересчитаны площади до 1876 г. включительно; 1798 очищен от микрофрагмента Туруханского уезда и доработан Тарско-Каинский узел.",
     "v105: динамика метрик получила блок «Разброс площадей»: сопоставление пространственных параметров АТЕ по верхнему, среднему и нижнему уровням, включая контекстный выбор по верхнеуровневым/национальным системам; расчёт исключает спец/спорные/слабоконтрольные/неясные территории, полигоны <50 км² и v104-исключения статистического охвата.",
     "v107: для слоёв 1745/1765 Екатеринбургский объект переатрибутирован как Екатеринбургское ведомство в составе Тобольской провинции, исключён из сопоставимой статистики/динамики; Исетская провинция 1765 исключена как внешний контекст. Пересчитаны графовые и картометрические метрики динамики.",
-    "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки.",
-    "v142: производные слои считаются rebuildable cache. Источник истины — базовые admin/hydro/railways/reference слои; границы уровней АТД пересобираются из фактических общих границ полигонов, а не из графовых рёбер.",
-    "v143: производные слои считаются rebuildable cache. Источник истины — базовые admin/hydro/railways/reference слои; границы уровней АТД пересобираются из полных контуров полигонов/диссольвов по иерархии, а не из графовых рёбер.",
-    "v143: границы уровней АТД строятся как полные контуры полигонов/диссольвов по иерархии admin: lower/intermediate/upper, с вырезанием только океанических прибрежных фрагментов; слой больше не использует графовые рёбра.",
-    "v145: в таймслайдер добавлен административный срез 1931 г. по загруженному слою Западно-Сибирского края; слой нормализован как admin_1931.geojson, без расчёта топологии/природных метрик.",
-    "v146: добавлен универсальный оверлей границ уровней АТД поверх любых тематических слоёв; нижний уровень рисуется непосредственно из текущих полигонов АТЕ, верхние уровни — отдельными высокими pane с приоритетом отображения."
+    "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки."
   ],
-  "app_version": "147",
+  "app_version": "137",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -478,23 +435,8 @@
     {
       "version": "v134",
       "note": "Продвинутый граф пересчитан по локальной точке перехода; ложные речные/ЖД связи через удалённые участки убраны; добавлены болотные разрывы и сниженный z-index SVG-слоёв."
-    },
-    "v140: dynamic administrative boundary linework by level based on topology edges: upper, intermediate, lower, and separate disputed/special outlines; ordinary levels exclude ocean/coastline by construction.",
-    "v140: dynamic administrative boundary linework by level based on topology edges: upper, intermediate, lower, and separate disputed/special outlines; ordinary levels exclude ocean/coastline by construction.",
-    "v141: export panel integration for dynamic administrative boundary level linework; export toggles and legend-content controls for upper/intermediate/lower/disputed boundary overlays; SVG export rendering added.",
-    {
-      "version": "v143",
-      "note": "v143: границы уровней АТД строятся как полные контуры полигонов/диссольвов по иерархии admin: lower/intermediate/upper, с вырезанием только океанических прибрежных фрагментов; слой больше не использует графовые рёбра."
-    },
-    {
-      "version": "v145",
-      "note": "v145: в таймслайдер добавлен административный срез 1931 г. по загруженному слою Западно-Сибирского края; слой нормализован как admin_1931.geojson, без расчёта топологии/природных метрик."
-    },
-    {
-      "version": "v146",
-      "note": "v146: добавлен универсальный оверлей границ уровней АТД поверх любых тематических слоёв; нижний уровень рисуется непосредственно из текущих полигонов АТЕ, верхние уровни — отдельными высокими pane с приоритетом отображения."
     }
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "147"
+  "version": "v137"
 }
