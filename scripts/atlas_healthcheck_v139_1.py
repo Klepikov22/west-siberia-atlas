@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Static healthcheck for the West Siberia web atlas package.
-Run from the project root: python scripts/atlas_healthcheck_v139.py
+Run from the project root: python scripts/atlas_healthcheck_v139_1.py
 """
 from __future__ import annotations
 import json
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app.js"
 INDEX = ROOT / "index.html"
 MANIFEST = ROOT / "data" / "manifest.json"
-EXPECTED_VERSION = "139"
+EXPECTED_VERSION = "139.1"
 
 
 def fail(msg: str) -> None:
@@ -62,10 +62,10 @@ def check_no_early_init() -> None:
     forbidden = "init().then("
     if forbidden in app_text:
         fail("early init().then(...) call still exists")
-    boot_idx = app_text.rfind("v139StabilizationLayer")
+    boot_idx = max(app_text.rfind("v139_1_StabilizationLayer"), app_text.rfind("v139StabilizationLayer"))
     init_call_idx = app_text.rfind("await init();")
     if boot_idx < 0 or init_call_idx < boot_idx:
-        fail("final v139 bootstrap does not own init()")
+        fail("final v139.1 bootstrap does not own init()")
     ok("single final bootstrap owns init()")
 
 
@@ -106,7 +106,7 @@ def check_data_json() -> None:
 
 def check_known_regressions() -> None:
     app_text = APP.read_text(encoding="utf-8")
-    known_bad = ["data/hydro/north_cap.geojson", "$('hydroToggle')", "$('railToggle')", "$('centersToggle')"]
+    known_bad = ["data/hydro/north_cap.geojson", "$('hydroToggle')", "$('railToggle')", "$('centersToggle')", "side.insertBefore(holder, years.parentElement)"]
     found = [x for x in known_bad if x in app_text]
     if found:
         fail("known regression strings still present: " + ", ".join(found))
@@ -129,3 +129,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

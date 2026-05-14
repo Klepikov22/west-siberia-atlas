@@ -1,4 +1,4 @@
-const APP_VERSION = '139';
+const APP_VERSION = '139.1';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -1615,7 +1615,7 @@ function segmentsIntersect(a,b,c,d){
   return (o1>0)!=(o2>0) && (o3>0)!=(o4>0);
 }
 
-// v139: init() is intentionally started by the final bootstrap at the end of app.js,
+// v139.1: init() is intentionally started by the final bootstrap at the end of app.js,
 // after all compatibility patches and wrappers have been installed.
 
 /* v34 overrides: export map as live vector map, A4 modes, academic templates, circle-only symbols */
@@ -13876,7 +13876,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     holder.className='topology-trend-control-v91 trend-fit-control-v120';
     holder.innerHTML=`<label class="topology-trend-check-v91 trend-fit-check-v120"><input id="${TOGGLE_ID}" type="checkbox" ${trendEnabled()?'checked':''}> Пунктирный тренд / корреляция</label><div class="mini-muted" id="${INFO_ID}">Показывает линейный тренд и значение r/R² для выбранных лет.</div>`;
     const years=side.querySelector('#topologyTrendYearsV90');
-    if(years && years.parentElement) side.insertBefore(holder, years.parentElement);
+    // v139.1 hotfix: the year selector is not always a direct child of `side`.
+    // Insert before the nearest local anchor through that anchor's own parent, otherwise
+    // browsers throw: Failed to execute 'insertBefore' on 'Node'.
+    const anchor=(years && (years.closest('.topology-trend-control-v91') || years.parentElement || years)) || null;
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(holder, anchor);
     else side.appendChild(holder);
     $(TOGGLE_ID)?.addEventListener('change',async e=>{ trendSet(e.target.checked); const data=await v93LoadMultiyearMetrics(); v106RenderMultiyearTrendChart(data); });
   }
@@ -15855,16 +15859,16 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 })();
 
 
-/* v139: stabilization bootstrap and interface hardening.
+/* v139.1: stabilization bootstrap and interface hardening.
    Purpose: stop version-to-version patch leakage by starting the app only after
    all wrappers are installed, and normalize fragile controls with one final owner. */
-(function v139StabilizationLayer(){
+(function v139_1_StabilizationLayer(){
   function fatalBoot(message, err){
     console.error(message, err || '');
-    let box=document.getElementById('atlasBootErrorV139');
+    let box=document.getElementById('atlasBootErrorV139_1');
     if(!box){
       box=document.createElement('div');
-      box.id='atlasBootErrorV139';
+      box.id='atlasBootErrorV139_1';
       box.style.cssText='position:fixed;z-index:999999;left:16px;right:16px;bottom:16px;padding:14px 16px;border-radius:14px;background:#7f1d1d;color:#fff;box-shadow:0 18px 45px rgba(0,0,0,.28);font:14px/1.45 system-ui,Segoe UI,sans-serif';
       document.body.appendChild(box);
     }
@@ -15875,9 +15879,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       : (typeof v93OpenMultiyearTrendsModal === 'function') ? v93OpenMultiyearTrendsModal
       : (typeof v90OpenTopologyTrendsModal === 'function') ? v90OpenTopologyTrendsModal
       : null;
-    if(!fn){ console.warn('v139 trends: no opener available'); return; }
+    if(!fn){ console.warn('v139.1 trends: no opener available'); return; }
     return Promise.resolve(fn()).catch(err=>{
-      console.error('v139 trends open failed', err);
+      console.error('v139.1 trends open failed', err);
       alert('Не удалось открыть динамику метрик: '+(err?.message || err));
     });
   }
@@ -15891,6 +15895,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     clone.dataset.v91Bound='1';
     clone.dataset.v93Bound='1';
     clone.dataset.v139StableTrendsBound='1';
+    clone.dataset.v139_1StableTrendsBound='1';
     btn.replaceWith(clone);
     clone.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); stableTrendOpen(); }, false);
   }
@@ -15904,11 +15909,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function smokeChecks(){
     const missing=[];
     ['map','modeSelect','openTopologyTrends','toggleHydro','toggleRailways','toggleCenters'].forEach(id=>{ if(!document.getElementById(id)) missing.push(id); });
-    if(missing.length) console.warn('v139 smoke check: missing DOM ids', missing);
+    if(missing.length) console.warn('v139.1 smoke check: missing DOM ids', missing);
     if(state?.manifest){
       const version=String(state.manifest.version || '');
       const appVersion=String(state.manifest.app_version || '');
-      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
+      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139.1 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
     }
   }
   async function bootstrap(){
