@@ -3503,6 +3503,113 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
   .topology-trend-years-v1393{grid-template-columns:repeat(3,minmax(0,1fr));}
 }
 
+
+
+/* v139.4: research-grade year selector for multiyear trends */
+.topology-trend-years-panel-v1394{
+  padding:13px;
+  border-radius:20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.70), rgba(252,247,237,.52)),
+    radial-gradient(circle at 18% 0%, rgba(188,126,30,.10), transparent 44%);
+}
+:root[data-theme="dark"] .topology-trend-years-panel-v1394{
+  background:
+    linear-gradient(180deg, rgba(25,29,35,.76), rgba(18,22,28,.62)),
+    radial-gradient(circle at 18% 0%, rgba(206,150,62,.13), transparent 44%);
+}
+.topology-trend-years-head-v1394{align-items:flex-start;margin-bottom:11px;}
+.topology-trend-years-summary-v1394{
+  min-width:92px;
+  text-align:center;
+  font-size:11px;
+  padding:7px 9px;
+  color:#7a4f12;
+  border-color:rgba(188,126,30,.30);
+  background:rgba(255,239,202,.72);
+}
+:root[data-theme="dark"] .topology-trend-years-summary-v1394{color:#f0c67a;background:rgba(188,126,30,.16);}
+.trend-year-toolbar-v1394{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:7px;
+  margin-bottom:9px;
+}
+.trend-year-toolbar-v1394 button,
+.trend-year-presets-v1394 button{
+  border:1px solid rgba(120,110,95,.24);
+  background:rgba(255,255,255,.62);
+  color:var(--text);
+  border-radius:12px;
+  padding:8px 9px;
+  font-size:12px;
+  font-weight:850;
+  cursor:pointer;
+  transition:background .12s ease, border-color .12s ease, transform .08s ease, box-shadow .12s ease;
+}
+.trend-year-toolbar-v1394 button:hover,
+.trend-year-presets-v1394 button:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(45,30,8,.08);}
+.trend-year-toolbar-v1394 button.is-active,
+.trend-year-presets-v1394 button.is-active{background:rgba(188,126,30,.16);border-color:rgba(188,126,30,.42);color:#6d450d;}
+:root[data-theme="dark"] .trend-year-toolbar-v1394 button,
+:root[data-theme="dark"] .trend-year-presets-v1394 button{background:rgba(24,29,35,.58);border-color:rgba(210,200,175,.16);}
+:root[data-theme="dark"] .trend-year-toolbar-v1394 button.is-active,
+:root[data-theme="dark"] .trend-year-presets-v1394 button.is-active{color:#f1c477;background:rgba(188,126,30,.18);border-color:rgba(206,150,62,.40);}
+.trend-year-presets-v1394{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin:0 0 11px;
+}
+.trend-year-presets-v1394 button{font-size:11px;padding:7px 8px;border-radius:11px;}
+.topology-trend-years-v1394{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  max-height:315px;
+  overflow:auto;
+  padding:2px 5px 2px 0;
+}
+.topology-trend-year-era-v1394{
+  border:1px solid rgba(120,110,95,.18);
+  border-radius:15px;
+  padding:9px;
+  background:rgba(255,255,255,.42);
+}
+:root[data-theme="dark"] .topology-trend-year-era-v1394{background:rgba(18,22,28,.42);border-color:rgba(210,200,175,.12);}
+.topology-trend-year-era-v1394 header{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:0 0 8px;}
+.topology-trend-year-era-v1394 header b{font-size:12px;text-transform:uppercase;letter-spacing:.075em;color:var(--text);}
+.topology-trend-year-era-v1394 header span{font-size:10px;color:var(--muted);text-align:right;line-height:1.2;}
+.topology-trend-year-era-grid-v1394{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;}
+.topology-trend-year-chip-v1394{
+  min-height:34px;
+  justify-content:center;
+  padding:7px 8px;
+  border-radius:11px;
+  background:rgba(255,255,255,.72);
+}
+.topology-trend-year-chip-v1394 input{position:absolute;opacity:0;pointer-events:none;}
+.topology-trend-year-chip-v1394 span{font-size:12px;font-weight:900;}
+.topology-trend-year-chip-v1394.is-active{background:rgba(188,126,30,.18);border-color:rgba(188,126,30,.46);}
+.topology-trend-year-chip-v1394.is-core::after{
+  content:"";
+  width:6px;height:6px;border-radius:999px;
+  right:7px;top:7px;
+  background:rgba(188,126,30,.75);
+  box-shadow:0 0 0 2px rgba(255,255,255,.72);
+}
+@media(max-width:1180px){
+  .trend-year-presets-v1394{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .topology-trend-years-v1394{max-height:260px;}
+  .topology-trend-year-era-grid-v1394{grid-template-columns:repeat(5,minmax(0,1fr));}
+}
+@media(max-width:760px){
+  .trend-year-toolbar-v1394,.trend-year-presets-v1394{grid-template-columns:1fr;}
+  .topology-trend-year-era-v1394 header{display:block;}
+  .topology-trend-year-era-v1394 header span{text-align:left;display:block;margin-top:2px;}
+  .topology-trend-year-era-grid-v1394{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
 /* v139.2: multiyear trends modal layout guard.
    Keeps controls, chart/help/table in their intended cells and gives the chart
    enough horizontal room after the v139.1 insertBefore hotfix. */
