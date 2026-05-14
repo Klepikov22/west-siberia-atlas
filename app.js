@@ -1,4 +1,4 @@
-const APP_VERSION = '139.1';
+const APP_VERSION = '139.2';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -13876,11 +13876,17 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     holder.className='topology-trend-control-v91 trend-fit-control-v120';
     holder.innerHTML=`<label class="topology-trend-check-v91 trend-fit-check-v120"><input id="${TOGGLE_ID}" type="checkbox" ${trendEnabled()?'checked':''}> Пунктирный тренд / корреляция</label><div class="mini-muted" id="${INFO_ID}">Показывает линейный тренд и значение r/R² для выбранных лет.</div>`;
     const years=side.querySelector('#topologyTrendYearsV90');
-    // v139.1 hotfix: the year selector is not always a direct child of `side`.
-    // Insert before the nearest local anchor through that anchor's own parent, otherwise
-    // browsers throw: Failed to execute 'insertBefore' on 'Node'.
-    const anchor=(years && (years.closest('.topology-trend-control-v91') || years.parentElement || years)) || null;
-    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(holder, anchor);
+    // v139.2 hotfix: insert the trend/correlation toggle inside the controls sidebar,
+    // regardless of whether the years selector is wrapped or is a direct child.
+    const anchor=(years && years.closest('.topology-trend-control-v91')) || null;
+    // v139.2 hotfix: keep the new control inside the controls sidebar.
+    // v139.1 could accidentally insert `holder` before the whole sidebar when
+    // #topologyTrendYearsV90 was a direct child of `.topology-trend-controls-*`,
+    // turning the holder into an extra CSS-grid column and pushing the real
+    // controls, chart and table into wrong cells.
+    if(anchor && anchor.parentNode===side) side.insertBefore(holder, anchor);
+    else if(years && years.parentNode===side) side.insertBefore(holder, years);
+    else if(years && side.contains(years) && years.parentNode) years.parentNode.insertBefore(holder, years);
     else side.appendChild(holder);
     $(TOGGLE_ID)?.addEventListener('change',async e=>{ trendSet(e.target.checked); const data=await v93LoadMultiyearMetrics(); v106RenderMultiyearTrendChart(data); });
   }
@@ -15859,10 +15865,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 })();
 
 
-/* v139.1: stabilization bootstrap and interface hardening.
+/* v139.2: stabilization bootstrap and interface hardening.
    Purpose: stop version-to-version patch leakage by starting the app only after
    all wrappers are installed, and normalize fragile controls with one final owner. */
-(function v139_1_StabilizationLayer(){
+(function v139_2_StabilizationLayer(){
   function fatalBoot(message, err){
     console.error(message, err || '');
     let box=document.getElementById('atlasBootErrorV139_1');
@@ -15879,9 +15885,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       : (typeof v93OpenMultiyearTrendsModal === 'function') ? v93OpenMultiyearTrendsModal
       : (typeof v90OpenTopologyTrendsModal === 'function') ? v90OpenTopologyTrendsModal
       : null;
-    if(!fn){ console.warn('v139.1 trends: no opener available'); return; }
+    if(!fn){ console.warn('v139.2 trends: no opener available'); return; }
     return Promise.resolve(fn()).catch(err=>{
-      console.error('v139.1 trends open failed', err);
+      console.error('v139.2 trends open failed', err);
       alert('Не удалось открыть динамику метрик: '+(err?.message || err));
     });
   }
@@ -15909,11 +15915,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function smokeChecks(){
     const missing=[];
     ['map','modeSelect','openTopologyTrends','toggleHydro','toggleRailways','toggleCenters'].forEach(id=>{ if(!document.getElementById(id)) missing.push(id); });
-    if(missing.length) console.warn('v139.1 smoke check: missing DOM ids', missing);
+    if(missing.length) console.warn('v139.2 smoke check: missing DOM ids', missing);
     if(state?.manifest){
       const version=String(state.manifest.version || '');
       const appVersion=String(state.manifest.app_version || '');
-      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139.1 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
+      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139.2 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
     }
   }
   async function bootstrap(){

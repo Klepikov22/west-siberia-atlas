@@ -3444,3 +3444,60 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
 .advanced-filter-impedance-row-v139{grid-template-columns:minmax(120px,1fr) minmax(120px,1.1fr) 96px}
 .advanced-filter-number-v139{width:100%;min-width:72px;border:1px solid var(--border);border-radius:10px;padding:6px 8px;background:var(--panel);color:var(--text);font:inherit}
 #atlasBootErrorV139 small{opacity:.86}
+
+
+/* v139.2: multiyear trends modal layout guard.
+   Keeps controls, chart/help/table in their intended cells and gives the chart
+   enough horizontal room after the v139.1 insertBefore hotfix. */
+.multiyear-trends-modal-v106 .chart-lightbox-card{
+  left:clamp(16px,2.2vw,42px)!important;
+  right:clamp(16px,2.2vw,42px)!important;
+  top:18px!important;
+  bottom:24px!important;
+  max-width:none!important;
+}
+.multiyear-trends-body-v106 .topology-trend-layout-v106{
+  grid-template-columns:minmax(300px,370px) minmax(640px,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  align-items:stretch!important;
+}
+.multiyear-trends-body-v106 .topology-trend-controls-v106{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-height:0!important;
+  max-height:100%!important;
+}
+.multiyear-trends-body-v106 .topology-trend-main-v106{
+  grid-column:2!important;
+  grid-row:1!important;
+  min-width:0!important;
+  min-height:0!important;
+  grid-template-rows:minmax(420px,1fr) auto minmax(150px,230px)!important;
+}
+.multiyear-trends-body-v106 .topology-trend-chart-v91{
+  min-height:420px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+}
+.multiyear-trends-body-v106 .topology-trend-svg-v91{
+  width:100%!important;
+  height:100%!important;
+  min-height:360px!important;
+  margin:0 auto!important;
+}
+@media(max-width:1180px){
+  .multiyear-trends-body-v106 .topology-trend-layout-v106{
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto!important;
+    overflow:auto!important;
+  }
+  .multiyear-trends-body-v106 .topology-trend-controls-v106,
+  .multiyear-trends-body-v106 .topology-trend-main-v106{
+    grid-column:1!important;
+  }
+  .multiyear-trends-body-v106 .topology-trend-main-v106{
+    grid-row:2!important;
+    grid-template-rows:auto auto auto!important;
+  }
+}
