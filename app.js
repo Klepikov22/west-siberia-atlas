@@ -1,4 +1,4 @@
-const APP_VERSION = '139.2';
+const APP_VERSION = '139.3';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -9999,7 +9999,7 @@ async function v90OpenTopologyTrendsModal(){
   body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.addEventListener('change',sync));
   $('topologyTrendAllV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=true); sync(); });
   $('topologyTrendClearV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=false); sync(); });
-  $('topologyTrendCoreV90')?.addEventListener('click',()=>{ const core=new Set([1700,1745,1783,1798,1821,1848,1876,1897,1914,1926,1939,1959,1970,1989,2021]); body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=core.has(Number(i.value))); sync(); });
+  $('topologyTrendCoreV90')?.addEventListener('click',()=>{ body.querySelectorAll('#topologyTrendYearsV90 input').forEach(i=>i.checked=coreYearsSet.has(Number(i.value))); sync(); });
   modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
   v90RenderTopologyTrendChart(data);
 }
@@ -12935,6 +12935,8 @@ async function v105OpenMultiyearTrendsModal(){
   modal.querySelector('[data-close-topology-trends]')?.addEventListener('click',()=>{ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
   const body=$('topologyTrendsBody');
   const years=data.map(d=>Number(d.year)).filter(Number.isFinite).sort((a,b)=>a-b);
+  const coreYears=[1700,1745,1783,1798,1821,1848,1876,1897,1914,1926,1939,1959,1970,1989,2021];
+  const coreYearsSet=new Set(coreYears);
   if(!state._topologyTrendYears?.length) state._topologyTrendYears=years.slice();
   const metricSelectHtml=()=>v93TrendMetricOptions(state._topologyTrendGroup || group).map(k=>`<option value="${k}" ${k===state._topologyTrendMetric?'selected':''}>${escapeHtml(v93TrendLabels[k])}</option>`).join('');
   body.innerHTML=`<div class="topology-trend-layout-v91 multiyear-trend-layout-v93">
@@ -12953,6 +12955,13 @@ async function v105OpenMultiyearTrendsModal(){
     </aside>
     <main class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v91"></div></main>
   </div>`;
+  const updateYearsPanel=()=>{
+    const inputs=[...body.querySelectorAll('#topologyTrendYearsV90 input')];
+    const selectedCount=inputs.filter(i=>i.checked).length;
+    const summary=$('topologyTrendYearsSummaryV1393');
+    if(summary) summary.textContent=`Выбрано ${selectedCount} из ${inputs.length}`;
+    inputs.forEach(i=>i.closest('.topology-trend-year-chip-v1393')?.classList.toggle('is-active', !!i.checked));
+  };
   const sync=()=>{
     const groupSel=$('topologyTrendGroupV93');
     const metricSelect=$('topologyTrendMetricV90');
@@ -13169,8 +13178,17 @@ async function v106OpenMultiyearTrendsModal(){
       <div class="topology-trend-control-v91 color-control-v91"><label class="control-label" for="topologyTrendPointColorV91">Цвет точек</label><input id="topologyTrendPointColorV91" type="color" value="${escapeHtml(v93SafeHexColor(cfg.pointColor,'#f2c14e'))}"></div>
       <label class="topology-trend-check-v91"><input id="topologyTrendShowLabelsV91" type="checkbox" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label>
       <div class="topology-trend-control-v91"><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize||11)}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize||11)}"></div>
-      <div class="trend-buttons-v106"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
-      <div class="topology-trend-years-v90 topology-trend-years-v106" id="topologyTrendYearsV90">${years.map(y=>`<label><input type="checkbox" value="${y}" ${state._topologyTrendYears.includes(y)?'checked':''}> ${y}</label>`).join('')}</div>
+      <div class="topology-trend-control-v91 topology-trend-years-panel-v1393">
+        <div class="topology-trend-years-head-v1393">
+          <div>
+            <div class="control-label topology-years-label-v91">Годы наблюдений</div>
+            <div class="mini-muted">Быстро переключайте полный ряд, опорные срезы или собственную подборку лет.</div>
+          </div>
+          <div id="topologyTrendYearsSummaryV1393" class="topology-trend-years-summary-v1393"></div>
+        </div>
+        <div class="trend-buttons-v106 trend-year-actions-v1393"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendCoreV90">Опорные</button><button type="button" id="topologyTrendClearV90">Очистить</button></div>
+        <div class="topology-trend-years-v90 topology-trend-years-v106 topology-trend-years-v1393" id="topologyTrendYearsV90">${years.map(y=>`<label class="topology-trend-year-chip-v1393 ${coreYearsSet.has(y)?'is-core':''} ${state._topologyTrendYears.includes(y)?'is-active':''}"><input type="checkbox" value="${y}" ${state._topologyTrendYears.includes(y)?'checked':''}><span>${y}</span></label>`).join('')}</div>
+      </div>
       ${v106ShortMethodNote()}
     </aside>
     <main class="topology-trend-main-v91 topology-trend-main-v106"><div id="topologyTrendChartV90" class="topology-trend-chart-v91"></div><div id="topologyTrendExplainSlotV106"></div><div id="topologyTrendTableV90" class="topology-trend-table-v91"></div></main>
@@ -13199,6 +13217,7 @@ async function v106OpenMultiyearTrendsModal(){
     state._topologyTrendLabelSize=Number($('topologyTrendLabelSizeV91')?.value || 11);
     const labelSizeValue=$('topologyTrendLabelSizeValueV91'); if(labelSizeValue) labelSizeValue.textContent=String(state._topologyTrendLabelSize);
     state._topologyTrendYears=[...body.querySelectorAll('#topologyTrendYearsV90 input:checked')].map(i=>Number(i.value));
+    updateYearsPanel();
     v106RenderMultiyearTrendChart(data);
   };
   $('topologyTrendGroupV93')?.addEventListener('change',()=>{ const ms=$('topologyTrendMetricV90'); const g=$('topologyTrendGroupV93')?.value || 'area_dispersion'; if(ms){ ms.innerHTML=v93TrendMetricOptions(g).map(k=>`<option value="${k}">${escapeHtml(v93TrendLabels[k])}</option>`).join(''); ms.value=v93TrendMetricOptions(g)[0]; } sync(); });
@@ -15865,10 +15884,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 })();
 
 
-/* v139.2: stabilization bootstrap and interface hardening.
+/* v139.3: stabilization bootstrap and interface hardening.
    Purpose: stop version-to-version patch leakage by starting the app only after
    all wrappers are installed, and normalize fragile controls with one final owner. */
-(function v139_2_StabilizationLayer(){
+(function v139_3_StabilizationLayer(){
   function fatalBoot(message, err){
     console.error(message, err || '');
     let box=document.getElementById('atlasBootErrorV139_1');
@@ -15885,9 +15904,9 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       : (typeof v93OpenMultiyearTrendsModal === 'function') ? v93OpenMultiyearTrendsModal
       : (typeof v90OpenTopologyTrendsModal === 'function') ? v90OpenTopologyTrendsModal
       : null;
-    if(!fn){ console.warn('v139.2 trends: no opener available'); return; }
+    if(!fn){ console.warn('v139.3 trends: no opener available'); return; }
     return Promise.resolve(fn()).catch(err=>{
-      console.error('v139.2 trends open failed', err);
+      console.error('v139.3 trends open failed', err);
       alert('Не удалось открыть динамику метрик: '+(err?.message || err));
     });
   }
@@ -15915,11 +15934,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function smokeChecks(){
     const missing=[];
     ['map','modeSelect','openTopologyTrends','toggleHydro','toggleRailways','toggleCenters'].forEach(id=>{ if(!document.getElementById(id)) missing.push(id); });
-    if(missing.length) console.warn('v139.2 smoke check: missing DOM ids', missing);
+    if(missing.length) console.warn('v139.3 smoke check: missing DOM ids', missing);
     if(state?.manifest){
       const version=String(state.manifest.version || '');
       const appVersion=String(state.manifest.app_version || '');
-      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139.2 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
+      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139.3 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
     }
   }
   async function bootstrap(){

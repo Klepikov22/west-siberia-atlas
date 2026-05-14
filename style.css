@@ -3446,6 +3446,63 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
 #atlasBootErrorV139 small{opacity:.86}
 
 
+
+
+/* v139.3: polished year-selection panel in multiyear trends */
+.topology-trend-years-panel-v1393{
+  padding:12px;
+  border:1px solid rgba(120,110,95,.22);
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,.60), rgba(255,255,255,.42));
+  box-shadow:0 10px 22px rgba(45,30,8,.05);
+}
+:root[data-theme="dark"] .topology-trend-years-panel-v1393{
+  background:linear-gradient(180deg, rgba(24,29,35,.70), rgba(18,22,28,.56));
+  border-color:rgba(210,200,175,.16);
+}
+.topology-trend-years-head-v1393{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.topology-trend-years-summary-v1393{
+  flex:none;
+  white-space:nowrap;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,110,95,.22);
+  background:rgba(188,126,30,.10);
+  color:var(--text);
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:.02em;
+}
+.trend-year-actions-v1393{grid-template-columns:repeat(3, minmax(0,1fr))!important;gap:8px;margin-bottom:10px;}
+.trend-year-actions-v1393 button{padding:8px 10px;font-size:12px;border-radius:11px;}
+.topology-trend-years-v1393{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:250px;overflow:auto;padding:2px 4px 2px 0;}
+.topology-trend-year-chip-v1393{
+  position:relative;
+  display:flex;align-items:center;gap:8px;
+  min-height:40px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(120,110,95,.18);
+  background:rgba(255,255,255,.58);
+  cursor:pointer;
+  transition:transform .08s ease, background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+:root[data-theme="dark"] .topology-trend-year-chip-v1393{background:rgba(24,29,35,.58);border-color:rgba(210,200,175,.14);}
+.topology-trend-year-chip-v1393:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(45,30,8,.08);}
+.topology-trend-year-chip-v1393.is-active{background:rgba(188,126,30,.14);border-color:rgba(188,126,30,.38);box-shadow:0 7px 16px rgba(90,60,12,.10);}
+.topology-trend-year-chip-v1393.is-core{border-style:dashed;}
+.topology-trend-year-chip-v1393 input{margin:0;flex:none;}
+.topology-trend-year-chip-v1393 span{font-size:13px;line-height:1.1;font-weight:800;letter-spacing:.01em;color:var(--text);}
+.topology-trend-year-chip-v1393.is-core::after{content:"опора";position:absolute;right:8px;top:6px;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+@media(max-width:1180px){
+  .topology-trend-years-v1393{grid-template-columns:repeat(5,minmax(0,1fr));max-height:210px;}
+}
+@media(max-width:760px){
+  .topology-trend-years-head-v1393{flex-direction:column;align-items:stretch;}
+  .trend-year-actions-v1393{grid-template-columns:1fr;}
+  .topology-trend-years-v1393{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
 /* v139.2: multiyear trends modal layout guard.
    Keeps controls, chart/help/table in their intended cells and gives the chart
    enough horizontal room after the v139.1 insertBefore hotfix. */
