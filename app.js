@@ -1,4 +1,4 @@
-const APP_VERSION = '138';
+const APP_VERSION = '139';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -1615,7 +1615,8 @@ function segmentsIntersect(a,b,c,d){
   return (o1>0)!=(o2>0) && (o3>0)!=(o4>0);
 }
 
-init().then(()=>{ try{ v84RenderSpecialLayerControls(); }catch(e){ console.warn('v84 special controls init failed', e); } }).catch(err=>{console.error(err); alert('Ошибка загрузки данных: '+err.message);});
+// v139: init() is intentionally started by the final bootstrap at the end of app.js,
+// after all compatibility patches and wrappers have been installed.
 
 /* v34 overrides: export map as live vector map, A4 modes, academic templates, circle-only symbols */
 function exportTemplateName(){
@@ -3871,7 +3872,7 @@ async function exportHydroSvg(project,bbox){
     const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
     const vars=styleVars();
     const showReservoirs = Number(state.year) >= 1959;
-    let northCap=null; try{ northCap=await loadJson('data/hydro/north_cap.geojson'); }catch(e){}
+    let northCap=null; try{ northCap=await loadJson('data/reference/north_ocean_cap.geojson'); }catch(e){}
     const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
     const waterPaths=(waterRaw.features||[]).filter(f=>(showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.90" stroke="${vars.waterLine}" stroke-width="0.72" stroke-opacity="0.72"/>`).join('');
     const riverPaths=(rivers.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="none" stroke="${vars.river}" stroke-width="${riverNormalizedWeight(f,true).toFixed(2)}" stroke-opacity="${(0.46 + Math.min(1, riverNormalizedWeight(f,true)/2.8)*0.36).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
@@ -4234,7 +4235,7 @@ async function exportHydroSvg(project,bbox){
     const waterRaw=await loadJson(state.manifest.layers.hydro.water || state.manifest.layers.hydro.lakes);
     const vars=styleVars();
     const showReservoirs = Number(state.year) >= 1959;
-    let northCap=null; try{ northCap=await loadJson('data/hydro/north_cap.geojson'); }catch(e){}
+    let northCap=null; try{ northCap=await loadJson('data/reference/north_ocean_cap.geojson'); }catch(e){}
     const capPaths=(northCap?.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.88" stroke="none"/>`).join('');
     const waterPaths=(waterRaw.features||[]).filter(f=>(showReservoirs || !isReservoirFeature(f) || isAlwaysVisibleWaterFeature(f))).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="${vars.waterFill}" fill-opacity="0.90" stroke="${vars.waterLine}" stroke-width="0.72" stroke-opacity="0.72"/>`).join('');
     const riverPaths=(rivers.features||[]).map(f=>`<path d="${geomToSvgPath(f.geometry,project)}" fill="none" stroke="${vars.river}" stroke-width="${riverNormalizedWeight(f,true).toFixed(2)}" stroke-opacity="${(0.42 + Math.min(1, riverNormalizedWeight(f,true)/2.0)*0.32).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
@@ -7733,10 +7734,10 @@ updateLegend = function updateLegendV67(gj, vals){
       activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
     }
   }
-  if(state.layers.hydro && $('hydroToggle')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
-  if(state.layers.rail && $('railToggle')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
+  if(state.layers.hydro && $('toggleHydro')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
+  if(state.layers.rail && $('toggleRailways')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
   const visibleFeatures = selectedFeatures();
-  if($('centersToggle')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
+  if($('toggleCenters')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
   box.innerHTML = html;
 };
 
@@ -8360,10 +8361,10 @@ updateLegend = function updateLegendV68(gj, vals){
       activeValueRamp().forEach((c,i,arr)=>{ html += `<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`; });
     }
   }
-  if(state.layers.hydro && $('hydroToggle')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
-  if(state.layers.rail && $('railToggle')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
+  if(state.layers.hydro && $('toggleHydro')?.checked){ html += '<hr><div class="legend-row"><span class="line-sample water"></span>реки</div><div class="legend-row"><span class="swatch water-fill"></span>озёра и водохранилища</div>'; }
+  if(state.layers.rail && $('toggleRailways')?.checked){ html += '<div class="legend-row"><span class="line-sample rail"></span>железные дороги</div>'; }
   const visibleFeatures=selectedFeatures();
-  if($('centersToggle')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
+  if($('toggleCenters')?.checked && visibleFeatures.some(f=>(Number(f.properties.population)||0)>0)) html += '<hr><div class="legend-row"><span class="circle-sample"></span>круги населения</div>';
   box.innerHTML=html;
 };
 
@@ -15063,8 +15064,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
   function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
   function advEdgeFilterState(){
-    const minStrength=Number($('advMinStrengthRangeV136')?.value ?? 0);
-    const maxImpRaw=$('advMaxImpedanceSelectV136')?.value || 'all';
+    const minRaw=($('advMinStrengthNumberV139')?.value ?? '').trim();
+    const minStrength=Number(minRaw !== '' ? minRaw : ($('advMinStrengthRangeV136')?.value ?? 0));
+    const maxNumberRaw=($('advMaxImpedanceNumberV139')?.value ?? '').trim();
+    const maxImpRaw=maxNumberRaw !== '' ? maxNumberRaw : ($('advMaxImpedanceSelectV136')?.value || 'all');
     const maxImpedance=maxImpRaw==='all' ? Infinity : Number(maxImpRaw);
     const includeBlocked=$('advIncludeBlockedEdgesV136')?.checked===true;
     const onlyCorridors=$('advOnlyCorridorEdgesV136')?.checked===true;
@@ -15090,6 +15093,14 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     return parts.length ? parts.join(' · ') : 'без доп. фильтра';
   }
   function syncAdvFilterLabels(){
+    const minRange=$('advMinStrengthRangeV136'), minNumber=$('advMinStrengthNumberV139');
+    if(minRange && minNumber){
+      if(document.activeElement===minRange) minNumber.value=minRange.value;
+      else if(document.activeElement===minNumber) minRange.value=String(Math.max(0, Math.min(Number(minRange.max)||10, Number(minNumber.value)||0)));
+      else if(minNumber.value==='') minNumber.value=minRange.value || '0';
+    }
+    const maxSelect=$('advMaxImpedanceSelectV136'), maxNumber=$('advMaxImpedanceNumberV139');
+    if(maxSelect && maxNumber && document.activeElement===maxSelect) maxNumber.value=maxSelect.value==='all' ? '' : maxSelect.value;
     const fs=advEdgeFilterState();
     const a=$('advMinStrengthValueV136'); if(a) a.textContent=String(fs.minStrength).replace('.',',');
     const b=$('advFilterStatusV136'); if(b) b.textContent='Фильтр рёбер: '+advFilterLabel();
@@ -15138,8 +15149,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
       host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер потенциальной связности</div>
-        <label class="advanced-filter-row-v136"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option></select></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v139 advanced-filter-impedance-row-v139"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -15450,8 +15461,10 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function isAdvMode(mode=state.mode){ return ADV_MODES.has(mode); }
   function metric(){ return isAdvMode() ? state.mode : 'adv_weighted_degree'; }
   function advEdgeFilterState(){
-    const minStrength=Number($('advMinStrengthRangeV136')?.value ?? 0);
-    const maxImpRaw=$('advMaxImpedanceSelectV136')?.value || 'all';
+    const minRaw=($('advMinStrengthNumberV139')?.value ?? '').trim();
+    const minStrength=Number(minRaw !== '' ? minRaw : ($('advMinStrengthRangeV136')?.value ?? 0));
+    const maxNumberRaw=($('advMaxImpedanceNumberV139')?.value ?? '').trim();
+    const maxImpRaw=maxNumberRaw !== '' ? maxNumberRaw : ($('advMaxImpedanceSelectV136')?.value || 'all');
     const maxImpedance=maxImpRaw==='all' ? Infinity : Number(maxImpRaw);
     const includeBlocked=$('advIncludeBlockedEdgesV136')?.checked===true;
     const onlyCorridors=$('advOnlyCorridorEdgesV136')?.checked===true;
@@ -15477,6 +15490,14 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     return parts.length ? parts.join(' · ') : 'без доп. фильтра';
   }
   function syncAdvFilterLabels(){
+    const minRange=$('advMinStrengthRangeV136'), minNumber=$('advMinStrengthNumberV139');
+    if(minRange && minNumber){
+      if(document.activeElement===minRange) minNumber.value=minRange.value;
+      else if(document.activeElement===minNumber) minRange.value=String(Math.max(0, Math.min(Number(minRange.max)||10, Number(minNumber.value)||0)));
+      else if(minNumber.value==='') minNumber.value=minRange.value || '0';
+    }
+    const maxSelect=$('advMaxImpedanceSelectV136'), maxNumber=$('advMaxImpedanceNumberV139');
+    if(maxSelect && maxNumber && document.activeElement===maxSelect) maxNumber.value=maxSelect.value==='all' ? '' : maxSelect.value;
     const fs=advEdgeFilterState();
     const a=$('advMinStrengthValueV136'); if(a) a.textContent=String(fs.minStrength).replace('.',',');
     const b=$('advFilterStatusV136'); if(b) b.textContent='Фильтр рёбер: '+advFilterLabel();
@@ -15525,8 +15546,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(!$('advancedConnectivityFilterPanelV136')){
       const host=document.createElement('div'); host.id='advancedConnectivityFilterPanelV136'; host.className='advanced-connectivity-filter-panel-v136';
       host.innerHTML=`<div class="topology-layer-title-v92">Фильтр рёбер потенциальной связности</div>
-        <label class="advanced-filter-row-v136"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.5" value="0"><b id="advMinStrengthValueV136">0</b></label>
-        <label class="advanced-filter-row-v136"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option></select></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v139"><span>Мин. сила связи</span><input id="advMinStrengthRangeV136" type="range" min="0" max="10" step="0.25" value="0"><input id="advMinStrengthNumberV139" class="advanced-filter-number-v139" type="number" min="0" max="10" step="0.25" value="0"><b id="advMinStrengthValueV136">0</b></label>
+        <label class="advanced-filter-row-v136 advanced-filter-row-v139 advanced-filter-impedance-row-v139"><span>Макс. импеданс</span><select id="advMaxImpedanceSelectV136"><option value="all">без ограничения</option><option value="50">≤ 50</option><option value="100">≤ 100</option><option value="250">≤ 250</option><option value="500">≤ 500</option><option value="1000">≤ 1000</option><option value="2500">≤ 2500</option><option value="5000">≤ 5000</option></select><input id="advMaxImpedanceNumberV139" class="advanced-filter-number-v139" type="number" min="0" step="10" placeholder="число"></label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advOnlyCorridorEdgesV136"> только транспортные / речные коридоры</label>
         <label class="advanced-filter-check-v136"><input type="checkbox" id="advIncludeBlockedEdgesV136"> показывать снятые барьерами связи</label>
         <div id="advFilterStatusV136" class="mini-muted">Фильтр рёбер: без доп. фильтра</div>`;
@@ -15649,14 +15670,14 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(nodes && nodes.dataset.v133AdvNodeBound!=='1'){
       nodes.dataset.v133AdvNodeBound='1'; nodes.addEventListener('change',()=>{ setTimeout(()=>{ try{ updateLegend(state.currentGeoJSON||{features:[]}, state._lastVals||[]); }catch(_){ } },80); }, false);
     }
-    ['advMinStrengthRangeV136','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
+    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceSelectV136','advMaxImpedanceNumberV139','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
       const el=$(id); if(!el || el.dataset.v136AdvFilterBound==='1') return;
       el.dataset.v136AdvFilterBound='1';
       el.addEventListener('input',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
       el.addEventListener('change',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
     });
     syncAdvFilterLabels();
-    ['advMinStrengthRangeV136','advMaxImpedanceSelectV136','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
+    ['advMinStrengthRangeV136','advMinStrengthNumberV139','advMaxImpedanceSelectV136','advMaxImpedanceNumberV139','advOnlyCorridorEdgesV136','advIncludeBlockedEdgesV136'].forEach(id=>{
       const el=$(id); if(!el || el.dataset.v136AdvFilterBound==='1') return;
       el.dataset.v136AdvFilterBound='1';
       el.addEventListener('input',()=>{ syncAdvFilterLabels(); scheduleEdges(0); }, false);
@@ -15831,4 +15852,82 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   if(priorBind){ bindUi=function bindUiV133(){ const r=priorBind.apply(this,arguments); bindControls(); return r; }; }
   const boot=()=>{ try{ bindControls(); scheduleEdges(900); }catch(e){ console.warn('v133 advanced connectivity boot failed', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,250);
+})();
+
+
+/* v139: stabilization bootstrap and interface hardening.
+   Purpose: stop version-to-version patch leakage by starting the app only after
+   all wrappers are installed, and normalize fragile controls with one final owner. */
+(function v139StabilizationLayer(){
+  function fatalBoot(message, err){
+    console.error(message, err || '');
+    let box=document.getElementById('atlasBootErrorV139');
+    if(!box){
+      box=document.createElement('div');
+      box.id='atlasBootErrorV139';
+      box.style.cssText='position:fixed;z-index:999999;left:16px;right:16px;bottom:16px;padding:14px 16px;border-radius:14px;background:#7f1d1d;color:#fff;box-shadow:0 18px 45px rgba(0,0,0,.28);font:14px/1.45 system-ui,Segoe UI,sans-serif';
+      document.body.appendChild(box);
+    }
+    box.innerHTML='<b>Веб-атлас не запущен.</b><br>'+escapeHtml(message)+(err?.message?'<br><small>'+escapeHtml(err.message)+'</small>':'');
+  }
+  function stableTrendOpen(){
+    const fn = (typeof openTopologyTrendsModal === 'function') ? openTopologyTrendsModal
+      : (typeof v93OpenMultiyearTrendsModal === 'function') ? v93OpenMultiyearTrendsModal
+      : (typeof v90OpenTopologyTrendsModal === 'function') ? v90OpenTopologyTrendsModal
+      : null;
+    if(!fn){ console.warn('v139 trends: no opener available'); return; }
+    return Promise.resolve(fn()).catch(err=>{
+      console.error('v139 trends open failed', err);
+      alert('Не удалось открыть динамику метрик: '+(err?.message || err));
+    });
+  }
+  function hardenTrendButton(){
+    const btn=document.getElementById('openTopologyTrends');
+    if(!btn) return;
+    const clone=btn.cloneNode(true);
+    clone.textContent='Динамика метрик по годам';
+    clone.dataset.v88ImprovedBound='1';
+    clone.dataset.v90Bound='1';
+    clone.dataset.v91Bound='1';
+    clone.dataset.v93Bound='1';
+    clone.dataset.v139StableTrendsBound='1';
+    btn.replaceWith(clone);
+    clone.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); stableTrendOpen(); }, false);
+  }
+  function normalizeLegacyToggleAliases(){
+    const alias=[['hydroToggle','toggleHydro'],['railToggle','toggleRailways'],['centersToggle','toggleCenters']];
+    alias.forEach(([oldId,newId])=>{
+      if(document.getElementById(oldId) || !document.getElementById(newId)) return;
+      Object.defineProperty(document, oldId+'AliasV139', {value:newId, configurable:true});
+    });
+  }
+  function smokeChecks(){
+    const missing=[];
+    ['map','modeSelect','openTopologyTrends','toggleHydro','toggleRailways','toggleCenters'].forEach(id=>{ if(!document.getElementById(id)) missing.push(id); });
+    if(missing.length) console.warn('v139 smoke check: missing DOM ids', missing);
+    if(state?.manifest){
+      const version=String(state.manifest.version || '');
+      const appVersion=String(state.manifest.app_version || '');
+      if(version !== 'v'+APP_VERSION || appVersion !== APP_VERSION) console.warn('v139 smoke check: manifest/app version mismatch', {APP_VERSION, version, appVersion});
+    }
+  }
+  async function bootstrap(){
+    if(window.__WS_ATLAS_BOOTED__) return;
+    window.__WS_ATLAS_BOOTED__=true;
+    if(typeof L === 'undefined'){
+      fatalBoot('Не загружен Leaflet. Проверьте интернет/CDN или подключите Leaflet локально в vendor/.');
+      return;
+    }
+    try{
+      await init();
+      try{ v84RenderSpecialLayerControls(); }catch(e){ console.warn('v84 special controls init failed', e); }
+      hardenTrendButton();
+      normalizeLegacyToggleAliases();
+      smokeChecks();
+      setTimeout(()=>{ hardenTrendButton(); smokeChecks(); }, 600);
+    }catch(err){
+      fatalBoot('Ошибка загрузки данных: '+(err?.message || err), err);
+    }
+  }
+  bootstrap();
 })();
