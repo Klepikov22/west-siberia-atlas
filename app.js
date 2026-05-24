@@ -1,4 +1,4 @@
-const APP_VERSION = '139.5';
+const APP_VERSION = '140';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -228,7 +228,7 @@ function restoreAppearancePrefs(){
   if(savedUiStyle === 'normal' || savedUiStyle === 'glass') state.uiStyle = savedUiStyle;
   if(savedPiePalette && chartPalettes[savedPiePalette]) state.piePalette = savedPiePalette;
   if(savedRegionStyle && regionPalettes[savedRegionStyle]) state.regionStyle = savedRegionStyle;
-  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
+  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
   state.populationSymbol.type='circle';
   if(['sqrt','linear','log','quantile'].includes(savedSymbolScale)) state.populationSymbol.scale=savedSymbolScale;
   if(Number.isFinite(savedSymbolMin)) state.populationSymbol.minSize=Math.max(2, Math.min(26, savedSymbolMin));
@@ -749,7 +749,7 @@ function bindUi(){
   const basemapStyleSelect=$('basemapStyleSelect'); if(basemapStyleSelect) basemapStyleSelect.value=state.basemapStyle;
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
   on('regionStyleSelect','change', e=>{ state.regionStyle=regionPalettes[e.target.value]?e.target.value:'soft'; state.colors={}; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
-  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
+  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
   on('populationScaleMethod','change', e=>{ state.populationSymbol.scale=['sqrt','linear','log','quantile'].includes(e.target.value)?e.target.value:'sqrt'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMinSize','input', e=>{ const v=Math.max(2, Math.min(26, Number(e.target.value)||5)); state.populationSymbol.minSize=Math.min(v, state.populationSymbol.maxSize-2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMaxSize','input', e=>{ const v=Math.max(10, Math.min(72, Number(e.target.value)||39)); state.populationSymbol.maxSize=Math.max(v, state.populationSymbol.minSize+2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
@@ -15980,6 +15980,254 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   if(priorBind){ bindUi=function bindUiV133(){ const r=priorBind.apply(this,arguments); bindControls(); return r; }; }
   const boot=()=>{ try{ bindControls(); scheduleEdges(900); }catch(e){ console.warn('v133 advanced connectivity boot failed', e); } };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else setTimeout(boot,250);
+})();
+
+
+/* v140: HSE defense cartographic style.
+   Adds a dedicated presentation style for export/screenshots: subdued hydrography,
+   HSE palette for upper/intermediate/lower ATE, red city puncta, blue labels and quieter lines. */
+(function v140HseDefenseCartographicStyle(){
+  const HSE_KEY='hseDefense';
+  const HSE_BLUE='#0F2D69';
+  const HSE_BLUE2='#234B9B';
+  const HSE_RED='#E61E3C';
+  const HSE_RED2='#CD5A5A';
+  const HSE_PINK='#F5C3C3';
+  const HSE_LIGHT_BLUE='#D8ECFA';
+  const HSE_MID_BLUE='#9ABCE5';
+  const HSE_PALE='#F6F8FB';
+  const HSE_GREY='#A6A6A6';
+  const HSE_LINE='#0F2D69';
+  const HSE_INTERNAL='#FFFFFF';
+  if(typeof regionPalettes==='object'){
+    regionPalettes[HSE_KEY]=[
+      '#D8ECFA','#9ABCE5','#E61E3C','#CD5A5A','#F5C3C3','#0F2D69','#234B9B','#EAF3FB',
+      '#BBD7F2','#F7D6D6','#7FA9DC','#F0F2F5','#6E95CF','#EF8A8A','#CFE4F7','#1C3F85'
+    ];
+  }
+  if(typeof valueRamps==='object'){
+    valueRamps[HSE_KEY]=['#FFF7F7','#FCE1E1','#F8C4C4','#EF8A8A','#E45A6A','#C91F3A','#8E1230'];
+  }
+  function norm(v){ return String(v||'').trim().toLowerCase().replace(/ё/g,'е'); }
+  function hseNamedCategoryColor(v){
+    const n=norm(v);
+    if(!n) return '#D6D9DE';
+    if(n==='прочие' || n.includes('нет данных') || n.includes('неизвест')) return '#EEF1F4';
+    // Late Soviet / modern regions
+    if(n.includes('алтайск')) return HSE_RED;
+    if(n.includes('кемеров')) return '#E85E68';
+    if(n.includes('новосибир')) return '#F08C8C';
+    if(n.includes('омск')) return HSE_BLUE;
+    if(n.includes('томск')) return HSE_BLUE2;
+    if(n.includes('тюмен')) return HSE_LIGHT_BLUE;
+    if(n.includes('ханты') || n.includes('остяко') || n.includes('югра')) return '#BBD7F2';
+    if(n.includes('ямало') || n.includes('ненец')) return '#A5C9EC';
+    if(n.includes('горно') || n.includes('ойрат')) return '#7FA9DC';
+    // Early Soviet macro units
+    if(n.includes('сибирск') && n.includes('край')) return HSE_RED2;
+    if(n.includes('западно-сибирск')) return HSE_BLUE2;
+    if(n.includes('уральск')) return HSE_LIGHT_BLUE;
+    if(n.includes('обь-иртыш')) return '#BBD7F2';
+    if(n.includes('кузнец')) return '#E85E68';
+    // Imperial units
+    if(n.includes('тоболь')) return HSE_LIGHT_BLUE;
+    if(n.includes('колыван')) return '#F08C8C';
+    if(n.includes('акмол')) return HSE_PINK;
+    if(n.includes('семипалат')) return HSE_RED2;
+    if(n.includes('иркут')) return '#E85E68';
+    if(n.includes('енисей')) return HSE_RED;
+    if(n.includes('хлынов')) return HSE_BLUE;
+    return null;
+  }
+  const priorCatColor = typeof catColor==='function' ? catColor : null;
+  if(priorCatColor){
+    catColor=function catColorV140(v){
+      if(state?.regionStyle===HSE_KEY){
+        const named=hseNamedCategoryColor(v);
+        if(named) return named;
+        const key=String(v||'');
+        if(!state.colors[key]){
+          const pal=regionPalettes[HSE_KEY];
+          state.colors[key]=pal[Object.keys(state.colors).length % pal.length];
+        }
+        return state.colors[key];
+      }
+      return priorCatColor(v);
+    };
+  }
+  const priorRegionStyleConfig = typeof regionStyleConfig==='function' ? regionStyleConfig : null;
+  if(priorRegionStyleConfig){
+    regionStyleConfig=function regionStyleConfigV140(){
+      if(state?.regionStyle===HSE_KEY){
+        const mode=state.mode;
+        let weight=.78, opacity=.86, line=HSE_INTERNAL;
+        if(mode==='admin_superparent'){ weight=1.45; opacity=.96; line=HSE_LINE; }
+        else if(mode==='admin_parent'){ weight=1.05; opacity=.90; line='#173D7C'; }
+        else if(mode==='admin_intermediate'){ weight=.82; opacity=.78; line='#FFFFFF'; }
+        else if(mode==='unit_type'){ weight=.95; opacity=.88; line='#173D7C'; }
+        return {line, weight, opacity, fillOpacity:.70, selectedWeight:3.0};
+      }
+      return priorRegionStyleConfig();
+    };
+  }
+  const priorStyleVars = typeof styleVars==='function' ? styleVars : null;
+  if(priorStyleVars){
+    styleVars=function styleVarsV140(){
+      const vars=priorStyleVars();
+      if(state?.regionStyle===HSE_KEY || state?.basemapStyle===HSE_KEY){
+        vars.river='#BDE6F4';
+        vars.waterFill='#E9F6FB';
+        vars.waterLine='#C8E9F5';
+        vars.adminLine=HSE_LINE;
+        vars.selectedLine=HSE_RED;
+        vars.railway='#6F7478';
+        vars.adminFillOpacity=.70;
+        vars.circleLine=HSE_RED;
+        vars.circleFill=HSE_RED;
+        vars.barLine=HSE_RED;
+        vars.barFill=HSE_RED;
+      }
+      return vars;
+    };
+  }
+  const priorRiverStyle = typeof riverStyle==='function' ? riverStyle : null;
+  if(priorRiverStyle){
+    riverStyle=function riverStyleV140(f){
+      if(state?.basemapStyle===HSE_KEY || state?.regionStyle===HSE_KEY){
+        const p=f?.properties||{};
+        const raw=Number(p.strokeweig || p.strokeweight || p.weight || 1);
+        return {color:'#C8EAF6', weight:Math.max(.35, Math.min(1.25, raw*.52)), opacity:.48, lineCap:'round', lineJoin:'round'};
+      }
+      return priorRiverStyle(f);
+    };
+  }
+  const priorWaterStyle = typeof waterStyle==='function' ? waterStyle : null;
+  if(priorWaterStyle){
+    waterStyle=function waterStyleV140(f){
+      if(state?.basemapStyle===HSE_KEY || state?.regionStyle===HSE_KEY){
+        const p=f?.properties||{};
+        const ocean=(p.water_kind||'')==='ocean';
+        return {color:'#CFEAF4', weight:ocean?.65:.45, opacity:ocean?.55:.65, fillColor:ocean?'#E4F3F8':'#EEF9FC', fillOpacity:ocean?.72:.88, lineCap:'round', lineJoin:'round'};
+      }
+      return priorWaterStyle(f);
+    };
+  }
+  const priorAdminStyle = typeof adminStyle==='function' ? adminStyle : null;
+  if(priorAdminStyle){
+    adminStyle=function adminStyleV140(feature, vals){
+      const base=priorAdminStyle(feature, vals);
+      if(state?.regionStyle===HSE_KEY){
+        const cfg=regionStyleConfig();
+        const selected=state.selectedIds?.has(featureId(feature));
+        base.color = selected ? HSE_RED : (cfg.line || HSE_LINE);
+        base.weight = selected ? 3.0 : cfg.weight;
+        base.opacity = selected ? 1 : cfg.opacity;
+        base.fillOpacity = selected ? .78 : cfg.fillOpacity;
+        base.lineCap='round'; base.lineJoin='round';
+        if(!selected && (state.mode==='admin_intermediate' || state.mode==='population' || state.mode==='density' || state.mode==='urban_share')){
+          base.color='#FFFFFF'; base.weight=.62; base.opacity=.74;
+        }
+        if(!selected && (state.mode==='rail_length' || state.mode==='rail_density' || String(state.mode||'').startsWith('nb_'))){
+          base.color='#EFF6FB'; base.weight=.55; base.opacity=.68;
+        }
+      }
+      return base;
+    };
+  }
+  const priorRefreshRailways = typeof refreshRailways==='function' ? refreshRailways : null;
+  if(priorRefreshRailways){
+    refreshRailways=async function refreshRailwaysV140(seq){
+      await priorRefreshRailways(seq);
+      if(state?.regionStyle===HSE_KEY || state?.basemapStyle===HSE_KEY){
+        try{ state.layers.railways?.setStyle({color:'#6D7378', weight:1.05, opacity:.52, lineCap:'round', lineJoin:'round'}); }catch(_){}
+      }
+    };
+  }
+  const priorRefreshCenters = typeof refreshCenters==='function' ? refreshCenters : null;
+  if(priorRefreshCenters){
+    refreshCenters=async function refreshCentersV140(seq){
+      await priorRefreshCenters(seq);
+      if(state?.regionStyle===HSE_KEY){
+        try{
+          state.layers.centers?.eachLayer(m=>{
+            if(m?.setStyle) m.setStyle({color:'#FFFFFF', weight:1.55, fillColor:HSE_RED, fillOpacity:.96, opacity:1});
+          });
+        }catch(_){}
+      }
+    };
+  }
+  const priorRefreshVectorStyles = typeof refreshVectorStyles==='function' ? refreshVectorStyles : null;
+  if(priorRefreshVectorStyles){
+    refreshVectorStyles=function refreshVectorStylesV140(){
+      const r=priorRefreshVectorStyles.apply(this,arguments);
+      if(state?.regionStyle===HSE_KEY){
+        try{ state.layers.centers?.eachLayer(m=>m?.setStyle && m.setStyle({color:'#FFFFFF', weight:1.55, fillColor:HSE_RED, fillOpacity:.96, opacity:1})); }catch(_){}
+        try{ state.layers.railways?.setStyle({color:'#6D7378', weight:1.05, opacity:.52, lineCap:'round', lineJoin:'round'}); }catch(_){}
+      }
+      return r;
+    };
+  }
+  const priorApplyAppearance = typeof applyAppearance==='function' ? applyAppearance : null;
+  if(priorApplyAppearance){
+    applyAppearance=function applyAppearanceV140(persist=false){
+      const r=priorApplyAppearance(persist);
+      document.documentElement.dataset.regionStyle = state.regionStyle || '';
+      return r;
+    };
+  }
+  const priorBindUi = typeof bindUi==='function' ? bindUi : null;
+  if(priorBindUi){
+    bindUi=function bindUiV140(){
+      const r=priorBindUi.apply(this,arguments);
+      const rs=$('regionStyleSelect');
+      const bs=$('basemapStyleSelect');
+      if(rs && !rs.dataset.v140HseBound){
+        rs.dataset.v140HseBound='1';
+        rs.addEventListener('change',()=>{
+          if(rs.value===HSE_KEY && bs){ state.basemapStyle=HSE_KEY; bs.value=HSE_KEY; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }
+        });
+      }
+      if(bs && !bs.dataset.v140HseBound){
+        bs.dataset.v140HseBound='1';
+        bs.addEventListener('change',()=>{ if(bs.value===HSE_KEY){ state.basemapStyle=HSE_KEY; applyAppearance(true); refreshVectorStyles(); }});
+      }
+      return r;
+    };
+  }
+  const priorExportAdminPolygonsSvg = typeof exportAdminPolygonsSvg==='function' ? exportAdminPolygonsSvg : null;
+  if(priorExportAdminPolygonsSvg){
+    exportAdminPolygonsSvg=function exportAdminPolygonsSvgV140(features, project, vals){
+      if(state?.regionStyle!==HSE_KEY) return priorExportAdminPolygonsSvg(features, project, vals);
+      const cfg=regionStyleConfig();
+      return `<g class="export-admin-polygons export-admin-polygons-v140">`+(features||[]).map(f=>{
+        const p=f.properties||{};
+        const fill=(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type') ? catColor(p[state.mode] || p.admin_parent) : valueColor(Number(p[valField()]), vals);
+        const path=geomToSvgPath(f.geometry, project); if(!path) return '';
+        return `<path d="${path}" fill="${fill}" fill-opacity="${cfg.fillOpacity}" stroke="${cfg.line}" stroke-opacity="${cfg.opacity}" stroke-width="${cfg.weight}" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }).join('')+`</g>`;
+    };
+  }
+  const priorExportPopulationCirclesSvg = typeof exportPopulationCirclesSvg==='function' ? exportPopulationCirclesSvg : null;
+  if(priorExportPopulationCirclesSvg){
+    exportPopulationCirclesSvg=function exportPopulationCirclesSvgV140(features, project){
+      if(state?.regionStyle!==HSE_KEY) return priorExportPopulationCirclesSvg(features, project);
+      const vals=(features||[]).map(f=>Number(f.properties?.population)||0).filter(v=>v>0);
+      return `<g class="export-pop-circles export-pop-circles-v140">`+(features||[]).map(f=>{
+        const p=f.properties||{}; const pop=Number(p.population)||0; if(!pop) return '';
+        const c=featureVisualCenter(f.geometry); if(!c) return '';
+        const pp=project(c[0],c[1]); const r=populationSymbolSize(pop, vals);
+        return `<circle cx="${pp.x.toFixed(1)}" cy="${pp.y.toFixed(1)}" r="${r.toFixed(1)}" fill="${HSE_RED}" fill-opacity="0.48" stroke="${HSE_RED}" stroke-width="1.35"/>`;
+      }).join('')+`</g>`;
+    };
+  }
+  const priorExportRailSvg = typeof exportRailSvg==='function' ? exportRailSvg : null;
+  if(priorExportRailSvg){
+    exportRailSvg=async function exportRailSvgV140(project,bbox){
+      const raw=await priorExportRailSvg(project,bbox);
+      if(!(state?.regionStyle===HSE_KEY || state?.basemapStyle===HSE_KEY)) return raw;
+      return String(raw||'').replace(/stroke="#[0-9a-fA-F]{3,6}"/g,'stroke="#6D7378"').replace(/stroke-width="[0-9.]+"/g,'stroke-width="0.95"').replace(/stroke-opacity="[0-9.]+"/g,'stroke-opacity="0.52"');
+    };
+  }
 })();
 
 

@@ -3665,3 +3665,58 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
     grid-template-rows:auto auto auto!important;
   }
 }
+
+
+/* v140: HSE defense cartographic style */
+:root[data-basemap="hseDefense"]{
+  --map-bg:#ffffff;
+  --map-grad-1:rgba(255,255,255,.92);
+  --map-grad-2:rgba(226,240,248,.20);
+  --map-grad-3:rgba(245,195,195,.10);
+}
+:root[data-region-style="hseDefense"] .leaflet-tooltip.admin-poly-label{
+  color:#0F2D69;
+  background:rgba(255,255,255,.86);
+  border:1px solid rgba(15,45,105,.18);
+  border-radius:7px;
+  box-shadow:0 1px 5px rgba(15,45,105,.10);
+  text-shadow:0 1px 0 rgba(255,255,255,.96),0 0 5px rgba(255,255,255,.95);
+  font-weight:850;
+}
+:root[data-region-style="hseDefense"] .center-point-label-v116{
+  transform:translate(9px,-20px);
+  filter:drop-shadow(0 1px 1px rgba(255,255,255,.98)) drop-shadow(0 1px 4px rgba(15,45,105,.22));
+}
+:root[data-region-style="hseDefense"] .center-point-label-v116 span{
+  background:rgba(255,255,255,.94);
+  color:#0F2D69;
+  border:1px solid rgba(15,45,105,.28);
+  border-radius:7px;
+  font-weight:900;
+}
+:root[data-region-style="hseDefense"] .center-point-label-v116.city span,
+:root[data-region-style="hseDefense"] .center-point-label-v116.large span{
+  color:#0F2D69;
+  background:rgba(255,255,255,.96);
+  border-color:rgba(230,30,60,.38);
+}
+:root[data-region-style="hseDefense"] .center-point-label-v116 .center-point-label-pop-v116{
+  background:#F5C3C3;
+  color:#0F2D69;
+  border-color:rgba(230,30,60,.45);
+}
+:root[data-region-style="hseDefense"] .circle-swatch,
+:root[data-region-style="hseDefense"] .center-circle-swatch{
+  border-color:#E61E3C;
+  background:rgba(230,30,60,.55);
+}
+:root[data-region-style="hseDefense"] .bar-swatch{
+  border-color:#E61E3C;
+  background:linear-gradient(180deg,rgba(230,30,60,.70),rgba(230,30,60,.42));
+}
+:root[data-region-style="hseDefense"] .rail-swatch-v98{
+  border-top-color:#6D7378;
+  box-shadow:none;
+}
+:root[data-basemap="hseDefense"] .water-swatch{background:#E9F6FB;border-color:#C8E9F5}
+:root[data-basemap="hseDefense"] .river-swatch{border-top-color:#BDE6F4;border-top-width:2px}
