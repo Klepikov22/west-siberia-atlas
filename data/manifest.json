@@ -445,18 +445,22 @@
     "v141: HSE defense blue style, white background, readable hydrography, toggleable dark-blue ATE-1 outline, default visible layers hydro/admin/railways, population transferred to 1855 and 1876 layers, clickable center labels."
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v144",
+  "version": "v145",
   "build_notes": [
     "v142: forced pure white export backing for Clean / HSE defense / HSE red / HSE blue styles; added explicit HSE defense red style alias; fixed PNG html2canvas background color for white styles.",
-    "v143: dissolved ATE-1 masks/outlines by admin_superparent/admin_parent; removed false thick internal ATE-2 seams in blue/HSE styles; added categorical underlay to cover small white pinholes without changing analytical ATE-2 geometries."
+    "v143: dissolved ATE-1 masks/outlines by admin_superparent/admin_parent; removed false thick internal ATE-2 seams in blue/HSE styles; added categorical underlay to cover small white pinholes without changing analytical ATE-2 geometries.",
+    "v145: multiyear metrics corrected — all-ATE count trend excludes objects under 200 km²; population trend fields are recalculated from admin layer population attributes, including small city/gorsoviet polygons."
   ],
   "history": [
-    "v143: чистый растворённый контур АТД-1 вместо сегментного сравнения; подложка АТД-1 закрывает мелкие зазоры в режимах admin_parent/admin_superparent."
+    "v143: чистый растворённый контур АТД-1 вместо сегментного сравнения; подложка АТД-1 закрывает мелкие зазоры в режимах admin_parent/admin_superparent.",
+    "v145: график числа АТЕ считает только объекты ≥200 км²; население в динамике приведено к суммам из атрибутивных таблиц admin_*.geojson."
   ],
   "changes": [
-    "v144: HSE defense red/blue categorical styles use precomputed adjacency-aware four-color assignments for admin_superparent/admin_parent/admin_intermediate, eliminating equal fills on neighbouring higher-level ATE without changing analytical geometries."
+    "v144: HSE defense red/blue categorical styles use precomputed adjacency-aware four-color assignments for admin_superparent/admin_parent/admin_intermediate, eliminating equal fills on neighbouring higher-level ATE without changing analytical geometries.",
+    "v145: corrected multiyear chart data for ATE count and population series."
   ],
   "changes_ru": [
-    "v144: для стилей защиты ВКР добавлена настоящая схема 4 красок по смежности для admin_superparent/admin_parent/admin_intermediate; соседние АТЕ верхних уровней не получают одинаковую заливку, геометрии АТЕ-2 не менялись."
+    "v144: для стилей защиты ВКР добавлена настоящая схема 4 красок по смежности для admin_superparent/admin_parent/admin_intermediate; соседние АТЕ верхних уровней не получают одинаковую заливку, геометрии АТЕ-2 не менялись.",
+    "v145: в панели динамики метрик «АТЕ всего» не учитывает объекты <200 км²; население XX века и всего ряда пересчитано по полю population из административных слоёв, без исключения малых городских полигонов."
   ]
 }

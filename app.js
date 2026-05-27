@@ -1,4 +1,4 @@
-const APP_VERSION = '144';
+const APP_VERSION = '145';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -10899,7 +10899,7 @@ const v93TrendGroups={
   topology:{label:'Граф и топология', metrics:['nodes','edges','components','graph_density','cyclomatic','bridges','articulation_points','avg_degree','avg_degree_centrality','avg_betweenness','avg_closeness','avg_k_core','avg_external_degree','avg_external_share','same_parent_edges','same_superparent_edges','cross_parent_edges']}
 };
 const v93TrendLabels={
-  ate_total_count:'число объектов АТЕ на карте', upper_ate_count:'число АТЕ верхнего уровня', middle_ate_count:'число АТЕ среднего уровня', lower_ate_count:'число АТЕ нижнего уровня', total_area_km2:'суммарная площадь АТЕ, км²', avg_area_km2:'средняя площадь АТЕ, км²',
+  ate_total_count:'число АТЕ ≥ 200 км²', upper_ate_count:'число АТЕ верхнего уровня', middle_ate_count:'число АТЕ среднего уровня', lower_ate_count:'число АТЕ нижнего уровня', total_area_km2:'суммарная площадь АТЕ, км²', avg_area_km2:'средняя площадь АТЕ, км²',
   total_population:'суммарное население', avg_population:'среднее население АТЕ', population_density:'плотность населения, чел./км²', urban_population:'городское / несельское население', rural_population:'сельское / прочее население', urban_share:'доля городского / несельского населения',
   rail_length_km_total:'суммарная длина ЖД, км', rail_density_km_1000:'плотность ЖД, км/1000 км²', rail_segments_count_sum:'число ЖД-сегментов в АТЕ', avg_adjacency:'среднее соседство АТЕ',
   nodes:'узлы графа', edges:'рёбра графа', components:'компоненты связности', graph_density:'плотность графа', cyclomatic:'цикломатическое число', bridges:'мосты графа', articulation_points:'точки сочленения', avg_degree:'средняя степень / число соседей', avg_degree_centrality:'средняя degree centrality', avg_betweenness:'средняя betweenness', avg_closeness:'средняя closeness', avg_k_core:'средний k-core', avg_external_degree:'средние внешние связи', avg_external_share:'средняя доля внешних связей', same_parent_edges:'рёбра внутри родителя', same_superparent_edges:'рёбра внутри вышестоящей группы', cross_parent_edges:'межродительские рёбра'
@@ -11140,7 +11140,7 @@ async function v93OpenMultiyearTrendsModal(){
       <div class="topology-trend-label-grid-v91"><label class="compact-check"><input type="checkbox" id="topologyTrendShowLabelsV91" ${cfg.showLabels?'checked':''}> Подписывать значения над точками</label><label class="control-label" for="topologyTrendLabelSizeV91">Размер подписи: <span id="topologyTrendLabelSizeValueV91">${Number(cfg.labelSize)||11}</span> px</label><input id="topologyTrendLabelSizeV91" type="range" min="8" max="18" step="1" value="${Number(cfg.labelSize)||11}"></div>
       <div class="topology-trend-buttons-v88 topology-trend-buttons-v91"><button type="button" id="topologyTrendAllV90">Все годы</button><button type="button" id="topologyTrendClearV90">Снять все</button><button type="button" id="topologyTrendCoreV90">Только опорные</button></div>
       <div><div class="control-label topology-years-label-v91">Годы наблюдений</div><div id="topologyTrendYearsV90" class="topology-trend-years-v88 topology-trend-years-v91">${years.map(y=>`<label><input type="checkbox" value="${y}" ${selected.has(y)?'checked':''}>${y}</label>`).join('')}</div></div>
-      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям. Население в динамике v103/v104 считается по всем аналитическим объектам слоя, включая малые городские полигоны; для 1926, 1930 и 2021 применены ручные исключения статистического охвата v104; графовые метрики — по отфильтрованным топологическим узлам/рёбрам v94.</div>
+      <div class="mini-muted">Сводные показатели рассчитаны по административным GeoJSON слоям. v145: график «число АТЕ всего» считает только объекты с площадью ≥ 200 км², а население берётся напрямую из полей population административных слоёв, включая малые городские/горсоветские полигоны; графовые метрики остаются по отфильтрованным топологическим узлам/рёбрам.</div>
     </section>
     <section class="topology-trend-main-v91"><div id="topologyTrendChartV90" class="topology-trend-chart-v88 topology-trend-chart-v91"></div><div id="topologyTrendTableV90" class="topology-trend-table-v88 topology-trend-table-v91"></div></section>
   </div>`;
@@ -13231,7 +13231,7 @@ function v106GeneralHelpHtml(){
   </details>`;
 }
 function v106ShortMethodNote(){
-  return `<div class="trend-method-strip-v106"><b>Очистка ряда:</b> спорные, двоеданческие, слабоконтрольные, неясные территории и полигоны меньше 50 км² не участвуют в расчётах разброса. Исключения v104 для 1926/1930/2021 сохранены.</div>`;
+  return `<div class="trend-method-strip-v106"><b>Очистка ряда v145:</b> в графике общего числа АТЕ не учитываются объекты меньше 200 км². Население в динамике суммируется напрямую из атрибутов административных слоёв, поэтому малые городские/горсоветские полигоны входят в население, но не раздувают счётчик АТЕ. Для разброса площадей и графовых метрик сохраняются их собственные фильтры.</div>`;
 }
 async function v106OpenMultiyearTrendsModal(){
   const data=await v93LoadMultiyearMetrics();
@@ -13614,7 +13614,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     dispersion:{label:'Разброс площадей', metrics:['area_cv_upper_ate','area_gini_upper_ate','area_p90_p10_ratio_upper_ate','area_cv_middle_ate','area_gini_middle_ate','area_p90_p10_ratio_middle_ate','area_cv_lower_ate','area_gini_lower_ate','area_p90_p10_ratio_lower_ate','area_q75_q25_ratio_lower_ate','area_range_ratio_lower_ate','area_cv_lower_within_upper_mean','area_gini_lower_within_upper_mean']}
   };
   const metricLabelsV116 = {
-    ate_total_count:'АТЕ всего', upper_ate_count:'АТЕ верхнего уровня', middle_ate_count:'АТЕ среднего уровня', lower_ate_count:'АТЕ нижнего уровня',
+    ate_total_count:'АТЕ всего (≥200 км²)', upper_ate_count:'АТЕ верхнего уровня', middle_ate_count:'АТЕ среднего уровня', lower_ate_count:'АТЕ нижнего уровня',
     district_like_units_count:'Районы / уезды / муниципальные районы и округа', district_without_urban_pop_count:'Районов / уездов без городского населения', urban_rank_units_count:'Городов районного ранга', district_age_units_count:'Районов с рассчитанным возрастом', district_age_avg_years:'Средний возраст районов, лет', district_age_median_years:'Медианный возраст районов, лет', district_age_max_years:'Максимальный возраст районов, лет',
     total_area_km2:'Площадь всего, км²', avg_area_km2:'Средняя площадь АТЕ, км²', area_mean_upper_ate_km2:'Средняя площадь верхнего уровня, км²', area_mean_middle_ate_km2:'Средняя площадь среднего уровня, км²', area_mean_lower_ate_km2:'Средняя площадь нижнего уровня, км²',
     total_population:'Население всего', avg_population:'Среднее население АТЕ', population_density:'Плотность населения', urban_population:'Городское население', rural_population:'Сельское население', urban_share:'Доля городского населения',
@@ -17272,3 +17272,37 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     };
   }
 })();
+
+/* v145: multiyear metrics correction for defense charts.
+   - all-ATE count trend excludes tiny polygons below 200 km²;
+   - population trends use population sums from admin layer attributes, so city/gorsoviet polygons are included in totals.
+   The JSON is already recalculated, this block only normalizes labels/help text and protects against stale rows. */
+(function v145MultiyearMetricCorrections(){
+  try{
+    if(typeof v93TrendLabels==='object'){
+      v93TrendLabels.ate_total_count='число АТЕ ≥ 200 км²';
+    }
+    if(typeof metricTableGroupsV116==='object' && metricTableGroupsV116.ate_area && Array.isArray(metricTableGroupsV116.ate_area.metrics)){
+      // labels for v116 tables are handled by metricTableLabelsV116 below when present
+    }
+    if(typeof metricTableLabelsV116==='object'){
+      metricTableLabelsV116.ate_total_count='АТЕ всего (≥200 км²)';
+    }
+  }catch(_){ }
+  const priorLoad = typeof v93LoadMultiyearMetrics==='function' ? v93LoadMultiyearMetrics : null;
+  if(priorLoad && !priorLoad._v145Wrapped){
+    const wrapped = async function v93LoadMultiyearMetricsV145(){
+      const rows = await priorLoad();
+      return (rows||[]).map(row=>{
+        if(!row || typeof row!=='object') return row;
+        if(row.ate_total_count_area_threshold_km2_v145 == null && Number.isFinite(Number(row.ate_total_count_excluded_under_200_km2_v145))){
+          row.ate_total_count_area_threshold_km2_v145=200;
+        }
+        return row;
+      });
+    };
+    wrapped._v145Wrapped = true;
+    v93LoadMultiyearMetrics = wrapped;
+  }
+})();
+
