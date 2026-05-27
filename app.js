@@ -1,4 +1,4 @@
-const APP_VERSION = '143';
+const APP_VERSION = '144';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -17117,6 +17117,155 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
         const el=$(id); if(el && !el.dataset.v143L1Bound){
           el.dataset.v143L1Bound='1';
           el.addEventListener('change',()=>{ rebuildUnderlayLayer(); refreshVectorStyles?.(); refreshVisibility?.(); if(state.export?.open) renderExportPreviewCard?.(); });
+        }
+      });
+      return r;
+    };
+  }
+})();
+
+
+/* v144: HSE defense four-color categorical cartography.
+   The HSE defense styles now use precomputed adjacency-aware four-color
+   assignments for administrative categorical modes. Colors are assigned to
+   dissolved category areas (admin_superparent / admin_parent / admin_intermediate),
+   so neighbouring upper/intermediate administrative units do not share the same
+   fill while ATE-2 geometries and analytics stay untouched. */
+(function v144HseDefenseFourColoring(){
+  const HSE_KEY='hseDefense';
+  const RED_KEY='hseDefenseRed';
+  const BLUE_KEY='hseDefenseBlue';
+  const MODES=new Set(['admin_superparent','admin_parent','admin_intermediate']);
+  const RED_FOUR=['#D8ECFA','#F5C3C3','#E61E3C','#234B9B'];
+  const BLUE_FOUR=['#E8F3FB','#B8D5F0','#6E9ACA','#0F2D69'];
+  const NODATA='#EEF1F4';
+  window.v144FourColorCache = window.v144FourColorCache || {};
+  window.v144FourColorPromises = window.v144FourColorPromises || {};
+
+  function cleanKey(v){
+    const s=String(v ?? '').trim();
+    if(!s || s==='—' || s==='-' || /^null$/i.test(s) || /^none$/i.test(s) || /^nan$/i.test(s)) return '';
+    return s;
+  }
+  function hseActive(){
+    return [HSE_KEY,RED_KEY,BLUE_KEY].includes(String(state?.regionStyle||''));
+  }
+  function fourMode(){
+    const m=String(state?.mode||'');
+    return MODES.has(m) ? m : '';
+  }
+  function palette(){
+    return state?.regionStyle===BLUE_KEY ? BLUE_FOUR : RED_FOUR;
+  }
+  function fallbackIndex(key){
+    let h=2166136261;
+    for(let i=0;i<key.length;i++){ h ^= key.charCodeAt(i); h = Math.imul(h,16777619); }
+    return Math.abs(h) % 4;
+  }
+  async function ensureFourColor(year){
+    const y=String(year || state?.year || '');
+    if(!y) return null;
+    if(window.v144FourColorCache[y]) return window.v144FourColorCache[y];
+    if(window.v144FourColorPromises[y]) return window.v144FourColorPromises[y];
+    const path=`data/fourcolor/fourcolor_${y}.json`;
+    window.v144FourColorPromises[y]=loadJson(path).then(j=>{
+      window.v144FourColorCache[y]=j;
+      return j;
+    }).catch(err=>{
+      console.warn('v144: cannot load four-color table', path, err);
+      return null;
+    });
+    return window.v144FourColorPromises[y];
+  }
+  window.v144EnsureFourColor = ensureFourColor;
+  window.v144FourColorForCategory = function v144FourColorForCategory(v, mode){
+    const key=cleanKey(v);
+    if(!key) return NODATA;
+    const m=mode || fourMode();
+    const fc=window.v144FourColorCache?.[String(state?.year||'')];
+    const idx=fc?.modes?.[m]?.colors?.[key];
+    return palette()[Number.isInteger(idx) ? (idx % 4) : fallbackIndex(key)];
+  };
+
+  const priorCatColor=typeof catColor==='function' ? catColor : null;
+  if(priorCatColor){
+    catColor=function catColorV144(v){
+      const m=fourMode();
+      if(hseActive() && m) return window.v144FourColorForCategory(v,m);
+      return priorCatColor(v);
+    };
+  }
+
+  const priorRegionStyleConfig=typeof regionStyleConfig==='function' ? regionStyleConfig : null;
+  if(priorRegionStyleConfig){
+    regionStyleConfig=function regionStyleConfigV144(){
+      const cfg=priorRegionStyleConfig();
+      if(hseActive() && fourMode()){
+        const blue=state?.regionStyle===BLUE_KEY;
+        const mode=String(state?.mode||'');
+        return {
+          ...cfg,
+          line: blue ? '#17457F' : '#173D7C',
+          weight: mode==='admin_superparent' ? 1.22 : 0.92,
+          opacity: .88,
+          fillOpacity: mode==='admin_superparent' ? .76 : .72,
+          selectedWeight: 3.1
+        };
+      }
+      return cfg;
+    };
+  }
+
+  const priorAdminStyle=typeof adminStyle==='function' ? adminStyle : null;
+  if(priorAdminStyle){
+    adminStyle=function adminStyleV144(feature, vals){
+      const base=priorAdminStyle(feature, vals);
+      if(hseActive() && fourMode()){
+        const selected=state.selectedIds?.has(featureId(feature));
+        if(!selected){
+          base.fillOpacity = fourMode()==='admin_superparent' ? .76 : .72;
+          base.opacity = .88;
+          base.lineJoin='round'; base.lineCap='round';
+        }
+      }
+      return base;
+    };
+  }
+
+  const priorRefreshAdmin=typeof refreshAdmin==='function' ? refreshAdmin : null;
+  if(priorRefreshAdmin){
+    refreshAdmin=async function refreshAdminV144(seq){
+      try{ await ensureFourColor(state.year); }catch(e){ console.warn('v144 four-color preload skipped', e); }
+      return await priorRefreshAdmin.apply(this,arguments);
+    };
+  }
+
+  const priorRefreshVectorStyles=typeof refreshVectorStyles==='function' ? refreshVectorStyles : null;
+  if(priorRefreshVectorStyles){
+    refreshVectorStyles=function refreshVectorStylesV144(){
+      const r=priorRefreshVectorStyles.apply(this,arguments);
+      if(hseActive() && fourMode()){
+        try{ updateLegend?.(state.currentGeoJSON,state._lastVals||[]); }catch(_){}
+      }
+      return r;
+    };
+  }
+
+  const priorCacheKey=typeof v68ExportMapCacheKey==='function' ? v68ExportMapCacheKey : null;
+  if(priorCacheKey){
+    v68ExportMapCacheKey=function v68ExportMapCacheKeyV144(){
+      return `${priorCacheKey()}§fourcolor:${state.year||''}/${state.mode||''}/${state.regionStyle||''}`;
+    };
+  }
+
+  const priorBindUi=typeof bindUi==='function' ? bindUi : null;
+  if(priorBindUi){
+    bindUi=function bindUiV144(){
+      const r=priorBindUi.apply(this,arguments);
+      ['regionStyleSelect','modeSelect','yearRange'].forEach(id=>{
+        const el=$(id); if(el && !el.dataset.v144FourColorBound){
+          el.dataset.v144FourColorBound='1';
+          el.addEventListener('change',()=>{ ensureFourColor(state.year).then(()=>{ state.colors={}; refreshVectorStyles?.(); if(state.export?.open) renderExportPreviewCard?.(); }); });
         }
       });
       return r;

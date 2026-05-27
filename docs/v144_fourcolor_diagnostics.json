@@ -1,0 +1,23 @@
+{
+  "admin_parent": {
+    "years": 30,
+    "nodes": 176,
+    "edges": 242,
+    "conflicts": 0,
+    "max_nodes": 18
+  },
+  "admin_intermediate": {
+    "years": 30,
+    "nodes": 192,
+    "edges": 268,
+    "conflicts": 0,
+    "max_nodes": 18
+  },
+  "admin_superparent": {
+    "years": 30,
+    "nodes": 107,
+    "edges": 117,
+    "conflicts": 0,
+    "max_nodes": 8
+  }
+}
