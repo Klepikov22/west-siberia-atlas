@@ -3670,9 +3670,9 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
 /* v140: HSE defense cartographic style */
 :root[data-basemap="hseDefense"]{
   --map-bg:#ffffff;
-  --map-grad-1:rgba(255,255,255,.92);
-  --map-grad-2:rgba(226,240,248,.20);
-  --map-grad-3:rgba(245,195,195,.10);
+  --map-grad-1:rgba(255,255,255,1);
+  --map-grad-2:rgba(255,255,255,0);
+  --map-grad-3:rgba(255,255,255,0);
 }
 :root[data-region-style="hseDefense"] .leaflet-tooltip.admin-poly-label{
   color:#0F2D69;
@@ -3792,3 +3792,40 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
 :root[data-region-style="hseDefenseBlue"] .export-svg-map{background:#ffffff!important;}
 :root[data-basemap="hseDefenseBlue"] .export-layout,
 :root[data-region-style="hseDefenseBlue"] .export-layout{background:#ffffff;}
+
+
+/* v142: pure white export/main-map backing for Clean and HSE defense styles */
+:root[data-basemap="clean"] #map::before,
+:root[data-basemap="hseDefense"] #map::before,
+:root[data-basemap="hseDefenseRed"] #map::before,
+:root[data-basemap="hseDefenseBlue"] #map::before{display:none!important;background:none!important;}
+:root[data-basemap="clean"] #mapWrap,
+:root[data-basemap="clean"] #map,
+:root[data-basemap="clean"] .leaflet-container,
+:root[data-basemap="hseDefense"] #mapWrap,
+:root[data-basemap="hseDefense"] #map,
+:root[data-basemap="hseDefense"] .leaflet-container,
+:root[data-basemap="hseDefenseRed"] #mapWrap,
+:root[data-basemap="hseDefenseRed"] #map,
+:root[data-basemap="hseDefenseRed"] .leaflet-container,
+:root[data-basemap="hseDefenseBlue"] #mapWrap,
+:root[data-basemap="hseDefenseBlue"] #map,
+:root[data-basemap="hseDefenseBlue"] .leaflet-container{background:#ffffff!important;}
+:root[data-basemap="clean"] .export-layout,
+:root[data-basemap="clean"] .export-map-frame,
+:root[data-basemap="clean"] .export-svg-map,
+:root[data-basemap="hseDefense"] .export-layout,
+:root[data-basemap="hseDefense"] .export-map-frame,
+:root[data-basemap="hseDefense"] .export-svg-map,
+:root[data-basemap="hseDefenseRed"] .export-layout,
+:root[data-basemap="hseDefenseRed"] .export-map-frame,
+:root[data-basemap="hseDefenseRed"] .export-svg-map,
+:root[data-basemap="hseDefenseBlue"] .export-layout,
+:root[data-basemap="hseDefenseBlue"] .export-map-frame,
+:root[data-basemap="hseDefenseBlue"] .export-svg-map{background:#ffffff!important;}
+:root[data-region-style="hseDefenseRed"] .leaflet-tooltip.admin-poly-label,
+:root[data-region-style="hseDefenseRed"] .center-point-label-v116 span,
+:root[data-region-style="hseDefenseRed"] .center-point-label-v141 span{color:#0F2D69;}
+:root[data-region-style="hseDefenseRed"] .circle-swatch,
+:root[data-region-style="hseDefenseRed"] .center-circle-swatch{border-color:#E61E3C;background:rgba(230,30,60,.62);}
+:root[data-region-style="hseDefenseRed"] .bar-swatch{border-color:#E61E3C;background:linear-gradient(180deg,rgba(230,30,60,.72),rgba(230,30,60,.46));}

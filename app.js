@@ -1,4 +1,4 @@
-const APP_VERSION = '141';
+const APP_VERSION = '142';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -16656,6 +16656,220 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   // Make the first render deterministic: exactly hydro + administrative layer + railways (+ the optional ATD-1 outline).
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', installDefaultLayerState, {once:true});
   else installDefaultLayerState();
+})();
+
+
+/* v142: strict white export background for Clean/HSE styles + explicit HSE red style alias.
+   Fix: previous SVG export still kept the old pale-green sheet (#eef3ef) around the map frame.
+   Now Clean / HSE / HSE red / HSE blue force both the exported sheet and the inner basemap to pure white. */
+(function v142WhiteExportBackdropsAndHseRedStyle(){
+  const HSE_KEY='hseDefense';
+  const RED_KEY='hseDefenseRed';
+  const BLUE_KEY='hseDefenseBlue';
+  const WHITE_EXPORT_BASEMAPS=new Set(['clean',HSE_KEY,RED_KEY,BLUE_KEY]);
+  const WHITE_EXPORT_REGION_STYLES=new Set([HSE_KEY,RED_KEY,BLUE_KEY]);
+  const HSE_RED='#E61E3C';
+  const HSE_BLUE='#0F2D69';
+  function wantsWhiteExport(){
+    return WHITE_EXPORT_BASEMAPS.has(String(state?.basemapStyle||'')) || WHITE_EXPORT_REGION_STYLES.has(String(state?.regionStyle||''));
+  }
+  window.v142WantsWhiteExportBackground = wantsWhiteExport;
+
+  // Register explicit red style as a first-class option. Internally it mirrors the v140 HSE red cartography.
+  try{
+    if(typeof regionPalettes==='object' && regionPalettes[HSE_KEY] && !regionPalettes[RED_KEY]) regionPalettes[RED_KEY]=regionPalettes[HSE_KEY].slice();
+    if(typeof valueRamps==='object' && valueRamps[HSE_KEY] && !valueRamps[RED_KEY]) valueRamps[RED_KEY]=valueRamps[HSE_KEY].slice();
+  }catch(_){ }
+
+  function withHseAlias(fn){
+    const oldRegion=state.regionStyle, oldBase=state.basemapStyle;
+    if(oldRegion===RED_KEY) state.regionStyle=HSE_KEY;
+    if(oldBase===RED_KEY) state.basemapStyle=HSE_KEY;
+    try{ return fn(); }
+    finally{ state.regionStyle=oldRegion; state.basemapStyle=oldBase; }
+  }
+  async function withHseAliasAsync(fn){
+    const oldRegion=state.regionStyle, oldBase=state.basemapStyle;
+    if(oldRegion===RED_KEY) state.regionStyle=HSE_KEY;
+    if(oldBase===RED_KEY) state.basemapStyle=HSE_KEY;
+    try{ return await fn(); }
+    finally{ state.regionStyle=oldRegion; state.basemapStyle=oldBase; }
+  }
+
+  const priorCatColor=typeof catColor==='function' ? catColor : null;
+  if(priorCatColor){
+    catColor=function catColorV142(v){
+      if(state?.regionStyle===RED_KEY) return withHseAlias(()=>priorCatColor(v));
+      return priorCatColor(v);
+    };
+  }
+  const priorRegionStyleConfig=typeof regionStyleConfig==='function' ? regionStyleConfig : null;
+  if(priorRegionStyleConfig){
+    regionStyleConfig=function regionStyleConfigV142(){
+      if(state?.regionStyle===RED_KEY) return withHseAlias(()=>priorRegionStyleConfig());
+      return priorRegionStyleConfig();
+    };
+  }
+  const priorStyleVars=typeof styleVars==='function' ? styleVars : null;
+  if(priorStyleVars){
+    styleVars=function styleVarsV142(){
+      if(state?.regionStyle===RED_KEY || state?.basemapStyle===RED_KEY) return withHseAlias(()=>priorStyleVars());
+      const vars=priorStyleVars();
+      if(wantsWhiteExport() && state?.basemapStyle==='clean'){
+        vars.waterFill='#EAF6FB'; vars.waterLine='#B7DDEC'; vars.river='#9FD1E6';
+      }
+      return vars;
+    };
+  }
+  const priorRiverStyle=typeof riverStyle==='function' ? riverStyle : null;
+  if(priorRiverStyle){
+    riverStyle=function riverStyleV142(f){
+      if(state?.regionStyle===RED_KEY || state?.basemapStyle===RED_KEY) return withHseAlias(()=>priorRiverStyle(f));
+      return priorRiverStyle(f);
+    };
+  }
+  const priorWaterStyle=typeof waterStyle==='function' ? waterStyle : null;
+  if(priorWaterStyle){
+    waterStyle=function waterStyleV142(f){
+      if(state?.regionStyle===RED_KEY || state?.basemapStyle===RED_KEY) return withHseAlias(()=>priorWaterStyle(f));
+      return priorWaterStyle(f);
+    };
+  }
+  const priorAdminStyle=typeof adminStyle==='function' ? adminStyle : null;
+  if(priorAdminStyle){
+    adminStyle=function adminStyleV142(f, vals){
+      if(state?.regionStyle===RED_KEY) return withHseAlias(()=>priorAdminStyle(f, vals));
+      return priorAdminStyle(f, vals);
+    };
+  }
+  const priorExportAdminPolygonsSvg=typeof exportAdminPolygonsSvg==='function' ? exportAdminPolygonsSvg : null;
+  if(priorExportAdminPolygonsSvg){
+    exportAdminPolygonsSvg=function exportAdminPolygonsSvgV142(features, project, vals){
+      if(state?.regionStyle===RED_KEY) return withHseAlias(()=>priorExportAdminPolygonsSvg(features, project, vals));
+      return priorExportAdminPolygonsSvg(features, project, vals);
+    };
+  }
+  const priorExportPopulationCirclesSvg=typeof exportPopulationCirclesSvg==='function' ? exportPopulationCirclesSvg : null;
+  if(priorExportPopulationCirclesSvg){
+    exportPopulationCirclesSvg=function exportPopulationCirclesSvgV142(features, project){
+      if(state?.regionStyle===RED_KEY) return withHseAlias(()=>priorExportPopulationCirclesSvg(features, project));
+      return priorExportPopulationCirclesSvg(features, project);
+    };
+  }
+  const priorExportRailSvg=typeof exportRailSvg==='function' ? exportRailSvg : null;
+  if(priorExportRailSvg){
+    exportRailSvg=async function exportRailSvgV142(project,bbox){
+      if(state?.regionStyle===RED_KEY || state?.basemapStyle===RED_KEY) return await withHseAliasAsync(()=>priorExportRailSvg(project,bbox));
+      return await priorExportRailSvg(project,bbox);
+    };
+  }
+
+  const priorExportBasemapFill=typeof exportBasemapFill==='function' ? exportBasemapFill : null;
+  exportBasemapFill=function exportBasemapFillV142(){
+    if(wantsWhiteExport()) return '#ffffff';
+    return priorExportBasemapFill ? priorExportBasemapFill() : '#eaf2ed';
+  };
+
+  function normalizeExportSvgBackground(svg){
+    if(!wantsWhiteExport()) return svg;
+    let out=String(svg||'');
+    // The last SVG builder used a hard-coded pale-green sheet; older builders used beige/green variants.
+    out=out.replace(/fill="#(?:eef3ef|fbfaf5|eff5ef|f9faf7|eaf2ed|f3f5f1)"/gi,'fill="#ffffff"');
+    out=out.replace(/stroke="rgba\(111,123,98,\.55\)"/g,'stroke="rgba(15,45,105,.16)"');
+    out=out.replace(/stroke="rgba\(128,128,120,\.35\)"/g,'stroke="rgba(15,45,105,.14)"');
+    out=out.replace(/stroke="rgba\(126,133,116,\.32\)"/g,'stroke="rgba(15,45,105,.12)"');
+    return out;
+  }
+  const priorBuildExportSvgMap=typeof buildExportSvgMap==='function' ? buildExportSvgMap : null;
+  if(priorBuildExportSvgMap){
+    buildExportSvgMap=async function buildExportSvgMapV142(){
+      const svg=await priorBuildExportSvgMap();
+      return normalizeExportSvgBackground(svg);
+    };
+  }
+  const priorCacheKey=typeof v68ExportMapCacheKey==='function' ? v68ExportMapCacheKey : null;
+  if(priorCacheKey){
+    v68ExportMapCacheKey=function v68ExportMapCacheKeyV142(){
+      return `${priorCacheKey()}§style:${state.regionStyle||''}/${state.basemapStyle||''}§white:${wantsWhiteExport()?'1':'0'}`;
+    };
+  }
+
+  const priorDownload=typeof downloadExportPng==='function' ? downloadExportPng : null;
+  downloadExportPng=async function downloadExportPngV142(){
+    const node=document.querySelector('.export-map-frame-v50') || $('exportPreviewCard');
+    const status=$('exportPreviewStatus');
+    if(!node){ if(status) status.textContent='Не найден экспортный макет.'; return; }
+    if(typeof window.html2canvas!=='function'){
+      if(status) status.textContent='Не загружена библиотека html2canvas.';
+      alert('Не загружена библиотека html2canvas. Проверь CDN или интернет-соединение.');
+      return;
+    }
+    try{
+      if(status) status.textContent='Сохраняем PNG…';
+      await updateExportLiveMap({immediate:true});
+      await new Promise(r=>setTimeout(r,120));
+      const bg=wantsWhiteExport() ? '#ffffff' : '#f7f5ef';
+      const canvas=await window.html2canvas(node,{backgroundColor:bg,useCORS:true,logging:false,scale:2});
+      const a=document.createElement('a');
+      a.href=canvas.toDataURL('image/png');
+      a.download=`west_siberia_export_${state.year}_${state.mode}_v${APP_VERSION}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      if(status) status.textContent='PNG сохранён в загрузки браузера.';
+    }catch(e){
+      console.error('PNG export failed v142',e);
+      if(status) status.textContent='Ошибка сохранения PNG.';
+      alert('Не удалось сохранить PNG: '+(e?.message||e));
+    }
+  };
+
+  const priorRestoreAppearancePrefs=typeof restoreAppearancePrefs==='function' ? restoreAppearancePrefs : null;
+  if(priorRestoreAppearancePrefs){
+    restoreAppearancePrefs=function restoreAppearancePrefsV142(){
+      priorRestoreAppearancePrefs();
+      const savedRegion=storageGet('wsAtlasRegionStyle');
+      const savedBase=storageGet('wsAtlasBasemapStyle');
+      if(savedRegion===RED_KEY) state.regionStyle=RED_KEY;
+      if(savedBase===RED_KEY) state.basemapStyle=RED_KEY;
+    };
+  }
+  const priorBindUi=typeof bindUi==='function' ? bindUi : null;
+  if(priorBindUi){
+    bindUi=function bindUiV142(){
+      const r=priorBindUi.apply(this,arguments);
+      const rs=$('regionStyleSelect');
+      const bs=$('basemapStyleSelect');
+      if(rs && !rs.dataset.v142RedBound){
+        rs.dataset.v142RedBound='1';
+        rs.addEventListener('change',()=>{
+          if(rs.value===RED_KEY){
+            state.regionStyle=RED_KEY; state.basemapStyle=RED_KEY; state.colors={};
+            if(bs) bs.value=RED_KEY;
+            applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]);
+            try{ v68FullSvgCache?.clear?.(); }catch(_){ }
+            if(state.export?.open) renderExportPreviewCard();
+          }
+        });
+      }
+      if(bs && !bs.dataset.v142WhiteBound){
+        bs.dataset.v142WhiteBound='1';
+        bs.addEventListener('change',()=>{
+          if(bs.value===RED_KEY){ state.basemapStyle=RED_KEY; applyAppearance(true); refreshVectorStyles(); try{ v68FullSvgCache?.clear?.(); }catch(_){ } if(state.export?.open) renderExportPreviewCard(); }
+          else if(WHITE_EXPORT_BASEMAPS.has(bs.value)){ try{ v68FullSvgCache?.clear?.(); }catch(_){ } if(state.export?.open) renderExportPreviewCard(); }
+        });
+      }
+      return r;
+    };
+  }
+  const priorApplyAppearance=typeof applyAppearance==='function' ? applyAppearance : null;
+  if(priorApplyAppearance){
+    applyAppearance=function applyAppearanceV142(persist=false){
+      const r=priorApplyAppearance(persist);
+      document.documentElement.dataset.regionStyle=state.regionStyle||'';
+      document.documentElement.dataset.basemap=state.basemapStyle||'';
+      document.body?.classList.toggle('hse-defense-red-v142', state.regionStyle===RED_KEY || state.basemapStyle===RED_KEY);
+      return r;
+    };
+  }
 })();
 
 
