@@ -1,4 +1,4 @@
-const APP_VERSION = '140';
+const APP_VERSION = '141';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -62,12 +62,12 @@ function topologyUpdateYearsPanelV1395(body, years){
 }
 
 const state = {
-  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper', regionStyle:'soft', basemapStyle:'sage', populationSymbol:{type:'circle', scale:'sqrt', minSize:5, maxSize:39},
+  manifest:null, year:null, mode:'admin_parent', theme:'light', uiStyle:'normal', tool:'pan', pieGrouping:'upper', regionStyle:'hseDefenseBlue', basemapStyle:'hseDefenseBlue', populationSymbol:{type:'circle', scale:'sqrt', minSize:5, maxSize:39},
   map:null, cache:{}, layers:{}, colors:{}, currentGeoJSON:null, rawGeoJSON:null, rawCentersGeoJSON:null, _lastVals:[],
   selectedIds:new Set(), adminLayerById:new Map(), labelItems:[], selectedFeature:null, selectedCenterLayer:null, attributesPanelOpen:false,
   lastAnalyticsFeatures:[], lastAnalyticsScope:'текущему слою', activePieField:null, activePieTitle:null, piePalette:'softPastel',
   visibleParents:new Set(), parentCounts:new Map(), parentFilterYear:null,
-  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, showGraticule:true, showScale:true, showAdmin:true, showHydro:true, showRailways:true, showPopulation:true, showLabels:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:'', paper:'a4Landscape', template:'thesis', projection:'lambert', centralMeridian:75, labelMode:'balanced', minPopulation:0, minArea:0, liveMap:null, liveLayers:[], overlayPositions:{}},
+  export:{open:false, scope:'currentLayer', showLegend:true, showStats:true, showContext:true, showGraticule:true, showScale:true, showAdmin:true, showHydro:true, showRailways:true, showPopulation:false, showLabels:true, fitScope:true, contextMode:'short', title:'', subtitle:'', contextText:'', mapImage:'', paper:'a4Landscape', template:'thesis', projection:'lambert', centralMeridian:75, labelMode:'balanced', minPopulation:0, minArea:0, liveMap:null, liveLayers:[], overlayPositions:{}},
   filters:{
     population:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
     area_km2:{minFraction:0, maxFraction:1, min:0, max:0, minThreshold:null, maxThreshold:null},
@@ -228,7 +228,7 @@ function restoreAppearancePrefs(){
   if(savedUiStyle === 'normal' || savedUiStyle === 'glass') state.uiStyle = savedUiStyle;
   if(savedPiePalette && chartPalettes[savedPiePalette]) state.piePalette = savedPiePalette;
   if(savedRegionStyle && regionPalettes[savedRegionStyle]) state.regionStyle = savedRegionStyle;
-  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
+  if(savedBasemapStyle && ['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense','hseDefenseBlue'].includes(savedBasemapStyle)) state.basemapStyle = savedBasemapStyle;
   state.populationSymbol.type='circle';
   if(['sqrt','linear','log','quantile'].includes(savedSymbolScale)) state.populationSymbol.scale=savedSymbolScale;
   if(Number.isFinite(savedSymbolMin)) state.populationSymbol.minSize=Math.max(2, Math.min(26, savedSymbolMin));
@@ -749,7 +749,7 @@ function bindUi(){
   const basemapStyleSelect=$('basemapStyleSelect'); if(basemapStyleSelect) basemapStyleSelect.value=state.basemapStyle;
   on('themeSelect','change', e=>{state.theme=e.target.value; applyAppearance(true); refreshVectorStyles(); updateLabelsVisibility();});
   on('regionStyleSelect','change', e=>{ state.regionStyle=regionPalettes[e.target.value]?e.target.value:'soft'; state.colors={}; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); });
-  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
+  on('basemapStyleSelect','change', e=>{ state.basemapStyle=['sage','paper','cold','clean','vivid','darkOcean','matchaLatte','hseDefense','hseDefenseBlue'].includes(e.target.value)?e.target.value:'sage'; applyAppearance(true); });
   on('populationScaleMethod','change', e=>{ state.populationSymbol.scale=['sqrt','linear','log','quantile'].includes(e.target.value)?e.target.value:'sqrt'; updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMinSize','input', e=>{ const v=Math.max(2, Math.min(26, Number(e.target.value)||5)); state.populationSymbol.minSize=Math.min(v, state.populationSymbol.maxSize-2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
   on('populationMaxSize','input', e=>{ const v=Math.max(10, Math.min(72, Number(e.target.value)||39)); state.populationSymbol.maxSize=Math.max(v, state.populationSymbol.minSize+2); updatePopulationSymbolControls(); persistPopulationSymbolSettings(); rebuildPopulationSymbols(); });
@@ -16228,6 +16228,434 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
       return String(raw||'').replace(/stroke="#[0-9a-fA-F]{3,6}"/g,'stroke="#6D7378"').replace(/stroke-width="[0-9.]+"/g,'stroke-width="0.95"').replace(/stroke-opacity="[0-9.]+"/g,'stroke-opacity="0.52"');
     };
   }
+})();
+
+
+/* v141: HSE defense blue style, default visible layers, top-level ATE outline, and clickable center labels. */
+(function v141HseDefenseBlueAndL1Outline(){
+  const BLUE_KEY='hseDefenseBlue';
+  const OLD_HSE_KEY='hseDefense';
+  const BLUE_LINE='#0B2D66';
+  const BLUE_LINE_SOFT='#315F9D';
+  const BLUE_TEXT='#0F2D69';
+  const BLUE_WATER='#86C6E8';
+  const BLUE_WATER_FILL='#E6F5FB';
+  const BLUE_WATER_LINE='#95CFEA';
+  const BLUE_RAIL='#2D3442';
+  const HSE_RED='#E61E3C';
+  const SEG_ROUND=6;
+
+  if(typeof regionPalettes==='object'){
+    regionPalettes[BLUE_KEY]=[
+      '#CFE3F6','#AFCDEA','#7FA9DC','#4F80C2','#275EAA','#123C82',
+      '#E9F2FB','#D9EAF8','#B8D5F0','#8CB5E4','#5E91D2','#1D4E9A',
+      '#E8EEF7','#D2DFEF','#9FBDD9','#6E9ACA','#3F74B7','#0F2D69'
+    ];
+  }
+  if(typeof valueRamps==='object'){
+    valueRamps[BLUE_KEY]=['#F7FBFF','#E3F0FA','#CFE3F6','#AFCDEA','#7FA9DC','#4F80C2','#123C82'];
+  }
+
+  function isBlue(){ return state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY; }
+  function norm(v){ return String(v||'').trim().toLowerCase().replace(/ё/g,'е'); }
+  function blueNamedCategoryColor(v){
+    const n=norm(v);
+    if(!n) return '#E4ECF5';
+    if(n==='прочие' || n.includes('нет данных') || n.includes('неизвест')) return '#EEF3F8';
+    if(n.includes('тоболь')) return '#D9EAF8';
+    if(n.includes('тюмен')) return '#CFE3F6';
+    if(n.includes('томск')) return '#275EAA';
+    if(n.includes('омск')) return '#0F2D69';
+    if(n.includes('новосибир')) return '#6E9ACA';
+    if(n.includes('кемеров') || n.includes('кузнец')) return '#4F80C2';
+    if(n.includes('алтайск')) return '#123C82';
+    if(n.includes('горно') || n.includes('ойрат')) return '#8CB5E4';
+    if(n.includes('ханты') || n.includes('остяко') || n.includes('югра')) return '#AFCDEA';
+    if(n.includes('ямало') || n.includes('ненец')) return '#B8D5F0';
+    if(n.includes('акмол')) return '#D2DFEF';
+    if(n.includes('семипалат')) return '#7FA9DC';
+    if(n.includes('сибирск') && n.includes('край')) return '#315F9D';
+    if(n.includes('западно-сибирск')) return '#123C82';
+    if(n.includes('уральск')) return '#BBD7F2';
+    return null;
+  }
+
+  function installDefaultLayerState(){
+    const map={
+      toggleHydro:true,
+      toggleAdmin:true,
+      toggleAdminL1Outline:true,
+      toggleRailways:true,
+      toggleCenters:false,
+      toggleCenterPointLabels:false,
+      toggleCircles:false,
+      toggleTopologyEdgesMain:false,
+      toggleNaturalBoundarySegments:false,
+      toggleBoundaryMemorySegments:false,
+      toggleTopologyCentroids:false,
+      toggleAdvancedConnectivityEdges:false,
+      toggleAdvancedConnectivityNodes:false,
+      toggleTopologyGraph:false,
+      toggleTopologyEdges:false,
+      toggleTopologyNodes:false
+    };
+    Object.entries(map).forEach(([id,val])=>{ const el=$(id); if(el && el.checked!==val) el.checked=val; });
+  }
+
+  function installL1OutlineControl(){
+    if($('toggleAdminL1Outline')) return;
+    const toggles=document.querySelector('.toggles');
+    if(!toggles) return;
+    const after=$('toggleAdmin')?.closest('label');
+    const label=document.createElement('label');
+    label.className='hse-blue-l1-toggle-v141';
+    label.innerHTML='<input type="checkbox" id="toggleAdminL1Outline" checked> Контур АТД-1 тёмно-синим';
+    if(after && after.nextSibling) toggles.insertBefore(label, after.nextSibling);
+    else toggles.appendChild(label);
+    $('toggleAdminL1Outline')?.addEventListener('change',()=>{ refreshVisibility?.(); if(state.export?.open) renderExportPreviewCard?.(); });
+  }
+
+  const priorRestoreAppearancePrefs=typeof restoreAppearancePrefs==='function' ? restoreAppearancePrefs : null;
+  if(priorRestoreAppearancePrefs){
+    restoreAppearancePrefs=function restoreAppearancePrefsV141(){
+      priorRestoreAppearancePrefs();
+      const savedRegion=storageGet('wsAtlasRegionStyle');
+      const savedBase=storageGet('wsAtlasBasemapStyle');
+      if(savedRegion===BLUE_KEY) state.regionStyle=BLUE_KEY;
+      if(savedBase===BLUE_KEY) state.basemapStyle=BLUE_KEY;
+    };
+  }
+
+  const priorCatColor=typeof catColor==='function' ? catColor : null;
+  if(priorCatColor){
+    catColor=function catColorV141(v){
+      if(state?.regionStyle===BLUE_KEY){
+        const named=blueNamedCategoryColor(v);
+        if(named) return named;
+        const key=String(v||'');
+        if(!state.colors[key]){
+          const pal=regionPalettes[BLUE_KEY];
+          state.colors[key]=pal[Object.keys(state.colors).length % pal.length];
+        }
+        return state.colors[key];
+      }
+      return priorCatColor(v);
+    };
+  }
+
+  const priorRegionStyleConfig=typeof regionStyleConfig==='function' ? regionStyleConfig : null;
+  if(priorRegionStyleConfig){
+    regionStyleConfig=function regionStyleConfigV141(){
+      if(state?.regionStyle===BLUE_KEY){
+        const mode=String(state.mode||'');
+        let weight=.92, opacity=.88, line=BLUE_LINE_SOFT, fillOpacity=.68;
+        if(mode==='admin_superparent'){ weight=1.45; opacity=.98; line=BLUE_LINE; fillOpacity=.66; }
+        else if(mode==='admin_parent'){ weight=1.08; opacity=.94; line=BLUE_LINE_SOFT; fillOpacity=.70; }
+        else if(mode==='admin_intermediate'){ weight=.72; opacity=.82; line='#FFFFFF'; fillOpacity=.68; }
+        else if(mode==='unit_type'){ weight=1.00; opacity=.92; line=BLUE_LINE_SOFT; fillOpacity=.68; }
+        else if(mode==='population' || mode==='density' || mode==='urban_share'){ weight=.74; opacity=.82; line='#FFFFFF'; fillOpacity=.72; }
+        return {line, weight, opacity, fillOpacity, selectedWeight:3.1};
+      }
+      return priorRegionStyleConfig();
+    };
+  }
+
+  const priorStyleVars=typeof styleVars==='function' ? styleVars : null;
+  if(priorStyleVars){
+    styleVars=function styleVarsV141(){
+      const vars=priorStyleVars();
+      if(isBlue()){
+        vars.river=BLUE_WATER;
+        vars.waterFill=BLUE_WATER_FILL;
+        vars.waterLine=BLUE_WATER_LINE;
+        vars.adminLine=BLUE_LINE_SOFT;
+        vars.selectedLine=HSE_RED;
+        vars.railway=BLUE_RAIL;
+        vars.adminFillOpacity=.70;
+        vars.circleLine='#FFFFFF';
+        vars.circleFill=HSE_RED;
+        vars.barLine='#9B1430';
+        vars.barFill=HSE_RED;
+      }
+      return vars;
+    };
+  }
+
+  const priorRiverStyle=typeof riverStyle==='function' ? riverStyle : null;
+  if(priorRiverStyle){
+    riverStyle=function riverStyleV141(f){
+      if(isBlue()){
+        const p=f?.properties||{};
+        const raw=Number(p.strokeweig || p.strokeweight || p.weight || 1);
+        return {color:BLUE_WATER, weight:Math.max(.65, Math.min(1.95, raw*.72)), opacity:.86, lineCap:'round', lineJoin:'round'};
+      }
+      return priorRiverStyle(f);
+    };
+  }
+
+  const priorWaterStyle=typeof waterStyle==='function' ? waterStyle : null;
+  if(priorWaterStyle){
+    waterStyle=function waterStyleV141(f){
+      if(isBlue()){
+        const p=f?.properties||{};
+        const ocean=(p.water_kind||'')==='ocean';
+        return {color:BLUE_WATER_LINE, weight:ocean?.85:.70, opacity:.82, fillColor:ocean?'#F2FAFD':BLUE_WATER_FILL, fillOpacity:ocean?.78:.93, lineCap:'round', lineJoin:'round'};
+      }
+      return priorWaterStyle(f);
+    };
+  }
+
+  const priorAdminStyle=typeof adminStyle==='function' ? adminStyle : null;
+  if(priorAdminStyle){
+    adminStyle=function adminStyleV141(feature, vals){
+      const base=priorAdminStyle(feature, vals);
+      if(state?.regionStyle===BLUE_KEY){
+        const cfg=regionStyleConfig();
+        const selected=state.selectedIds?.has(featureId(feature));
+        base.color=selected ? HSE_RED : cfg.line;
+        base.weight=selected ? 3.05 : cfg.weight;
+        base.opacity=selected ? 1 : cfg.opacity;
+        base.fillOpacity=selected ? .80 : cfg.fillOpacity;
+        base.lineCap='round'; base.lineJoin='round';
+      }
+      return base;
+    };
+  }
+
+  function rounded(v){ return Number(v).toFixed(SEG_ROUND); }
+  function segmentKey(a,b){
+    const ax=rounded(a[0]), ay=rounded(a[1]), bx=rounded(b[0]), by=rounded(b[1]);
+    const s1=ax+','+ay, s2=bx+','+by;
+    return s1<s2 ? s1+'|'+s2 : s2+'|'+s1;
+  }
+  function pushRingSegments(ring,parent,store){
+    if(!Array.isArray(ring) || ring.length<2) return;
+    for(let i=0;i<ring.length-1;i++){
+      const a=ring[i], b=ring[i+1];
+      if(!Array.isArray(a) || !Array.isArray(b)) continue;
+      if(a[0]===b[0] && a[1]===b[1]) continue;
+      const key=segmentKey(a,b);
+      let rec=store.get(key);
+      if(!rec){ rec={a,b,parents:new Map(), n:0}; store.set(key,rec); }
+      rec.n++;
+      rec.parents.set(parent,(rec.parents.get(parent)||0)+1);
+    }
+  }
+  function v141ParentName(f){
+    const p=f?.properties||{};
+    return String(p.admin_superparent || p.admin_parent || p.region || p.Governorate || p.name || 'АТД-1').trim() || 'АТД-1';
+  }
+  function buildL1BoundaryFeatureCollection(gjOrFeatures){
+    const features=Array.isArray(gjOrFeatures) ? gjOrFeatures : (gjOrFeatures?.features||[]);
+    const store=new Map();
+    features.forEach(f=>{
+      const geom=f?.geometry; if(!geom) return;
+      const parent=v141ParentName(f);
+      if(geom.type==='Polygon') (geom.coordinates||[]).forEach(r=>pushRingSegments(r,parent,store));
+      else if(geom.type==='MultiPolygon') (geom.coordinates||[]).forEach(poly=>(poly||[]).forEach(r=>pushRingSegments(r,parent,store)));
+    });
+    const lines=[];
+    store.forEach(rec=>{
+      if(rec.parents.size===1){
+        const c=[...rec.parents.values()][0];
+        if(c===1) lines.push([rec.a, rec.b]); // exterior boundary of a top-level unit
+      }else if(rec.parents.size>1){
+        lines.push([rec.a, rec.b]); // boundary between different top-level units
+      }
+    });
+    return {type:'FeatureCollection', features:lines.map((coords,i)=>({type:'Feature', properties:{id:'l1_'+i}, geometry:{type:'LineString', coordinates:coords}}))};
+  }
+  function outlineOn(){ return $('toggleAdmin')?.checked !== false && $('toggleAdminL1Outline')?.checked !== false; }
+  function renderL1OutlineLayer(){
+    if(!state.map) return;
+    if(state.layers.adminL1Outline){ try{ state.map.removeLayer(state.layers.adminL1Outline); }catch(_){} state.layers.adminL1Outline=null; }
+    if(!state.currentGeoJSON?.features?.length) return;
+    const fc=buildL1BoundaryFeatureCollection(state.currentGeoJSON);
+    state.layers.adminL1Outline=L.geoJSON(fc,{interactive:false, pane:'overlayPane', style:{color:BLUE_LINE, weight:2.15, opacity:.96, lineCap:'round', lineJoin:'round', className:'admin-l1-outline-v141'}});
+  }
+
+  const priorClearYearLayers=typeof clearYearLayers==='function' ? clearYearLayers : null;
+  if(priorClearYearLayers){
+    clearYearLayers=function clearYearLayersV141(){
+      if(state.layers.adminL1Outline){ try{ state.map?.removeLayer(state.layers.adminL1Outline); }catch(_){} state.layers.adminL1Outline=null; }
+      return priorClearYearLayers.apply(this,arguments);
+    };
+  }
+
+  const priorRefreshAdmin=typeof refreshAdmin==='function' ? refreshAdmin : null;
+  if(priorRefreshAdmin){
+    refreshAdmin=async function refreshAdminV141(seq){
+      const r=await priorRefreshAdmin.apply(this,arguments);
+      if(isStaleRefresh(seq)) return r;
+      renderL1OutlineLayer();
+      refreshVisibility?.();
+      return r;
+    };
+  }
+
+  const priorRefreshVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
+  if(priorRefreshVisibility){
+    refreshVisibility=function refreshVisibilityV141(){
+      const r=priorRefreshVisibility.apply(this,arguments);
+      const layer=state.layers.adminL1Outline;
+      if(layer && state.map){
+        if(outlineOn() && !state.map.hasLayer(layer)) layer.addTo(state.map);
+        if(!outlineOn() && state.map.hasLayer(layer)) state.map.removeLayer(layer);
+        if(outlineOn()) bringLayerGroupToFront(layer);
+      }
+      return r;
+    };
+  }
+
+  const priorRefreshVectorStyles=typeof refreshVectorStyles==='function' ? refreshVectorStyles : null;
+  if(priorRefreshVectorStyles){
+    refreshVectorStyles=function refreshVectorStylesV141(){
+      const r=priorRefreshVectorStyles.apply(this,arguments);
+      if(isBlue()){
+        try{ state.layers.railways?.setStyle({color:BLUE_RAIL, weight:1.32, opacity:.82, lineCap:'round', lineJoin:'round'}); }catch(_){}
+        try{ state.layers.adminL1Outline?.setStyle({color:BLUE_LINE, weight:2.15, opacity:.96, lineCap:'round', lineJoin:'round'}); }catch(_){}
+      }
+      return r;
+    };
+  }
+
+  function pointPop(p){ try{ return pointPopulation(p); }catch(_){ return Number(p?.population || p?.Pop || p?._population || p?.center_pop || 0) || 0; } }
+  function shortPop(v){
+    const n=Number(v); if(!Number.isFinite(n) || n<=0) return '';
+    if(n>=1000000) return (n/1000000).toFixed(n>=10000000?0:1).replace('.',',')+' млн';
+    if(n>=1000) return (n/1000).toFixed(n>=100000?0:1).replace('.',',')+' тыс.';
+    return num(Math.round(n));
+  }
+  function cleanCenterName(name){ try{ return cleanCenterLabelName(name); }catch(_){ return String(name||'').trim(); } }
+  function centerPriority(p){ try{ return labelPriority(p); }catch(_){ return Number(p.population || p.Pop || 0); } }
+  function centerLabelClass(p,pop){
+    const cls=['center-point-label-v116','center-point-label-v141'];
+    let city=false; try{ city=isCityCenter(p); }catch(_){}
+    if(city) cls.push('city');
+    try{ if(Number(pop)>=largeCityThreshold(Number(p?.year||state.year))) cls.push('large'); }catch(_){}
+    return cls.join(' ');
+  }
+  function centerMatchesCurrentLayer(f){
+    const p=f?.properties||{};
+    const visible=(state.currentGeoJSON?.features||[]);
+    if(!visible.length) return true;
+    const names=new Set(visible.map(x=>String(x.properties?.name||'').trim().toLowerCase()).filter(Boolean));
+    const parents=new Set(visible.map(x=>String(x.properties?.admin_parent||'').trim()).filter(Boolean));
+    const ids=new Set(visible.map(x=>String(x.properties?.unit_id||'')).filter(Boolean));
+    const unitId=String(p.unit_id||'');
+    const unitName=String(p.unit_name||p.host_name||p.name||'').trim().toLowerCase();
+    const parent=String(p.admin_parent||'').trim();
+    if(unitId && ids.has(unitId)) return true;
+    if(unitName && names.has(unitName)) return true;
+    if(parent && parents.has(parent)) return true;
+    return !(unitId || unitName || parent);
+  }
+  function buildClickableCenterLabels(){
+    if(!state.map || !state.rawCentersGeoJSON?.features?.length) return;
+    const old=state.layers.centerLabels;
+    if(old && state.map.hasLayer(old)) state.map.removeLayer(old);
+    const entries=(state.rawCentersGeoJSON.features||[])
+      .filter(f=>f.geometry?.type==='Point' && centerMatchesCurrentLayer(f))
+      .map(f=>{
+        const p=f.properties||{}; const c=f.geometry.coordinates||[]; const pop=pointPop(p);
+        const name=cleanCenterName(p.name||p.center||p.unit_name||'центр');
+        return {f,p,pop,name,latlng:L.latLng(Number(c[1]),Number(c[0])),priority:centerPriority(p)};
+      })
+      .filter(x=>x.name && Number.isFinite(x.latlng.lat) && Number.isFinite(x.latlng.lng))
+      .sort((a,b)=>(b.priority||0)-(a.priority||0));
+    const group=L.layerGroup();
+    state.centerLabelItems=[];
+    entries.forEach((it,idx)=>{
+      const popText=shortPop(it.pop);
+      const html=`<span class="center-point-label-name-v116">${escapeHtml(it.name)}</span>${popText?`<span class="center-point-label-pop-v116">${escapeHtml(popText)}</span>`:''}`;
+      const marker=L.marker(it.latlng,{interactive:true, bubblingMouseEvents:false, keyboard:false, zIndexOffset:1240+Math.max(0,999-idx), icon:L.divIcon({className:centerLabelClass(it.p,it.pop), html, iconSize:null, iconAnchor:[0,0]})});
+      marker.feature=it.f;
+      marker.on('click',e=>{ L.DomEvent.stopPropagation(e); showCenterFeature(it.f, null); });
+      marker.on('mouseover',e=>showHoverLater?.({title:it.name, subtitle:it.p.host_name || it.p.unit_name || it.p.admin_parent || it.p.status || 'центр / город', population:it.pop}, e.originalEvent));
+      marker.on('mousemove',e=>moveHover?.(e.originalEvent));
+      marker.on('mouseout',()=>hideHover?.());
+      group.addLayer(marker);
+      state.centerLabelItems.push({marker, feature:it.f, latlng:it.latlng, priority:it.priority});
+    });
+    state.layers.centerLabels=group;
+  }
+
+  const priorRefreshCenters=typeof refreshCenters==='function' ? refreshCenters : null;
+  if(priorRefreshCenters){
+    refreshCenters=async function refreshCentersV141(seq){
+      const r=await priorRefreshCenters.apply(this,arguments);
+      if(isStaleRefresh(seq)) return r;
+      try{ buildClickableCenterLabels(); }catch(e){ console.warn('v141 clickable center labels failed', e); }
+      refreshVisibility?.();
+      return r;
+    };
+  }
+
+  const priorBindUi=typeof bindUi==='function' ? bindUi : null;
+  if(priorBindUi){
+    bindUi=function bindUiV141(){
+      installDefaultLayerState();
+      const r=priorBindUi.apply(this,arguments);
+      installL1OutlineControl();
+      const rs=$('regionStyleSelect');
+      const bs=$('basemapStyleSelect');
+      if(rs && !rs.dataset.v141BlueBound){
+        rs.dataset.v141BlueBound='1';
+        rs.addEventListener('change',()=>{
+          if(rs.value===BLUE_KEY){ state.regionStyle=BLUE_KEY; state.basemapStyle=BLUE_KEY; state.colors={}; if(bs) bs.value=BLUE_KEY; applyAppearance(true); refreshVectorStyles(); updateLegend(state.currentGeoJSON,state._lastVals||[]); }
+        });
+      }
+      if(bs && !bs.dataset.v141BlueBound){
+        bs.dataset.v141BlueBound='1';
+        bs.addEventListener('change',()=>{ if(bs.value===BLUE_KEY){ state.basemapStyle=BLUE_KEY; applyAppearance(true); refreshVectorStyles(); } });
+      }
+      $('toggleAdminL1Outline')?.addEventListener('change',()=>{ refreshVisibility?.(); if(state.export?.open) renderExportPreviewCard?.(); });
+      ['toggleCenterPointLabels','toggleCenters'].forEach(id=>$(id)?.addEventListener('change',()=>{ try{ buildClickableCenterLabels(); }catch(_){} refreshVisibility?.(); }));
+      return r;
+    };
+  }
+
+  const priorApplyAppearance=typeof applyAppearance==='function' ? applyAppearance : null;
+  if(priorApplyAppearance){
+    applyAppearance=function applyAppearanceV141(persist=false){
+      const r=priorApplyAppearance(persist);
+      document.documentElement.dataset.regionStyle=state.regionStyle||'';
+      document.documentElement.dataset.basemap=state.basemapStyle||'';
+      document.body?.classList.toggle('hse-defense-blue-v141', isBlue());
+      return r;
+    };
+  }
+
+  function l1OutlineSvg(features, project){
+    if(!outlineOn() || !features?.length || typeof geomToSvgPath!=='function') return '';
+    const fc=buildL1BoundaryFeatureCollection(features);
+    const items=(fc.features||[]).map(f=>{
+      const d=geomToSvgPath(f.geometry, project); if(!d) return '';
+      return `<path d="${d}" fill="none" stroke="${BLUE_LINE}" stroke-width="1.9" stroke-opacity="0.96" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }).join('');
+    return `<g class="export-admin-l1-outline-v141">${items}</g>`;
+  }
+  const priorExportAdminPolygonsSvg=typeof exportAdminPolygonsSvg==='function' ? exportAdminPolygonsSvg : null;
+  if(priorExportAdminPolygonsSvg){
+    exportAdminPolygonsSvg=function exportAdminPolygonsSvgV141(features, project, vals){
+      const raw=priorExportAdminPolygonsSvg.apply(this,arguments);
+      return raw + ((state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY) ? l1OutlineSvg(features,project) : '');
+    };
+  }
+  const priorAddExportVectorLayers=typeof addExportVectorLayers==='function' ? addExportVectorLayers : null;
+  if(priorAddExportVectorLayers){
+    addExportVectorLayers=async function addExportVectorLayersV141(map, features){
+      const r=await priorAddExportVectorLayers.apply(this,arguments);
+      if(map && (state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY) && outlineOn()){
+        try{ L.geoJSON(buildL1BoundaryFeatureCollection(features),{interactive:false, style:{color:BLUE_LINE, weight:2.0, opacity:.94, lineCap:'round', lineJoin:'round'}}).addTo(map).bringToFront(); }catch(e){ console.warn('v141 export L1 outline skipped', e); }
+      }
+      return r;
+    };
+  }
+
+  // Make the first render deterministic: exactly hydro + administrative layer + railways (+ the optional ATD-1 outline).
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', installDefaultLayerState, {once:true});
+  else installDefaultLayerState();
 })();
 
 

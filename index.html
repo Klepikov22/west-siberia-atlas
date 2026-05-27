@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=140" />
+  <link rel="stylesheet" href="style.css?v=141" />
 </head>
 <body>
   <div id="app">
@@ -68,7 +68,7 @@
     </main>
 
     <aside id="leftPanel" class="panel floating-panel">
-      <div class="eyebrow">Дипломный веб-атлас · v140</div>
+      <div class="eyebrow">Дипломный веб-атлас · v141</div>
       <h1>Западная Сибирь: АТД и население</h1>
       <div class="year-card"><span>Выбранный год</span><b id="activeYearLabel">1914</b></div>
 
@@ -101,7 +101,7 @@
 
       <label class="control-label" for="regionStyleSelect">Стиль районов</label>
       <select id="regionStyleSelect">
-        <option value="soft" selected>Спокойный атлас</option>
+        <option value="soft">Спокойный атлас</option>
         <option value="paper">Бумажная историческая карта</option>
         <option value="thin">Тонкие границы</option>
         <option value="ink">Чернильные границы</option>
@@ -109,11 +109,12 @@
         <option value="contrast">Контрастный демонстрационный</option>
         <option value="matchaLatte">Матча латте</option>
         <option value="hseDefense">ВШЭ · защита ВКР</option>
+        <option value="hseDefenseBlue" selected>ВШЭ · защита ВКР · синяя</option>
       </select>
 
       <label class="control-label" for="basemapStyleSelect">Стиль подложки</label>
       <select id="basemapStyleSelect">
-        <option value="sage" selected>Светлая шалфейная</option>
+        <option value="sage">Светлая шалфейная</option>
         <option value="paper">Тёплая бумага</option>
         <option value="cold">Холодная гидрографическая</option>
         <option value="clean">Почти белая</option>
@@ -121,6 +122,7 @@
         <option value="darkOcean">Тёмная северная</option>
         <option value="matchaLatte">Матча латте</option>
         <option value="hseDefense">ВШЭ · защита ВКР</option>
+        <option value="hseDefenseBlue" selected>ВШЭ · защита ВКР · синяя</option>
       </select>
 
       <label class="control-label" for="themeSelect">Базовая тема</label>
@@ -152,21 +154,22 @@
       <div class="toggles">
         <label><input type="checkbox" id="toggleHydro" checked> Гидрография и океан</label>
         <label><input type="checkbox" id="toggleAdmin" checked> Административный слой</label>
-        <label><input type="checkbox" id="toggleCenters" checked> Города / центры-точки</label>
+        <label><input type="checkbox" id="toggleAdminL1Outline" checked> Контур АТД-1 тёмно-синим</label>
+        <label><input type="checkbox" id="toggleCenters"> Города / центры-точки</label>
         <label><input type="checkbox" id="toggleCenterPointLabels"> Подписи городов / точек</label>
         <label><input type="checkbox" id="toggleRailways" checked> Железные дороги</label>
-        <label><input type="checkbox" id="toggleCircles" checked> Символы населения</label>
+        <label><input type="checkbox" id="toggleCircles"> Символы населения</label>
         <label><input type="checkbox" id="toggleTopologyEdgesMain"> Рёбра смежности</label>
         <label><input type="checkbox" id="toggleNaturalBoundarySegments"> Линии: природная морфология</label>
         <label><input type="checkbox" id="toggleBoundaryMemorySegments"> Линии: сохранность / совпадение 2021 и MO</label>
-        <label><input type="checkbox" id="toggleTopologyCentroids" checked> Узлы графа / JSON-точки</label>
+        <label><input type="checkbox" id="toggleTopologyCentroids"> Узлы графа / JSON-точки</label>
         <label><input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности</label>
         <label><input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки</label>
         <div class="topology-layer-controls-v92" aria-label="Настройки топологического графа АТЕ">
           <div class="topology-layer-title-v92">Топологический граф · настройки</div>
           <input type="checkbox" id="toggleTopologyGraph" hidden>
-          <input type="checkbox" id="toggleTopologyEdges" checked hidden>
-          <input type="checkbox" id="toggleTopologyNodes" checked hidden>
+          <input type="checkbox" id="toggleTopologyEdges" hidden>
+          <input type="checkbox" id="toggleTopologyNodes" hidden>
           <label class="topology-inline-field-v92"><span>Метрика узлов</span>
             <select id="topologyMetricSelect">
               <option value="topo_degree" selected>Degree: число соседей</option>
@@ -274,6 +277,6 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=140"></script>
+  <script src="app.js?v=141"></script>
 </body>
 </html>

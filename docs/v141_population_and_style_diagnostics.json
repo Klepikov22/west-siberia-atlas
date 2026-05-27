@@ -1,0 +1,98 @@
+{
+  "version": "v141",
+  "population_transfer": {
+    "1855": {
+      "features": 26,
+      "analytics_features": 26,
+      "total_population": 2234432,
+      "total_area_km2": 3610069.588,
+      "density": 0.6189443016354398,
+      "urban_population": 165688.0,
+      "rural_population": 2068744.0
+    },
+    "1876": {
+      "features": 27,
+      "analytics_features": 27,
+      "total_population": 3291163,
+      "total_area_km2": 3274354.929,
+      "density": 1.0051332465063991,
+      "urban_population": 236734.0,
+      "rural_population": 3054429.0
+    }
+  },
+  "neighbor_control_top_level": {
+    "1848": {
+      "Тобольская губерния": {
+        "population": 831151,
+        "features": 9
+      },
+      "Томская губерния": {
+        "population": 588186,
+        "features": 6
+      }
+    },
+    "1855": {
+      "Верхний уровень не указан": {
+        "population": 17527,
+        "features": 1
+      },
+      "Область Сибирских Киргизов": {
+        "population": 248181,
+        "features": 5
+      },
+      "Семипалатинская область": {
+        "population": 261758,
+        "features": 5
+      },
+      "Тобольская губерния": {
+        "population": 1046278,
+        "features": 9
+      },
+      "Томская губерния": {
+        "population": 660688,
+        "features": 6
+      }
+    },
+    "1876": {
+      "Акмолинская область": {
+        "population": 474444,
+        "features": 5
+      },
+      "Семипалатинская область": {
+        "population": 537093,
+        "features": 5
+      },
+      "Тобольская губерния": {
+        "population": 1218071,
+        "features": 10
+      },
+      "Томская губерния": {
+        "population": 1061555,
+        "features": 7
+      }
+    },
+    "1897": {
+      "Акмолинская область": {
+        "population": 682608,
+        "features": 5
+      },
+      "Семипалатинская область": {
+        "population": 684590,
+        "features": 5
+      },
+      "Тобольская губерния": {
+        "population": 1433043,
+        "features": 10
+      },
+      "Томская губерния": {
+        "population": 1927679,
+        "features": 7
+      }
+    }
+  },
+  "notes": [
+    "Population values for 1855/1876 were copied from the user-supplied layers by unit_id/name.",
+    "Project geometry, area_km2, rail/topology/adjacency fields were preserved to avoid reverting to the larger area values from the supplied standalone files.",
+    "Two unnamed features present only in the supplied 1876 file were not imported as geometries because they are absent from the v140 project layer; their population total is not included in the project 1876 total."
+  ]
+}

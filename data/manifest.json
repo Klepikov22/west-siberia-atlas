@@ -392,7 +392,7 @@
     "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки.",
     "v140: добавлен отдельный картографический стиль ВШЭ для защиты: палитра АТЕ, гидрография, пунсоны, подписи, ЖД и экспортные SVG получают единое оформление."
   ],
-  "app_version": "140",
+  "app_version": "141",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -440,8 +440,9 @@
     "v139.2: hotfix — fixed multiyear trends modal grid layout after v139.1 insertBefore repair; the trend toggle now stays inside the controls sidebar and chart/table keep their proper right-hand panel.",
     "v139.3: UI polish — redesigned the year-selection panel in multiyear trends with a titled card, selection counter, compact action buttons and chip-style year toggles; layout and logic preserved.",
     "v139.4: UX upgrade — rebuilt the multiyear trends year selector as an era-grouped research panel with quick presets, active-state buttons, hidden native checkboxes and compact year chips.",
-    "v139: stabilization release from v138 — deferred final bootstrap, single trends button handler, manifest sync, fixed north ocean cap path, legacy legend toggle IDs, numeric advanced connectivity filters."
+    "v139: stabilization release from v138 — deferred final bootstrap, single trends button handler, manifest sync, fixed north ocean cap path, legacy legend toggle IDs, numeric advanced connectivity filters.",
+    "v141: HSE defense blue style, white background, readable hydrography, toggleable dark-blue ATE-1 outline, default visible layers hydro/admin/railways, population transferred to 1855 and 1876 layers, clickable center labels."
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v139.5"
+  "version": "v141"
 }
