@@ -1,4 +1,4 @@
-const APP_VERSION = '142';
+const APP_VERSION = '143';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -16446,24 +16446,12 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     return String(p.admin_superparent || p.admin_parent || p.region || p.Governorate || p.name || 'АТД-1').trim() || 'АТД-1';
   }
   function buildL1BoundaryFeatureCollection(gjOrFeatures){
-    const features=Array.isArray(gjOrFeatures) ? gjOrFeatures : (gjOrFeatures?.features||[]);
-    const store=new Map();
-    features.forEach(f=>{
-      const geom=f?.geometry; if(!geom) return;
-      const parent=v141ParentName(f);
-      if(geom.type==='Polygon') (geom.coordinates||[]).forEach(r=>pushRingSegments(r,parent,store));
-      else if(geom.type==='MultiPolygon') (geom.coordinates||[]).forEach(poly=>(poly||[]).forEach(r=>pushRingSegments(r,parent,store)));
-    });
-    const lines=[];
-    store.forEach(rec=>{
-      if(rec.parents.size===1){
-        const c=[...rec.parents.values()][0];
-        if(c===1) lines.push([rec.a, rec.b]); // exterior boundary of a top-level unit
-      }else if(rec.parents.size>1){
-        lines.push([rec.a, rec.b]); // boundary between different top-level units
-      }
-    });
-    return {type:'FeatureCollection', features:lines.map((coords,i)=>({type:'Feature', properties:{id:'l1_'+i}, geometry:{type:'LineString', coordinates:coords}}))};
+    const cached = window.v143AdminL1DissolvedCache?.[String(state?.year || '')];
+    if(cached?.features?.length) return cached;
+    // v143: no fallback to the old segment-count heuristic. That heuristic was
+    // the source of broken/ragged first-level outlines along ATE-2 seams when
+    // adjacent polygons had non-identical vertex sequences.
+    return {type:'FeatureCollection', features:[]};
   }
   function outlineOn(){ return $('toggleAdmin')?.checked !== false && $('toggleAdminL1Outline')?.checked !== false; }
   function renderL1OutlineLayer(){
@@ -16471,7 +16459,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(state.layers.adminL1Outline){ try{ state.map.removeLayer(state.layers.adminL1Outline); }catch(_){} state.layers.adminL1Outline=null; }
     if(!state.currentGeoJSON?.features?.length) return;
     const fc=buildL1BoundaryFeatureCollection(state.currentGeoJSON);
-    state.layers.adminL1Outline=L.geoJSON(fc,{interactive:false, pane:'overlayPane', style:{color:BLUE_LINE, weight:2.15, opacity:.96, lineCap:'round', lineJoin:'round', className:'admin-l1-outline-v141'}});
+    state.layers.adminL1Outline=L.geoJSON(fc,{interactive:false, pane:'overlayPane', style:{color:BLUE_LINE, weight:2.15, opacity:.96, fill:false, fillOpacity:0, lineCap:'round', lineJoin:'round', className:'admin-l1-outline-v143'}});
   }
 
   const priorClearYearLayers=typeof clearYearLayers==='function' ? clearYearLayers : null;
@@ -16487,6 +16475,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     refreshAdmin=async function refreshAdminV141(seq){
       const r=await priorRefreshAdmin.apply(this,arguments);
       if(isStaleRefresh(seq)) return r;
+      try{ await window.v143EnsureAdminL1Dissolved?.(state.year); }catch(e){ console.warn('v143 dissolved ATE-1 preload failed', e); }
       renderL1OutlineLayer();
       refreshVisibility?.();
       return r;
@@ -16647,7 +16636,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     addExportVectorLayers=async function addExportVectorLayersV141(map, features){
       const r=await priorAddExportVectorLayers.apply(this,arguments);
       if(map && (state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY) && outlineOn()){
-        try{ L.geoJSON(buildL1BoundaryFeatureCollection(features),{interactive:false, style:{color:BLUE_LINE, weight:2.0, opacity:.94, lineCap:'round', lineJoin:'round'}}).addTo(map).bringToFront(); }catch(e){ console.warn('v141 export L1 outline skipped', e); }
+        try{ L.geoJSON(buildL1BoundaryFeatureCollection(features),{interactive:false, style:{color:BLUE_LINE, weight:2.0, opacity:.94, fill:false, fillOpacity:0, lineCap:'round', lineJoin:'round', className:'admin-l1-outline-v143-export'}}).addTo(map).bringToFront(); }catch(e){ console.warn('v141 export L1 outline skipped', e); }
       }
       return r;
     };
@@ -16949,4 +16938,188 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     }
   }
   bootstrap();
+})();
+
+
+/* v143: dissolved ATE-1 masks/outlines.
+   The v141 outline was built by exact segment comparison. On historical layers
+   many neighbouring ATE-2 polygons have different vertex sequences, so some
+   internal district seams were falsely promoted to thick first-level borders.
+   v143 uses precomputed Shapely dissolve by admin_superparent/admin_parent and
+   a parent-level underlay to cover tiny internal white gaps without changing
+   the analytical ATE-2 geometries. */
+(function v143DissolvedL1MasksAndCleanOutlines(){
+  const BLUE_KEY='hseDefenseBlue';
+  const HSE_KEY='hseDefense';
+  const RED_KEY='hseDefenseRed';
+  const BLUE_LINE='#0B2D66';
+  const RED_LINE='#9B1430';
+  const DEFAULT_LINE='#26364D';
+  window.v143AdminL1DissolvedCache = window.v143AdminL1DissolvedCache || {};
+  window.v143AdminL1DissolvedPromises = window.v143AdminL1DissolvedPromises || {};
+
+  window.v143EnsureAdminL1Dissolved = async function v143EnsureAdminL1Dissolved(year){
+    const y=String(year || state?.year || '');
+    if(!y) return null;
+    if(window.v143AdminL1DissolvedCache[y]) return window.v143AdminL1DissolvedCache[y];
+    if(window.v143AdminL1DissolvedPromises[y]) return window.v143AdminL1DissolvedPromises[y];
+    const path=`data/admin_l1_dissolved/admin_l1_dissolved_${y}.geojson`;
+    window.v143AdminL1DissolvedPromises[y]=loadJson(path).then(fc=>{
+      window.v143AdminL1DissolvedCache[y]=fc;
+      return fc;
+    }).catch(err=>{
+      console.warn('v143: cannot load dissolved ATE-1 mask', path, err);
+      return null;
+    });
+    return window.v143AdminL1DissolvedPromises[y];
+  };
+
+  function currentFc(){ return window.v143AdminL1DissolvedCache?.[String(state?.year || '')] || null; }
+  function adminVisible(){ return $('toggleAdmin')?.checked !== false; }
+  function outlineVisible(){ return adminVisible() && $('toggleAdminL1Outline')?.checked !== false; }
+  function parentMode(){ return ['admin_parent','admin_superparent'].includes(String(state?.mode || '')); }
+  function wantsGapUnderlay(){
+    return adminVisible() && parentMode() && ['clean',HSE_KEY,RED_KEY,BLUE_KEY].includes(String(state?.basemapStyle || state?.regionStyle || '')) ||
+           adminVisible() && parentMode() && [HSE_KEY,RED_KEY,BLUE_KEY].includes(String(state?.regionStyle || ''));
+  }
+  function l1LineColor(){
+    if(state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY) return BLUE_LINE;
+    if(state?.regionStyle===HSE_KEY || state?.regionStyle===RED_KEY || state?.basemapStyle===HSE_KEY || state?.basemapStyle===RED_KEY) return RED_LINE;
+    return DEFAULT_LINE;
+  }
+  function underlayOpacity(){
+    if(state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY) return .34;
+    if(state?.regionStyle===HSE_KEY || state?.regionStyle===RED_KEY || state?.basemapStyle===HSE_KEY || state?.basemapStyle===RED_KEY) return .28;
+    if(state?.basemapStyle==='clean') return .22;
+    return .18;
+  }
+  function parentFill(f){
+    const p=f?.properties || {};
+    const key = String(p.admin_superparent || p.admin_parent || p.name || 'АТД-1');
+    try{ return catColor(key); }catch(_){ return state?.regionStyle===BLUE_KEY ? '#D9EAF8' : '#F2D7D7'; }
+  }
+
+  function removeLayer(name){
+    const layer=state.layers?.[name];
+    if(layer && state.map){ try{ state.map.removeLayer(layer); }catch(_){} }
+    if(state.layers) state.layers[name]=null;
+  }
+
+  function rebuildUnderlayLayer(){
+    removeLayer('adminL1Underlay');
+    const fc=currentFc();
+    if(!state.map || !fc?.features?.length) return;
+    state.layers.adminL1Underlay=L.geoJSON(fc,{
+      interactive:false,
+      pane:'overlayPane',
+      style:f=>({stroke:false, fill:true, fillColor:parentFill(f), fillOpacity:underlayOpacity(), className:'admin-l1-underlay-v143'})
+    });
+  }
+
+  const priorClearYearLayers=typeof clearYearLayers==='function' ? clearYearLayers : null;
+  if(priorClearYearLayers){
+    clearYearLayers=function clearYearLayersV143(){
+      removeLayer('adminL1Underlay');
+      return priorClearYearLayers.apply(this,arguments);
+    };
+  }
+
+  const priorRefreshAdmin=typeof refreshAdmin==='function' ? refreshAdmin : null;
+  if(priorRefreshAdmin){
+    refreshAdmin=async function refreshAdminV143(seq){
+      try{ await window.v143EnsureAdminL1Dissolved?.(state.year); }catch(e){ console.warn('v143 dissolve preload skipped', e); }
+      const r=await priorRefreshAdmin.apply(this,arguments);
+      if(isStaleRefresh(seq)) return r;
+      rebuildUnderlayLayer();
+      refreshVisibility?.();
+      return r;
+    };
+  }
+
+  const priorRefreshVisibility=typeof refreshVisibility==='function' ? refreshVisibility : null;
+  if(priorRefreshVisibility){
+    refreshVisibility=function refreshVisibilityV143(){
+      const r=priorRefreshVisibility.apply(this,arguments);
+      const under=state.layers?.adminL1Underlay;
+      if(under && state.map){
+        const show=wantsGapUnderlay();
+        if(show && !state.map.hasLayer(under)) under.addTo(state.map);
+        if(!show && state.map.hasLayer(under)) state.map.removeLayer(under);
+        if(show){
+          try{ under.bringToBack(); }catch(_){}
+          try{ state.layers.rivers?.bringToBack?.(); }catch(_){}
+          try{ state.layers.water?.bringToFront?.(); }catch(_){}
+          try{ state.layers.admin?.bringToFront?.(); }catch(_){}
+          try{ state.layers.railways?.bringToFront?.(); }catch(_){}
+          try{ state.layers.adminL1Outline?.bringToFront?.(); }catch(_){}
+        }
+      }
+      const out=state.layers?.adminL1Outline;
+      if(out && state.map){
+        try{ out.setStyle?.({color:l1LineColor(), weight:2.05, opacity:outlineVisible()?.96:0, fill:false, fillOpacity:0, lineCap:'round', lineJoin:'round'}); }catch(_){}
+        if(outlineVisible() && !state.map.hasLayer(out)) out.addTo(state.map);
+        if(!outlineVisible() && state.map.hasLayer(out)) state.map.removeLayer(out);
+        if(outlineVisible()) try{ out.bringToFront?.(); }catch(_){}
+      }
+      return r;
+    };
+  }
+
+  const priorRefreshVectorStyles=typeof refreshVectorStyles==='function' ? refreshVectorStyles : null;
+  if(priorRefreshVectorStyles){
+    refreshVectorStyles=function refreshVectorStylesV143(){
+      const r=priorRefreshVectorStyles.apply(this,arguments);
+      try{ state.layers.adminL1Outline?.setStyle?.({color:l1LineColor(), weight:2.05, opacity:.96, fill:false, fillOpacity:0, lineCap:'round', lineJoin:'round'}); }catch(_){}
+      try{ state.layers.adminL1Underlay?.setStyle?.(f=>({stroke:false, fill:true, fillColor:parentFill(f), fillOpacity:underlayOpacity()})); }catch(_){}
+      return r;
+    };
+  }
+
+  const priorExportAdminPolygonsSvg=typeof exportAdminPolygonsSvg==='function' ? exportAdminPolygonsSvg : null;
+  if(priorExportAdminPolygonsSvg){
+    exportAdminPolygonsSvg=function exportAdminPolygonsSvgV143(features, project, vals){
+      let raw=String(priorExportAdminPolygonsSvg.apply(this,arguments) || '');
+      // v141 might already have appended an outline group. Remove it and draw the
+      // dissolved v143 one instead, so export cannot show false ATE-1 seams.
+      raw=raw.replace(/<g class="export-admin-l1-outline-v141">[\s\S]*?<\/g>/g,'');
+      const fc=currentFc();
+      if(!fc?.features?.length || !outlineVisible() || typeof geomToSvgPath!=='function') return raw;
+      const stroke=l1LineColor();
+      const items=(fc.features||[]).map(f=>{
+        const d=geomToSvgPath(f.geometry, project); if(!d) return '';
+        return `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="1.9" stroke-opacity="0.96" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }).join('');
+      return raw + `<g class="export-admin-l1-outline-v143">${items}</g>`;
+    };
+  }
+
+  const priorAddExportVectorLayers=typeof addExportVectorLayers==='function' ? addExportVectorLayers : null;
+  if(priorAddExportVectorLayers){
+    addExportVectorLayers=async function addExportVectorLayersV143(map, features){
+      await window.v143EnsureAdminL1Dissolved?.(state.year);
+      const r=await priorAddExportVectorLayers.apply(this,arguments);
+      // Draw the clean dissolved outline on top. The old v141 builder now returns
+      // the same dissolved FC, so this is mostly a style/order guard.
+      const fc=currentFc();
+      const v141AlreadyAddsBlue = (state?.regionStyle===BLUE_KEY || state?.basemapStyle===BLUE_KEY);
+      if(map && fc?.features?.length && outlineVisible() && !v141AlreadyAddsBlue){
+        try{ L.geoJSON(fc,{interactive:false, style:{color:l1LineColor(), weight:2.0, opacity:.96, fill:false, fillOpacity:0, lineCap:'round', lineJoin:'round'}}).addTo(map).bringToFront(); }catch(e){ console.warn('v143 export dissolved outline skipped', e); }
+      }
+      return r;
+    };
+  }
+
+  const priorBindUi=typeof bindUi==='function' ? bindUi : null;
+  if(priorBindUi){
+    bindUi=function bindUiV143(){
+      const r=priorBindUi.apply(this,arguments);
+      ['regionStyleSelect','basemapStyleSelect','modeSelect','toggleAdmin','toggleAdminL1Outline'].forEach(id=>{
+        const el=$(id); if(el && !el.dataset.v143L1Bound){
+          el.dataset.v143L1Bound='1';
+          el.addEventListener('change',()=>{ rebuildUnderlayLayer(); refreshVectorStyles?.(); refreshVisibility?.(); if(state.export?.open) renderExportPreviewCard?.(); });
+        }
+      });
+      return r;
+    };
+  }
 })();

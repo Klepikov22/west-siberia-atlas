@@ -3829,3 +3829,8 @@ body.dark .advanced-filter-row-v136 select{background:#242b31;color:#efe6d3;bord
 :root[data-region-style="hseDefenseRed"] .circle-swatch,
 :root[data-region-style="hseDefenseRed"] .center-circle-swatch{border-color:#E61E3C;background:rgba(230,30,60,.62);}
 :root[data-region-style="hseDefenseRed"] .bar-swatch{border-color:#E61E3C;background:linear-gradient(180deg,rgba(230,30,60,.72),rgba(230,30,60,.46));}
+
+
+/* v143: dissolved first-level ATE masks/outlines */
+.admin-l1-underlay-v143 { pointer-events: none; }
+.admin-l1-outline-v143, .admin-l1-outline-v143-export { pointer-events: none; }

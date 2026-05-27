@@ -392,7 +392,7 @@
     "v124: добавлен режим анализа происхождения административных границ по природным рубежам: реки, озёра, береговая линия, водоразделы/орография, унаследованные нижние/современные границы и необъяснённые участки.",
     "v140: добавлен отдельный картографический стиль ВШЭ для защиты: палитра АТЕ, гидрография, пунсоны, подписи, ЖД и экспортные SVG получают единое оформление."
   ],
-  "app_version": "142",
+  "app_version": "143",
   "map_bounds_4326_expanded_200km": [
     57.411848,
     42.485993,
@@ -444,8 +444,12 @@
     "v141: HSE defense blue style, white background, readable hydrography, toggleable dark-blue ATE-1 outline, default visible layers hydro/admin/railways, population transferred to 1855 and 1876 layers, clickable center labels."
   ],
   "v118_note": "Tables can be recalculated by selected 2021 regional contours.",
-  "version": "v142",
+  "version": "v143",
   "build_notes": [
-    "v142: forced pure white export backing for Clean / HSE defense / HSE red / HSE blue styles; added explicit HSE defense red style alias; fixed PNG html2canvas background color for white styles."
+    "v142: forced pure white export backing for Clean / HSE defense / HSE red / HSE blue styles; added explicit HSE defense red style alias; fixed PNG html2canvas background color for white styles.",
+    "v143: dissolved ATE-1 masks/outlines by admin_superparent/admin_parent; removed false thick internal ATE-2 seams in blue/HSE styles; added categorical underlay to cover small white pinholes without changing analytical ATE-2 geometries."
+  ],
+  "history": [
+    "v143: чистый растворённый контур АТД-1 вместо сегментного сравнения; подложка АТД-1 закрывает мелкие зазоры в режимах admin_parent/admin_superparent."
   ]
 }
