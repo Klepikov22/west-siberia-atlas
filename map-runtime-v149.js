@@ -745,11 +745,9 @@
       const el=document.createElement('div');
       el.className='atlas-center-label-v149'+(item.city?' is-city':'');
       el.style.fontSize=fontSize+'px';
-      const dot=document.createElement('i');
-      dot.setAttribute('aria-hidden','true');
       const text=document.createElement('span');
       text.textContent=item.label;
-      el.append(dot,text);
+      el.appendChild(text);
       return el;
     }
 
