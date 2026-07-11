@@ -1,4 +1,4 @@
-const APP_VERSION = '147';
+const APP_VERSION = '148';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -17374,11 +17374,11 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
 })();
 
 
-/* v147: modern cartographic UI, declarative layer visibility and adaptive labels.
+/* v148: modern cartographic UI, reliable direct-DOM labels and declarative visibility.
    This block intentionally sits above the accumulated legacy patches: it keeps
    their data/rendering logic, but provides one final source of truth for the
    visible layer state and one collision-aware label renderer. */
-(function v147ModernCartographicUi(){
+(function v148ModernCartographicUi(){
   const LAYER_DEFAULTS=Object.freeze({
     toggleHydro:true, toggleAdmin:true, toggleAdminL1Outline:true, toggleAdminLabels:true,
     toggleCenters:false, toggleCenterPointLabels:false, toggleRailways:true, toggleCircles:false,
@@ -17396,8 +17396,8 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     ['adminL1Outline',()=>checked('toggleAdmin',true)&&checked('toggleAdminL1Outline',true)],
     ['railways',()=>checked('toggleRailways',true)], ['circles',()=>checked('toggleCircles',false)],
     ['centers',()=>checked('toggleCenters',false)],
-    ['labels',()=>checked('toggleAdmin',true)&&checked('toggleAdminLabels',true)],
-    ['centerLabels',()=>checked('toggleCenters',false)&&checked('toggleCenterPointLabels',false)],
+    ['labels',()=>checked('toggleAdminLabels',true)],
+    ['centerLabels',()=>checked('toggleCenterPointLabels',false)],
     ['topologyGraph',()=>checked('toggleTopologyEdgesMain',false)],
     ['topologyCentroids',()=>checked('toggleTopologyCentroids',false)],
     ['naturalBoundarySegments',()=>checked('toggleNaturalBoundarySegments',false)],
@@ -17485,7 +17485,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   function isLeafletLayer(layer){return !!layer && !layer.__domLayer && !layer.__domSvgLayer && typeof layer.addTo==='function';}
   function enforceLeafletLayer(name,show){
     const map=state?.map, layer=state?.layers?.[name]; if(!map||!isLeafletLayer(layer))return;
-    try{const on=map.hasLayer(layer); if(show&&!on)layer.addTo(map); else if(!show&&on)map.removeLayer(layer);}catch(e){console.warn('v147 layer sync failed',name,e);}
+    try{const on=map.hasLayer(layer); if(show&&!on)layer.addTo(map); else if(!show&&on)map.removeLayer(layer);}catch(e){console.warn('v148 layer sync failed',name,e);}
   }
   function enforceVisibility(){
     if(visibilityBusy||!state?.map)return; visibilityBusy=true;
@@ -17502,7 +17502,7 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     }finally{visibilityBusy=false;}
     updateLayerManagerStatus(); scheduleLabels();
   }
-  function scheduleVisibility(){ requestAnimationFrame(()=>{try{refreshVisibility?.();}catch(e){console.warn('v147 refreshVisibility',e);} enforceVisibility();}); }
+  function scheduleVisibility(){ requestAnimationFrame(()=>{try{refreshVisibility?.();}catch(e){console.warn('v148 refreshVisibility',e);} enforceVisibility();}); }
 
   function compactNumber(v){
     const n=Number(v); if(!Number.isFinite(n))return'';
@@ -17527,12 +17527,18 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     if(mode==='urban_share'||mode.endsWith('_pct')||mode==='topo_external_share'){if(Math.abs(v)<=1.0001)v*=100; return `${compactNumber(v)}${suffix}`;}
     return `${compactNumber(v)}${suffix}`;
   }
+  function adminLabelHtml(item){
+    const value=activeLabelValue(item.feature?.properties||{});
+    item.dynamicValue=value;
+    return `<span class="ate-label-name">${escapeHtml(item.label||'АТЕ')}</span>${value?`<span class="ate-label-value">${escapeHtml(value)}</span>`:''}`;
+  }
   function decorateAdminLabels(){
     (state?.labelItems||[]).forEach(item=>{
-      const tooltip=item.marker?.getTooltip?.(); if(!tooltip)return;
-      const value=activeLabelValue(item.feature?.properties||{});
-      const html=`<span class="ate-label-name">${escapeHtml(item.label||'АТЕ')}</span>${value?`<span class="ate-label-value">${escapeHtml(value)}</span>`:''}`;
-      tooltip.setContent(html); item.dynamicValue=value;
+      const html=adminLabelHtml(item);
+      const card=item.marker?.getElement?.()?.querySelector?.('.admin-map-label-card-v148');
+      if(card){ card.innerHTML=html; return; }
+      const tooltip=item.marker?.getTooltip?.();
+      if(tooltip) tooltip.setContent(html);
     });
   }
   function intersects(a,b){return !(a.right<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom);}
@@ -17551,45 +17557,58 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
     labelRaf=0; const map=state?.map; if(!map)return;
     decorateAdminLabels();
     const size=map.getSize(), bounds=map.getBounds(), zoom=map.getZoom();
-    const density=$('labelDensitySelect')?.value||'balanced'; const minZoom=Number($('labelMinZoomRange')?.value||5);
-    const adminEnabled=checked('toggleAdmin',true)&&checked('toggleAdminLabels',true)&&zoom>=minZoom;
+    const density=$('labelDensitySelect')?.value||'balanced';
+    const baseSize=Number($('labelBaseSizeRange')?.value||11);
+    const adminEnabled=checked('toggleAdminLabels',true);
     const budget=labelBudget(size,zoom,density); const placed=[]; let shown=0;
     const items=[...(state.labelItems||[])].sort((a,b)=>(b.priority||0)-(a.priority||0));
     items.forEach((item,rank)=>{
-      const el=item.marker?.getTooltip?.()?.getElement?.(); if(!el)return; el.style.display='none';
+      const root=item.marker?.getElement?.();
+      const card=root?.querySelector?.('.admin-map-label-card-v148');
+      if(!root||!card)return;
+      root.style.display='none';
       if(!adminEnabled||shown>=budget||!bounds.contains(item.latlng))return;
       const pt=map.latLngToContainerPoint(item.latlng); if(pt.x<28||pt.y<54||pt.x>size.x-28||pt.y>size.y-52)return;
-      const poly=projectedBoundsSize(item.feature); const privileged=rank<Math.max(10,Math.round(budget*.18));
-      if(poly&&!privileged&&(poly.w<34||poly.h<19))return;
-      const base=Math.max(9.5,Math.min(15.5,10.3+(zoom-5)*1.15+(privileged?.7:0)));
-      el.style.setProperty('--label-font-size',`${base}px`); el.style.setProperty('--label-zoom',String(zoom)); el.style.display='block';
-      const rect=el.getBoundingClientRect(); const pad=privileged?7:5;
+      const poly=projectedBoundsSize(item.feature); const privileged=rank<Math.max(8,Math.round(budget*.20));
+      if(poly&&!privileged&&(poly.w<30||poly.h<16))return;
+      const font=Math.max(9,Math.min(17,baseSize+(zoom-5)*.55+(privileged?.6:0)));
+      card.style.setProperty('--label-font-size',`${font}px`); root.style.display='block';
+      const rect=card.getBoundingClientRect(); const pad=privileged?7:5;
       const r={left:rect.left-pad,right:rect.right+pad,top:rect.top-pad,bottom:rect.bottom+pad};
-      if(placed.some(q=>intersects(r,q))){el.style.display='none';return;}
+      if(rank>2&&placed.some(q=>intersects(r,q))){root.style.display='none';return;}
       placed.push(r); shown++;
     });
-    // City/centre labels share the same collision space and are favoured by priority.
-    const centerEnabled=checked('toggleCenters',false)&&checked('toggleCenterPointLabels',false)&&zoom>=Math.max(minZoom,5);
-    const centerBudget=Math.max(6,Math.round(budget*(density==='maximum'?.85:.52))); let centerShown=0;
+    // Подписи городов используют то же поле коллизий, но не зависят от видимости точек.
+    const centerEnabled=checked('toggleCenterPointLabels',false);
+    const centerBudget=Math.max(6,Math.round(budget*(density==='maximum'?.90:.58))); let centerShown=0;
     [...(state.centerLabelItems||[])].sort((a,b)=>(b.priority||0)-(a.priority||0)).forEach((item,rank)=>{
-      const el=item.marker?.getElement?.(); if(!el)return; el.style.display='none';
+      const root=item.marker?.getElement?.(); if(!root)return; root.style.display='none';
       if(!centerEnabled||centerShown>=centerBudget||!bounds.contains(item.latlng))return;
       const pt=map.latLngToContainerPoint(item.latlng); if(pt.x<26||pt.y<54||pt.x>size.x-80||pt.y>size.y-42)return;
-      el.style.display='block'; el.style.setProperty('--center-label-scale',String(Math.max(.88,Math.min(1.14,.9+(zoom-5)*.07))));
-      const rect=el.getBoundingClientRect(); const r={left:rect.left-5,right:rect.right+5,top:rect.top-4,bottom:rect.bottom+4};
-      if(rank>5&&placed.some(q=>intersects(r,q))){el.style.display='none';return;}
+      root.style.display='block'; root.style.setProperty('--center-label-scale',String(Math.max(.88,Math.min(1.16,.92+(zoom-5)*.06))));
+      const rect=root.getBoundingClientRect(); const r={left:rect.left-5,right:rect.right+5,top:rect.top-4,bottom:rect.bottom+4};
+      if(rank>5&&placed.some(q=>intersects(r,q))){root.style.display='none';return;}
       placed.push(r); centerShown++;
     });
-    const status=$('labelStatus'); if(status)status.textContent=adminEnabled?`${shown} АТЕ${centerEnabled?` + ${centerShown} точек`:''}`:`с масштаба ${minZoom.toFixed(2)}`;
+    const status=$('labelStatus');
+    if(status){
+      if(!adminEnabled&&!centerEnabled) status.textContent='выключены';
+      else status.textContent=`${adminEnabled?`${shown} АТЕ`:''}${adminEnabled&&centerEnabled?' · ':''}${centerEnabled?`${centerShown} точек`:''}`;
+    }
   }
   function scheduleLabels(){cancelAnimationFrame(labelRaf); labelRaf=requestAnimationFrame(performLabels);}
 
   function bindLabelControls(){
-    ['toggleAdminLabels','toggleLabelValues'].forEach(id=>$(id)?.addEventListener('change',()=>{persistLayerState();scheduleVisibility();scheduleLabels();}));
-    $('labelDensitySelect')?.addEventListener('change',()=>{try{localStorage.setItem('wsAtlasLabelDensityV147',$('labelDensitySelect').value);}catch(_){ } scheduleLabels();});
-    $('labelMinZoomRange')?.addEventListener('input',e=>{const out=$('labelMinZoomValue');if(out)out.textContent=Number(e.target.value).toFixed(2);scheduleLabels();});
-    $('labelMinZoomRange')?.addEventListener('change',e=>{try{localStorage.setItem('wsAtlasLabelMinZoomV147',e.target.value);}catch(_){ }});
-    try{const d=localStorage.getItem('wsAtlasLabelDensityV147');if(d&&$('labelDensitySelect'))$('labelDensitySelect').value=d; const z=localStorage.getItem('wsAtlasLabelMinZoomV147');if(z&&$('labelMinZoomRange')){$('labelMinZoomRange').value=z;$('labelMinZoomValue').textContent=Number(z).toFixed(2);}}catch(_){ }
+    ['toggleAdminLabels','toggleCenterPointLabels','toggleLabelValues'].forEach(id=>$(id)?.addEventListener('change',()=>{persistLayerState();scheduleVisibility();scheduleLabels();}));
+    $('labelDensitySelect')?.addEventListener('change',()=>{try{localStorage.setItem('wsAtlasLabelDensityV148',$('labelDensitySelect').value);}catch(_){ } scheduleLabels();});
+    $('labelBaseSizeRange')?.addEventListener('input',e=>{const out=$('labelBaseSizeValue');if(out)out.textContent=Number(e.target.value).toFixed(1);scheduleLabels();});
+    $('labelBaseSizeRange')?.addEventListener('change',e=>{try{localStorage.setItem('wsAtlasLabelBaseSizeV148',e.target.value);}catch(_){ }});
+    try{
+      const d=localStorage.getItem('wsAtlasLabelDensityV148')||localStorage.getItem('wsAtlasLabelDensityV147');
+      if(d&&$('labelDensitySelect'))$('labelDensitySelect').value=d;
+      const z=localStorage.getItem('wsAtlasLabelBaseSizeV148');
+      if(z&&$('labelBaseSizeRange')){$('labelBaseSizeRange').value=z;$('labelBaseSizeValue').textContent=Number(z).toFixed(1);}
+    }catch(_){ }
   }
   function bindLayerControls(){
     Object.keys(LAYER_DEFAULTS).forEach(id=>{const el=$(id); if(!el||el.dataset.v147Bound)return; el.dataset.v147Bound='1'; el.addEventListener('change',()=>{persistLayerState();updateLayerManagerStatus();scheduleVisibility();});});
@@ -17607,14 +17626,32 @@ try{ v93OpenMultiyearTrendsModal=v106OpenMultiyearTrendsModal; v90OpenTopologyTr
   }
 
   const priorBuildLabels=typeof buildLabels==='function'?buildLabels:null;
-  if(priorBuildLabels)buildLabels=function buildLabelsV147(){const r=priorBuildLabels.apply(this,arguments);decorateAdminLabels();return r;};
+  if(priorBuildLabels)buildLabels=function buildLabelsV148(admin,gj){
+    clearLayer('labels'); state.labelItems=[];
+    if(!admin||!gj?.features?.length)return;
+    const group=L.layerGroup();
+    admin.eachLayer(layer=>{
+      const f=layer.feature; if(!f?.properties)return;
+      const p=f.properties; const label=cleanAdminLabelName(p.name||p.unit_name||p.admin_name||p.unit_id); if(!label)return;
+      const latlng=adminLabelLatLng(layer); if(!latlng)return;
+      const pop=Number(p.population)||0, area=Number(p.area_km2)||0;
+      const cls=['admin-map-label-anchor-v148'];
+      if(pop>=1000000)cls.push('major'); else if(pop>=300000)cls.push('medium'); else cls.push('minor');
+      const item={latlng,feature:f,label,priority:adminLabelPriority(f),pop,area,renderer:'v148'};
+      const marker=L.marker(latlng,{interactive:false,keyboard:false,zIndexOffset:980,icon:L.divIcon({className:cls.join(' '),html:`<div class="admin-map-label-card-v148">${adminLabelHtml(item)}</div>`,iconSize:[1,1],iconAnchor:[0,0]})});
+      item.marker=marker; group.addLayer(marker); state.labelItems.push(item);
+    });
+    state.labelItems.sort((a,b)=>(b.priority||0)-(a.priority||0));
+    state.layers.labels=group;
+    return group;
+  };
   const priorUpdateLabels=typeof updateLabelsVisibility==='function'?updateLabelsVisibility:null;
-  updateLabelsVisibility=function updateLabelsVisibilityV147(){scheduleLabels();};
-  updateCenterLabels=function updateCenterLabelsV147(){scheduleLabels();};
+  updateLabelsVisibility=function updateLabelsVisibilityV148(){scheduleLabels();};
+  updateCenterLabels=function updateCenterLabelsV148(){scheduleLabels();};
   const priorRefreshVisibility=typeof refreshVisibility==='function'?refreshVisibility:null;
-  if(priorRefreshVisibility)refreshVisibility=function refreshVisibilityV147(){const r=priorRefreshVisibility.apply(this,arguments);enforceVisibility();return r;};
+  if(priorRefreshVisibility)refreshVisibility=function refreshVisibilityV148(){const r=priorRefreshVisibility.apply(this,arguments);enforceVisibility();return r;};
   const priorBindUi=typeof bindUi==='function'?bindUi:null;
-  if(priorBindUi)bindUi=function bindUiV147(){const r=priorBindUi.apply(this,arguments);bootUi();return r;};
+  if(priorBindUi)bindUi=function bindUiV148(){const r=priorBindUi.apply(this,arguments);bootUi();return r;};
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{buildLayerManager();},{once:true}); else buildLayerManager();
 })();

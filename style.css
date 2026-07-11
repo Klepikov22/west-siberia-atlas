@@ -4029,3 +4029,29 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:0;border-c
   .map-brand-chip small{display:none}.map-topbar{right:52px}.panel-brand p{display:none}.panel-brand .year-card{margin-top:9px}
   .layer-manager-tools{grid-template-columns:1fr}.layer-manager-tools .mini-action{width:100%}
 }
+
+
+/* v148: reliable direct-DOM map labels. These do not depend on Leaflet tooltip lifecycle. */
+.admin-map-label-anchor-v148{
+  width:1px!important;height:1px!important;margin:0!important;padding:0!important;
+  overflow:visible!important;background:transparent!important;border:0!important;
+  box-shadow:none!important;pointer-events:none!important;
+}
+.admin-map-label-card-v148{
+  --label-font-size:11px;
+  position:absolute;left:0;top:0;transform:translate(-50%,-50%);
+  width:max-content;max-width:210px;padding:3px 6px;border-radius:6px;
+  font-size:var(--label-font-size);line-height:1.08;text-align:center;
+  color:#0f2d69;background:rgba(255,255,255,.88);border:1px solid rgba(34,69,101,.16);
+  box-shadow:0 2px 8px rgba(15,45,75,.11);
+  text-shadow:0 1px 0 #fff,0 0 4px rgba(255,255,255,.98);
+  pointer-events:none;user-select:none;white-space:nowrap;
+}
+.admin-map-label-anchor-v148.major .admin-map-label-card-v148{font-weight:900;border-color:rgba(15,45,105,.24);box-shadow:0 3px 10px rgba(15,45,75,.15)}
+.admin-map-label-anchor-v148.medium .admin-map-label-card-v148{font-weight:850}
+.admin-map-label-anchor-v148.minor .admin-map-label-card-v148{font-weight:780}
+:root[data-theme="dark"] .admin-map-label-card-v148{
+  color:#dbeafe;background:rgba(13,27,41,.88);border-color:rgba(139,180,214,.24);
+  text-shadow:0 1px 0 #000,0 0 4px rgba(0,0,0,.96);
+}
+:root[data-theme="dark"] .admin-map-label-card-v148 .ate-label-value{color:#8ec5f0}
