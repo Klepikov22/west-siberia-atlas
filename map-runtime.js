@@ -318,6 +318,7 @@
           try{ startMiddlePan(event); }catch(_){ }
           return;
         }
+        if(isLeft(event)) this.completedRectangleClick=null;
         if(state.tool!=='rectangle' || !isLeft(event)) return;
         this.hideHover();
         this.clearSelectionSketch(false);
@@ -346,27 +347,7 @@
       map.on('move zoom',()=>{ if(state.tool==='polygon') this.redrawPolygonSketch(); });
 
       // --- клик: одиночная выборка (курсор) и область АТД-1 -----------------
-      map.on('click',(event)=>{
-        if(state.tool==='pan' || state.tool==='parent'){
-          const point=[event.latlng.lng,event.latlng.lat];
-          const hits=(state.currentGeoJSON?.features||[]).filter(f=>f?.geometry && AtlasGeometry.pointInFeaturePolygon(point,f.geometry));
-          const feature=hits.filter(f=>isSelectableFeature(f)).sort((a,b)=>
-            (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity))[0] || hits[0];
-          if(feature && isChecked('toggleAdmin',true)) this.selectAdminFeature(feature,event.originalEvent);
-          else this.hideHover();
-          return;
-        }
-        if(state.tool!=='polygon' || !isLeft(event)) return;
-        this.hideHover();
-        const first=state.polygonPoints?.[0];
-        // Клик рядом с первой вершиной замыкает контур.
-        if(first && state.polygonPoints.length>=3 &&
-           map.latLngToContainerPoint(first).distanceTo(event.containerPoint)<=10){
-          this.finishPolygon(event.originalEvent||{});
-          return;
-        }
-        this.addPolygonVertex(event.latlng);
-      });
+      map.on('click',(event)=>this.handleMapSelectionClick(event));
 
       map.on('dblclick',(event)=>{
         if(state.tool!=='polygon') return;
@@ -406,6 +387,61 @@
       });
     }
 
+    handleMapSelectionClick(event){
+      if(event.originalEvent?.button!=null && event.originalEvent.button!==0) return;
+      // Leaflet may emit a click at the endpoint of a completed rectangle.
+      // Only suppress that same gesture; a new left mousedown resets the guard.
+      const drag=this.completedRectangleClick;
+      this.completedRectangleClick=null;
+      if(drag && event.containerPoint && Number.isFinite(event.originalEvent?.timeStamp) &&
+         event.originalEvent.timeStamp>=drag.time && event.originalEvent.timeStamp-drag.time<150 &&
+         Math.hypot(event.containerPoint.x-drag.point.x,event.containerPoint.y-drag.point.y)<=4) return;
+
+      const point=[event.latlng.lng,event.latlng.lat];
+      const hits=isChecked('toggleAdmin',true)
+        ? (state.currentGeoJSON?.features||[]).filter(f=>f?.geometry && AtlasGeometry.pointInFeaturePolygon(point,f.geometry))
+        : [];
+      if(!hits.length){
+        const selected=!!state.selectedIds?.size || !!state.selectedCenterLayer;
+        const drawing=state.tool==='polygon' && state.polygonPoints?.length>0;
+        this.clearFeatureSelection();
+        // Dismissing a finished selection must not start a new polygon.
+        // An in-progress polygon can still cross empty map areas.
+        if(selected && !drawing){this.clearSelectionSketch(true);return;}
+      }
+      if(state.tool==='pan' || state.tool==='parent'){
+        const feature=hits.filter(f=>isSelectableFeature(f)).sort((a,b)=>
+          (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity))[0] || hits[0];
+        if(feature) this.selectAdminFeature(feature,event.originalEvent);
+        return;
+      }
+      if(state.tool!=='polygon') return;
+      this.hideHover();
+      const first=state.polygonPoints?.[0];
+      if(first && state.polygonPoints.length>=3 &&
+         this.map.latLngToContainerPoint(first).distanceTo(event.containerPoint)<=10){
+        this.finishPolygon(event.originalEvent||{});return;
+      }
+      this.addPolygonVertex(event.latlng);
+    }
+
+    clearFeatureSelection(){
+      const hovered=this.hoveredAdminId;
+      this.hoveredAdminId=null;
+      if(this.hoveredPointLayer) this.onPointLeave(this.hoveredPointLayer);
+      if(state.selectedIds?.size) applyIds([],'replace');
+      else if(hovered!=null) this.applyAdminVisualState(hovered);
+      const center=state.selectedCenterLayer;
+      if(center?.setStyle) center.setStyle(center.__runtimeV149BaseStyle ||
+        {color:'#3a2607',weight:1.45,fillColor:'#f6c85f',fillOpacity:.86,opacity:.98});
+      state.selectedCenterLayer=null;
+      state.selectedFeature=null;
+      const info=byId('featureInfo');
+      if(info){info.classList.add('muted');info.textContent='Выберите объект на карте, чтобы увидеть его свойства.';}
+      this.hideHover();
+      state.layers?.circles?.hideHover?.();
+    }
+
     completeRectangle(end,original){
       if(!state.dragStart) return;
       const start=state.dragStart;
@@ -417,6 +453,7 @@
       // Случайный клик без протягивания рамкой не считается.
       const meaningful=Math.abs(p2.x-p1.x)>=4 && Math.abs(p2.y-p1.y)>=4;
       if(meaningful){
+        this.completedRectangleClick={time:original?.timeStamp,point:p2};
         try{ applySpatialSelectionByBounds(bounds,original||{}); }
         catch(error){ console.warn('rectangle selection failed',error); }
       }

@@ -1,4 +1,4 @@
-const APP_VERSION = '156';
+const APP_VERSION = '157';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -4311,6 +4311,11 @@ function ensureCompactExportLauncherV48(){
     btn.setAttribute('aria-label','Открыть режим экспорта карты');
     positionFloatingExportLauncherV48();
     window.addEventListener('resize', positionFloatingExportLauncherV48, {passive:true});
+    const topbar=document.getElementById('mapTopbar');
+    if(topbar && window.ResizeObserver){
+      const observer=new ResizeObserver(positionFloatingExportLauncherV48);
+      observer.observe(topbar);
+    }
     const panel = document.getElementById('rightPanel');
     if(panel && window.MutationObserver){
       const mo = new MutationObserver(()=>requestAnimationFrame(positionFloatingExportLauncherV48));
@@ -5022,15 +5027,17 @@ function initExportOverlayDrag(){
 function positionFloatingExportLauncherV48(){
   const btn=document.getElementById('floatingExportLauncher'); if(!btn) return;
   const panel=document.getElementById('rightPanel'); const gap=20;
+  const topbar=document.getElementById('mapTopbar')?.getBoundingClientRect();
+  const minTop=topbar?.height>0?Math.max(8,topbar.bottom+12):8;
   btn.classList.add('floating-export-launcher-v48');
   btn.innerHTML='<span class="floating-export-icon">⇩</span><span class="floating-export-text">Экспорт карты</span>';
   if(panel){
     const r=panel.getBoundingClientRect();
     const targetLeft=Math.max(8, Math.min(window.innerWidth-btn.offsetWidth-8, r.left - btn.offsetWidth - gap));
-    const targetTop=Math.max(8, Math.min(window.innerHeight-btn.offsetHeight-8, r.top + gap));
+    const targetTop=Math.max(minTop, Math.min(window.innerHeight-btn.offsetHeight-8, r.top + gap));
     btn.style.left=`${Math.round(targetLeft)}px`; btn.style.top=`${Math.round(targetTop)}px`;
     btn.style.right='auto'; btn.style.bottom='auto'; btn.style.transform='none';
-  }else{ btn.style.right='18px'; btn.style.top='18px'; btn.style.left='auto'; btn.style.transform='none'; }
+  }else{ btn.style.right='18px'; btn.style.top=`${Math.max(minTop,18)}px`; btn.style.left='auto'; btn.style.transform='none'; }
 }
 (function initV51Patch(){
   const start=()=>{ bindParentFilterToolbar(); updateParentFilterToolbarState(); positionFloatingExportLauncherV48(); };
