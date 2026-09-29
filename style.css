@@ -4288,6 +4288,7 @@ body[data-tool="polygon"] #map{
 }
 body[data-tool="pan"] #map{cursor:grab;}
 body[data-tool="pan"] #map:active{cursor:grabbing;}
+body[data-tool="parent"] #map{cursor:pointer;}
 .leaflet-selectionPaneV149-pane path{
   vector-effect:non-scaling-stroke;
 }
@@ -4303,3 +4304,10 @@ body[data-tool="pan"] #map:active{cursor:grabbing;}
   content:" · вершин: " attr(data-vertex-count) " · Enter — завершить · Backspace — отменить вершину";
   font-weight:650;
 }
+
+.tool-button-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.tool-button-row .tool-btn{min-width:0;min-height:38px;white-space:normal;line-height:1.2}
+.selection-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0 8px}
+.selection-options label{display:grid;gap:5px;min-width:0;color:var(--muted,#566579);font-size:11px;font-weight:650}
+.selection-options select{width:100%;min-width:0;font-size:12px}
+@media (max-width:430px){.selection-options{grid-template-columns:1fr}}

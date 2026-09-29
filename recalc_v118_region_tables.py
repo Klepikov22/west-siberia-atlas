@@ -341,13 +341,8 @@ def compute_2021_region_metrics():
     write_json(DATA/'manifest.json', man)
 
 
-def write_readme():
-    text='''# v118\n\nИзменения:\n\n- В слое 1930 г. Щегловский округ переименован в Кузнецкий округ во всех районах, узлах, рёбрах и population_long.csv.\n- В multiyear_metrics_by_year.json добавлены счётчики: районные/уездные единицы без городского населения и города районного ранга.\n- Добавлен файл data/topology/multiyear_metrics_by_2021_region.json для пересчёта таблиц метрик по контурам регионов 2021 г.\n- В интерфейс таблиц добавлен выбор охвата: весь ряд, выбранные регионы 2021 г. или ряд без выбранных регионов.\n\nМетод регионального охвата: исторические АТЕ накладываются на контуры регионов 2021 г. в равновеликой проекции; суммарные показатели аппроксимируются по доле площади пересечения, счётчики типов закрепляются за регионом наибольшего пересечения.\n'''
-    (BASE/'README_v118.md').write_text(text, encoding='utf-8')
-
 if __name__ == '__main__':
     repair_1930_names()
     compute_global_counters_for_rows()
     compute_2021_region_metrics()
-    write_readme()
     print('v118 data rebuild done')

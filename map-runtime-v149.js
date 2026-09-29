@@ -303,6 +303,8 @@
       this.selectionBound=true;
       const map=state.map;
       const container=map.getContainer();
+      this.map=map;
+      this.mapContainer=container;
       try{
         if(!map.getPane('selectionPaneV149')){
           this.selectionPane=map.createPane('selectionPaneV149');
@@ -339,21 +341,29 @@
 
       map.on('mouseup',(event)=>{
         if(state.tool!=='rectangle' || !state.dragStart) return;
-        const start=state.dragStart;
-        const bounds=L.latLngBounds(start,event.latlng);
-        state.dragStart=null;
-        container.classList.remove('selection-drawing-v149');
-        const p1=map.latLngToContainerPoint(start);
-        const p2=map.latLngToContainerPoint(event.latlng);
-        const meaningful=Math.abs(p2.x-p1.x)>=4 && Math.abs(p2.y-p1.y)>=4;
-        if(meaningful){
-          try{ applySpatialSelectionByBounds(bounds,event.originalEvent||{}); }catch(error){ console.warn('v149 rectangle selection failed',error); }
-        }
-        this.clearSelectionSketch(false);
-        this.flashSelectionCount();
+        this.completeRectangle(event.latlng,event.originalEvent);
+      });
+      // Leaflet does not emit map mouseup when the pointer is released outside
+      // its container. Finish the same gesture through the document as well.
+      document.addEventListener('mouseup',(original)=>{
+        if(state.tool!=='rectangle' || !state.dragStart || original.button!==0) return;
+        this.completeRectangle(map.mouseEventToLatLng(original),original);
       });
 
       map.on('click',(event)=>{
+        if(state.tool==='pan' || state.tool==='parent'){
+          // A visible noninteractive overlay can receive the DOM click instead
+          // of an administrative path. Resolve the geographical hit directly.
+          const candidates=(state.currentGeoJSON?.features||[]).filter(feature=>
+            feature?.geometry && pointInFeaturePolygon([event.latlng.lng,event.latlng.lat],feature.geometry)
+          );
+          const feature=candidates.filter(f=>isSelectableFeature(f)).sort((a,b)=>
+            (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity)
+          )[0] || candidates[0];
+          if(feature && isChecked('toggleAdmin',true)) this.selectAdminFeature(feature,event.originalEvent);
+          else if(state.tool==='pan') this.hideHover();
+          return;
+        }
         if(state.tool!=='polygon') return;
         const original=event.originalEvent;
         if(original?.button!=null && original.button!==0) return;
@@ -380,6 +390,7 @@
         if(state.tool==='polygon') event.preventDefault();
       });
       document.addEventListener('keydown',(event)=>{
+        if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
         if(state.tool==='polygon' && event.key==='Enter'){
           event.preventDefault();
           this.finishPolygon(event);
@@ -395,8 +406,26 @@
       });
     }
 
+    completeRectangle(end,original){
+        if(!state.dragStart) return;
+        const start=state.dragStart;
+        const bounds=L.latLngBounds(start,end);
+        state.dragStart=null;
+        this.mapContainer.classList.remove('selection-drawing-v149');
+        const p1=this.map.latLngToContainerPoint(start);
+        const p2=this.map.latLngToContainerPoint(end);
+        const meaningful=Math.abs(p2.x-p1.x)>=4 && Math.abs(p2.y-p1.y)>=4;
+        if(meaningful){
+          try{ applySpatialSelectionByBounds(bounds,original||{}); }catch(error){ console.warn('rectangle selection failed',error); }
+        }
+        this.clearSelectionSketch(false);
+        this.flashSelectionCount();
+    }
+
     addPolygonVertex(latlng){
       if(!state.polygonPoints) state.polygonPoints=[];
+      const last=state.polygonPoints.at(-1);
+      if(last && this.map.latLngToContainerPoint(last).distanceTo(this.map.latLngToContainerPoint(latlng))<4) return;
       state.polygonPoints.push(latlng);
       this.redrawPolygonSketch();
     }
@@ -890,7 +919,7 @@
     }
 
     onAdminEnter(id,layer,event){
-      if(state?.tool!=='pan') return;
+      if(state?.tool!=='pan' && state?.tool!=='parent') return;
       this.hoveredAdminId=id;
       this.applyAdminVisualState(id);
       const p=layer.feature?.properties || {};
@@ -912,18 +941,27 @@
     }
 
     onAdminClick(layer,event){
-      if(state?.tool!=='pan') return;
+      if(state?.tool!=='pan' && state?.tool!=='parent') return;
       try{ L.DomEvent.stopPropagation(event?.originalEvent || event); }catch(_){ }
       const feature=layer?.feature;
       if(!feature) return;
-      try{
-        if(typeof isSelectableFeature!=='function' || isSelectableFeature(feature)) toggleSelection(feature);
-        else showFeature(feature);
-      }catch(_){
-        try{ showFeature(feature); }catch(__){ }
+      this.selectAdminFeature(feature,event?.originalEvent);
+    }
+
+    selectAdminFeature(feature,event={}){
+      if(!feature) return;
+      const selectable=typeof isSelectableFeature==='function' && isSelectableFeature(feature);
+      if(selectable){
+        const parent=String(feature.properties?.admin_parent||'').trim();
+        const ids=state.tool==='parent' && parent
+          ? (state.currentGeoJSON?.features||[]).filter(f=>isSelectableFeature(f) && String(f.properties?.admin_parent||'').trim()===parent).map(featureId)
+          : [featureId(feature)];
+        applyIds(ids,selectionOperation(event));
       }
+      showFeature(feature);
       this.applyAdminVisualStates();
       this.scheduleLabels();
+      this.flashSelectionCount();
     }
 
     applyAdminVisualStates(){
@@ -961,6 +999,7 @@
         layer.on('mousemove',(event)=>this.onPointerMove(event?.originalEvent));
         layer.on('mouseout',()=>this.onPointLeave(layer));
         layer.on('click',(event)=>{
+          if(state?.tool!=='pan') return;
           try{ L.DomEvent.stopPropagation(event?.originalEvent || event); }catch(_){ }
           try{ showCenterFeature(layer.feature,layer); }catch(_){ }
         });
@@ -977,10 +1016,9 @@
         layer.on('mousemove',(event)=>this.onPointerMove(event?.originalEvent));
         layer.on('mouseout',()=>this.onPointLeave(layer));
         layer.on('click',(event)=>{
+          if(state?.tool!=='pan' && state?.tool!=='parent') return;
           try{ L.DomEvent.stopPropagation(event?.originalEvent || event); }catch(_){ }
-          if(state?.tool!=='pan') return;
-          try{ toggleSelection(layer.feature); showFeature(layer.feature); }catch(_){ }
-          this.applyAdminVisualStates();
+          this.selectAdminFeature(layer.feature,event?.originalEvent);
         });
       });
     }

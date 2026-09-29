@@ -1,4 +1,4 @@
-const APP_VERSION = '150';
+const APP_VERSION = '151';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -782,7 +782,7 @@ function bindUi(){
   ['toggleHydro','toggleAdmin','toggleCenters','toggleRailways','toggleCircles','toggleTopologyEdgesMain','toggleTopologyCentroids'].forEach(id=>on(id,'change', refreshVisibility));
   on('resetView','click', ()=> state.map.flyToBounds(state.dataBounds, {duration:.45, padding:[18,18], maxZoom:MAP_RESET_MAX_ZOOM}));
   on('clearSelection','click', ()=>{state.selectedIds.clear(); refreshSelectionStyles(); updateStatsAndSelection();});
-  on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
+  on('selectAll','click', ()=>{ if(!state.currentGeoJSON) return; state.selectedIds = new Set(state.currentGeoJSON.features.filter(isSelectableFeature).map(featureId)); refreshSelectionStyles(); updateStatsAndSelection(); });
   on('toggleAttributePanel','click', ()=>{ state.attributesPanelOpen = !state.attributesPanelOpen; updateAttributePanel(); });
   on('selectedFeatureSelect','change', e=>{ const id=e.target.value; if(!id || !state.currentGeoJSON) return; const f=state.currentGeoJSON.features.find(x=>featureId(x)===id); if(f){ showFeature(f); const layer=state.adminLayerById.get(id); if(layer){ state.map.fitBounds(layer.getBounds(), {padding:[80,80], maxZoom:6.5, animate:true, duration:.35}); } } });
   const ga=$('groupAnalyticsBox');
@@ -1465,7 +1465,7 @@ function updateSelectionBox(){
     else { sel.disabled=false; sel.style.display='block'; if(selLabel) selLabel.style.display='block'; const head=document.createElement('option'); head.value=''; head.textContent='Выберите объект из выборки…'; sel.appendChild(head); feats.forEach(f=>{ const o=document.createElement('option'); o.value=featureId(f); o.textContent=f.properties.name || featureId(f); sel.appendChild(o); }); }
   }
   if(!feats.length){
-    if(box){ box.classList.add('muted'); box.innerHTML=''; }
+    if(box){ box.classList.add('muted'); box.textContent='Выборка пуста'; }
     if(info){ info.classList.add('muted'); info.innerHTML=''; }
     return;
   }
@@ -1476,7 +1476,7 @@ function updateSelectionBox(){
   }
   if(box){
     box.classList.remove('muted');
-    const names=feats.slice(0,12).map(f=>`<li>${f.properties.name||'без названия'}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:'';
+    const names=feats.slice(0,12).map(f=>`<li>${escapeHtml(f.properties.name||'без названия')}</li>`).join(''); const more=feats.length>12?`<li>…и ещё ${feats.length-12}</li>`:'';
     box.innerHTML=`<div class="selection-count">Выбрано объектов: ${feats.length}</div><ul class="selection-list">${names}${more}</ul><div class="mini-muted">Ниже можно переключаться между выбранными объектами и смотреть их атрибуты в карточке.</div>`;
   }
 }
@@ -1523,7 +1523,7 @@ function updateAttributePanel(){
 }
 
 function setTool(tool){
-  state.tool = tool || 'pan'; clearSelectionDrawing(); const selectMode=state.tool!=='pan';
+  state.tool = ['pan','rectangle','polygon','parent'].includes(tool) ? tool : 'pan'; clearSelectionDrawing(); const selectMode=state.tool==='rectangle'||state.tool==='polygon';
   const select=$('toolSelect'); if(select && select.value!==state.tool) select.value=state.tool;
   document.querySelectorAll('[data-tool-button]').forEach(btn=>btn.classList.toggle('active', btn.dataset.toolButton===state.tool));
   if(state.map){
@@ -1532,9 +1532,10 @@ function setTool(tool){
   }
   document.body.classList.toggle('selection-tool-active', selectMode); document.body.dataset.tool = state.tool;
   const help=$('selectionToolHelp'); if(help){
-    if(state.tool==='pan') help.innerHTML='Курсор: одиночный выбор кликом по району, кругу населения или центру. Карту можно двигать обычным перетаскиванием.';
+    if(state.tool==='pan') help.textContent='Курсор: клик по АТЕ открывает атрибуты и выделяет объект; перетаскивание двигает карту.';
     if(state.tool==='rectangle') help.innerHTML='Прямоугольная выборка: протяните рамку по карте. СКМ зажать — двигать карту. Shift — добавить, Alt — убрать.';
     if(state.tool==='polygon') help.innerHTML='Полигональная выборка: ставьте точки кликами, двойной клик или правая кнопка — завершить. СКМ зажать — двигать карту.';
+    if(state.tool==='parent') help.textContent='Область АТД-1: кликните по АТЕ, чтобы выделить все видимые единицы её верхнего уровня. Перетаскивание двигает карту.';
   }
   const actions=$('selectionDrawActions'); if(actions) actions.style.display = state.tool==='polygon' ? 'grid' : 'none';
 }
@@ -1582,34 +1583,56 @@ function addPolygonPoint(latlng){
 function finishPolygonSelection(ev){ if(state.tool!=='polygon'||state.polygonPoints.length<3) return; applySpatialSelectionByPolygon(state.polygonPoints, ev||{}); clearSelectionDrawing(false); }
 function clearSelectionDrawing(removePoints=true){ if(state.dragRect){state.map.removeLayer(state.dragRect); state.dragRect=null;} state.dragStart=null; if(removePoints){state.polygonPoints=[];} if(state.polygonLine){state.map.removeLayer(state.polygonLine); state.polygonLine=null;} if(state.polygonMarkers){state.map.removeLayer(state.polygonMarkers); state.polygonMarkers=null;} }
 function applySpatialSelectionByBounds(bounds, event){
-  const mode=event?.altKey?'remove':event?.shiftKey?'add':'replace';
+  const mode=selectionOperation(event);
   const ring=boundsToLngLatRing(bounds);
   const ids=[];
   if(state.layers.admin){
     state.layers.admin.eachLayer(l=>{
       // Быстрый bbox-фильтр + проверка пересечения геометрии. Теперь объект выбирается не по центроиду,
       // а при реальном касании рамки с полигоном.
-      if(!l.getBounds().intersects(bounds)) return;
-      if(featureIntersectsRing(l.feature, ring)) ids.push(featureId(l.feature));
+      if(!isSelectableFeature(l.feature) || !l.getBounds().intersects(bounds)) return;
+      if(featureMatchesSelection(l.feature, ring)) ids.push(featureId(l.feature));
     });
   }
   applyIds(ids,mode);
 }
 function applySpatialSelectionByPolygon(points, event){
-  const mode=event?.altKey?'remove':event?.shiftKey?'add':'replace';
+  const mode=selectionOperation(event);
   const ring=points.map(ll=>[ll.lng,ll.lat]);
   if(ring.length && (ring[0][0]!==ring[ring.length-1][0] || ring[0][1]!==ring[ring.length-1][1])) ring.push(ring[0]);
   const polyBounds=L.latLngBounds(points);
   const ids=[];
   if(state.layers.admin){
     state.layers.admin.eachLayer(l=>{
-      if(!l.getBounds().intersects(polyBounds)) return;
-      if(featureIntersectsRing(l.feature, ring)) ids.push(featureId(l.feature));
+      if(!isSelectableFeature(l.feature) || !l.getBounds().intersects(polyBounds)) return;
+      if(featureMatchesSelection(l.feature, ring)) ids.push(featureId(l.feature));
     });
   }
   applyIds(ids,mode);
 }
 function applyIds(ids, mode){ if(mode==='replace') state.selectedIds=new Set(ids); else if(mode==='add') ids.forEach(id=>state.selectedIds.add(id)); else if(mode==='remove') ids.forEach(id=>state.selectedIds.delete(id)); refreshSelectionStyles(); updateStatsAndSelection(); }
+function selectionOperation(event){
+  if(event?.altKey) return 'remove';
+  if(event?.shiftKey) return 'add';
+  return $('selectionOperation')?.value || 'replace';
+}
+function featureMatchesSelection(feature, ring){
+  if($('selectionSpatialRule')?.value!=='within') return featureIntersectsRing(feature,ring);
+  const geom=feature?.geometry;
+  const polygons=geom?.type==='Polygon' ? [geom.coordinates] : geom?.type==='MultiPolygon' ? geom.coordinates : [];
+  if(!polygons.length) return false;
+  // All exterior rings must fit. A concave selection may exclude an edge even
+  // when both endpoints lie inside, so reject crossings as well.
+  return polygons.every(poly=>{
+    const outer=poly?.[0] || [];
+    const covered=pt=>pointInRing(pt,ring) || ring.slice(1).some((end,i)=>Math.abs(orient(ring[i],pt,end))<1e-12 && onSegment(ring[i],pt,end));
+    if(!outer.length || !outer.every(covered)) return false;
+    for(let i=1;i<outer.length;i++) for(let j=1;j<ring.length;j++)
+      if(orient(outer[i-1],outer[i],ring[j-1])*orient(outer[i-1],outer[i],ring[j])<0 &&
+         orient(ring[j-1],ring[j],outer[i-1])*orient(ring[j-1],ring[j],outer[i])<0) return false;
+    return true;
+  });
+}
 function boundsToLngLatRing(bounds){
   const sw=bounds.getSouthWest(), ne=bounds.getNorthEast();
   return [[sw.lng,sw.lat],[ne.lng,sw.lat],[ne.lng,ne.lat],[sw.lng,ne.lat],[sw.lng,sw.lat]];
