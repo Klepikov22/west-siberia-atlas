@@ -254,6 +254,7 @@
 
       refreshSelectionStyles=function refreshSelectionStylesV149(){
         runtime.applyAdminVisualStates();
+        runtime.applyCircleVisualStates();
       };
       refreshSelectionStylesFor=function refreshSelectionStylesForV149(id){
         runtime.applyAdminVisualState(id);
@@ -264,6 +265,7 @@
         refreshVectorStyles=function refreshVectorStylesV149(){
           const result=previousRefreshVectorStyles.apply(this,arguments);
           runtime.applyAdminVisualStates();
+          runtime.applyCircleVisualStates();
           runtime.scheduleVisibility();
           runtime.scheduleLabels();
           return result;
@@ -346,7 +348,7 @@
       map.on('click',(event)=>{
         if(state.tool==='pan' || state.tool==='parent'){
           const point=[event.latlng.lng,event.latlng.lat];
-          const hits=(state.currentGeoJSON?.features||[]).filter(f=>f?.geometry && pointInFeaturePolygon(point,f.geometry));
+          const hits=(state.currentGeoJSON?.features||[]).filter(f=>f?.geometry && AtlasGeometry.pointInFeaturePolygon(point,f.geometry));
           const feature=hits.filter(f=>isSelectableFeature(f)).sort((a,b)=>
             (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity))[0] || hits[0];
           if(feature && isChecked('toggleAdmin',true)) this.selectAdminFeature(feature,event.originalEvent);
@@ -607,6 +609,9 @@
           if(this.isLeafletLayer(layer)) this.setLeafletVisibility(layer,show);
           else this.setDomVisibility(layer,show);
         }
+        if(isChecked('toggleCircles',false)) requestAnimationFrame(()=>{
+          state?.layers?.circles?.eachLayer?.(layer=>this.enablePopulationKeyboard(layer));
+        });
 
         // Some advanced-connectivity patches stored DOM nodes outside state.layers.
         this.setDomVisibility(state?._advancedConnectivityEdgeSvgLayerV133,isChecked('toggleAdvancedConnectivityEdges',false));
@@ -945,6 +950,7 @@
       }
       showFeature(feature);
       this.applyAdminVisualStates();
+      this.applyCircleVisualStates();
       this.scheduleLabels();
       this.flashSelectionCount();
     }
@@ -1005,12 +1011,71 @@
           try{ L.DomEvent.stopPropagation(event?.originalEvent || event); }catch(_){ }
           this.selectAdminFeature(layer.feature,event?.originalEvent);
         });
+        requestAnimationFrame(()=>this.enablePopulationKeyboard(layer));
+      });
+      this.applyCircleVisualStates();
+    }
+
+    enablePopulationKeyboard(layer){
+      const element=layer?.getElement?.();
+      if(!element || element.dataset.populationKeyboard==='1') return;
+      element.dataset.populationKeyboard='1';
+      element.setAttribute('tabindex','0');
+      element.setAttribute('role','button');
+      const p=layer.feature?.properties||{};
+      element.setAttribute('aria-label',`Население: ${p.name||p.unit_id||'АТЕ'}, ${p.population||0} чел. Нажмите Enter для выбора`);
+      element.addEventListener('focus',()=>{
+        const rect=element.getBoundingClientRect();
+        this.onPointEnter(layer,{originalEvent:{clientX:rect.left+rect.width/2,clientY:rect.top+rect.height/2}},'circle');
+      });
+      element.addEventListener('blur',()=>this.onPointLeave(layer));
+      element.addEventListener('keydown',event=>{
+        if(event.key!=='Enter' && event.key!==' ') return;
+        event.preventDefault();
+        if(state.tool==='pan' || state.tool==='parent') this.selectAdminFeature(layer.feature,event);
       });
     }
 
+    applyCircleVisualStates(){
+      state?.layers?.circles?.eachLayer?.(layer=>this.applyCircleVisualState(layer));
+    }
+
+    applyCircleVisualState(layer){
+      if(!layer?.feature || !layer.setStyle) return;
+      const selected=state?.selectedIds?.has?.(featureId(layer.feature));
+      const hovered=this.hoveredPointLayer===layer;
+      const base=layer.__populationBaseStyle || (layer.__populationBaseStyle={
+        color:layer.options?.color,weight:layer.options?.weight,fillColor:layer.options?.fillColor,
+        fillOpacity:layer.options?.fillOpacity,opacity:layer.options?.opacity,
+        radius:layer.getRadius?.()
+      });
+      layer.setStyle({
+        color:selected?'#163e73':base.color,
+        weight:hovered?3.2:selected?2.8:base.weight,
+        fillColor:base.fillColor,
+        fillOpacity:hovered?.96:selected?.86:base.fillOpacity,
+        opacity:1
+      });
+      if(base.radius!=null) layer.setRadius(base.radius+(hovered?2.4:selected?1.1:0));
+    }
+
     onPointEnter(layer,event,kind){
+      if(kind==='circle' && state?.tool!=='pan' && state?.tool!=='parent') return;
       const p=layer.feature?.properties || {};
       this.hoveredPointLayer=layer;
+      if(kind==='circle'){
+        this.applyCircleVisualState(layer);
+        const pop=finite(p.population);
+        this.showHover({
+          title:p.name || p.unit_name || 'АТЕ без названия',
+          subtitle:[p.unit_type,p.admin_parent].filter(Boolean).join(' · ') || 'Символ населения',
+          rows:[
+            ['Население',pop!=null?fmt.format(Math.round(pop))+' чел.':'—'],
+            ['Год',p.year || state.year]
+          ]
+        },event?.originalEvent);
+        return;
+      }
       try{
         const radius=layer.getRadius?.();
         if(layer.__runtimeV149BaseRadius==null) layer.__runtimeV149BaseRadius=radius;
@@ -1026,14 +1091,19 @@
       let pop=finite(p.population);
       if(pop==null){ try{ pop=Number(pointPopulation(p))||null; }catch(_){ } }
       this.showHover({
-        title:p.name || p.center || p.unit_name || (kind==='circle'?'Население АТЕ':'Центр'),
-        subtitle:p.host_name || p.unit_name || p.admin_parent || p.status || (kind==='circle'?'круг населения':'город / центр'),
+        title:p.name || p.center || p.unit_name || 'Центр',
+        subtitle:p.host_name || p.unit_name || p.admin_parent || p.status || 'город / центр',
         rows:[['Население',pop!=null?fmt.format(Math.round(pop)):'—']]
       },event?.originalEvent);
     }
 
     onPointLeave(layer){
       if(this.hoveredPointLayer===layer) this.hoveredPointLayer=null;
+      if(layer?.feature && state?.layers?.circles?.hasLayer?.(layer)){
+        this.applyCircleVisualState(layer);
+        this.hideHover();
+        return;
+      }
       try{
         if(layer.__runtimeV149BaseRadius!=null) layer.setRadius(layer.__runtimeV149BaseRadius);
         if(layer.__runtimeV149BaseStyle) layer.setStyle?.(layer.__runtimeV149BaseStyle);

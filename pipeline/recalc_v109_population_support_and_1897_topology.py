@@ -30,8 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
 ADMIN = DATA / 'admin'
 TOPO = DATA / 'topology'
-DOCS = ROOT / 'docs'
-DOCS.mkdir(exist_ok=True)
+DOCS = ROOT / 'docs' / 'diagnostics'
+DOCS.mkdir(parents=True, exist_ok=True)
 UPLOADED_1897 = ROOT.parent / 'admin_1897.geojson'
 
 SUPPORT_YEARS = [1783, 1809, 1821, 1838, 1848]
@@ -85,7 +85,7 @@ def exec_module_until(path: Path, stop_marker: str):
     return ns
 
 
-TOPO_NS = exec_module_until(ROOT / 'scripts_topology_v94.py', '# Rebuild target topology/admin layers.')
+TOPO_NS = exec_module_until(ROOT / 'pipeline' / 'scripts_topology_v94.py', '# Rebuild target topology/admin layers.')
 V104_NS = exec_module_until(ROOT / 'pipeline' / 'recalc_v104_stat_exclusions.py', 'def main():')
 V105_NS = exec_module_until(ROOT / 'pipeline' / 'recalc_v105_area_dispersion.py', 'if __name__ == "__main__":')
 

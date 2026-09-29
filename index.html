@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Исторический атлас Западной Сибири</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQWsd1J0oEG5wQHZA4C6PhX2HVEVrwM=" crossorigin=""/>
-  <link rel="stylesheet" href="style.css?v=151" />
+  <link rel="stylesheet" href="style.css?v=153" />
 </head>
 <body>
   <div id="app">
@@ -30,11 +30,11 @@
         <div id="yearTimeline" class="timeline-track"></div>
       </div>
 
-      <section id="metricFilters" class="map-widget draggable-widget" aria-label="Фильтры административных единиц">
+      <section id="metricFilters" class="map-widget draggable-widget is-collapsed" aria-label="Фильтры административных единиц">
         <div class="map-widget-head drag-handle" id="metricFiltersHandle" title="Перетащить панель фильтров">
           <div><span class="drag-grip">⋮⋮</span>Фильтры АТЕ</div>
           <div class="panel-actions">
-            <button id="collapseMetricFilters" type="button" class="mini-action collapse-action" aria-expanded="true" title="Свернуть / развернуть фильтры">Свернуть</button>
+            <button id="collapseMetricFilters" type="button" class="mini-action collapse-action" aria-expanded="false" title="Свернуть / развернуть фильтры">Развернуть</button>
             <button id="resetMetricFilters" type="button" class="mini-action">Сбросить</button>
           </div>
         </div>
@@ -82,7 +82,7 @@
       <div class="panel-brand">
         <div class="panel-brand-row"><span class="panel-brand-icon" aria-hidden="true">WS</span><div><div class="eyebrow">Веб-атлас · ВКР</div><h1>Западная Сибирь</h1></div></div>
         <p>Административно-территориальное деление, население и пространственные связи</p>
-        <div class="year-card"><span>Активный временной срез</span><b id="activeYearLabel">1914</b></div>
+        <div class="year-card" hidden><span>Активный временной срез</span><b id="activeYearLabel">1914</b></div>
       </div>
 
       <label class="control-label" for="modeSelect">Режим карты</label>
@@ -274,17 +274,16 @@
 
 
       <div class="button-row"><button id="openTopologyTrendsMain" type="button" onclick="document.getElementById('openTopologyTrends').click()">Динамика метрик</button><button id="openMetricTablesMain" type="button" onclick="document.getElementById('openMetricTables').click()">Таблицы метрик</button></div>
-      <button id="openExportMode" type="button" class="export-mode-btn">Режим экспорта карты</button>
-
       <button id="resetView" type="button">Вернуть обзорный вид</button>
       <div class="button-row">
         <button id="clearSelection" type="button">Очистить выборку</button>
         <button id="selectAll" type="button">Выбрать всё</button>
       </div>
 
-      <section class="stats" id="statsBox"></section>
+      <section class="stats" id="statsBox" hidden></section>
       <button hidden id="toggleAttributePanel" type="button">Структура атрибутов слоя</button>
       <section class="legend" id="legendBox"></section>
+      <button id="openExportMode" type="button" class="export-mode-btn">Режим экспорта карты</button>
     </aside>
 
     <aside id="rightPanel" class="panel floating-panel">
@@ -320,8 +319,10 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="app.js?v=151"></script>
-  <script src="selection-sketch.js?v=151"></script>
-  <script src="map-runtime.js?v=151"></script>
+  <script src="atlas-geometry.js?v=153"></script>
+  <script src="app.js?v=153"></script>
+  <script src="selection-sketch.js?v=153"></script>
+  <script src="map-runtime.js?v=153"></script>
+  <script src="timeline-axis.js?v=153"></script>
 </body>
 </html>

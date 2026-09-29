@@ -15,8 +15,8 @@ from pyproj import Transformer
 
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / 'data' / 'admin'
-DOCS = ROOT / 'docs'
-DOCS.mkdir(exist_ok=True)
+DOCS = ROOT / 'docs' / 'diagnostics'
+DOCS.mkdir(parents=True, exist_ok=True)
 YEARS = [1926,1930,1939,1947,1959,1964,1970,1979,1989,2021]
 transformer = Transformer.from_crs('EPSG:4326','EPSG:3857', always_xy=True)
 

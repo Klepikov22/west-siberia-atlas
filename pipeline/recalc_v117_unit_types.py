@@ -6,7 +6,7 @@ import json, csv, re, math, collections
 
 ROOT=Path(__file__).resolve().parents[1]
 ADMIN=ROOT/'data'/'admin'
-DOCS=ROOT/'docs'; DOCS.mkdir(exist_ok=True)
+DOCS=ROOT/'docs'/'diagnostics'; DOCS.mkdir(parents=True, exist_ok=True)
 
 CITY_NAME_RE=re.compile(r'(^г\.?\s+|^город\s+|\bгорсовет\b|\bгорсоветский\b|\bг\.?\s)', re.I)
 CITY_UNIT_RE=re.compile(r'(город|горсовет|городск|центр округа)', re.I)

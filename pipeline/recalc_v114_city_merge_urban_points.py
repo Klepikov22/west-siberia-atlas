@@ -9,7 +9,7 @@ from shapely.validation import make_valid
 from pyproj import CRS, Transformer
 
 ROOT=Path(__file__).resolve().parents[1]
-ADMIN=ROOT/'data'/'admin'; URBAN=ROOT/'data'/'urban'; DOCS=ROOT/'docs'; DOCS.mkdir(exist_ok=True)
+ADMIN=ROOT/'data'/'admin'; URBAN=ROOT/'data'/'urban'; DOCS=ROOT/'docs'/'diagnostics'; DOCS.mkdir(parents=True, exist_ok=True)
 crs_src=CRS.from_epsg(4326); crs_dst=CRS.from_proj4('+proj=laea +lat_0=58 +lon_0=82 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs')
 to_m=Transformer.from_crs(crs_src,crs_dst,always_xy=True).transform
 

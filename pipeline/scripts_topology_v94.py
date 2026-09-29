@@ -12,14 +12,14 @@ from shapely.validation import make_valid
 from shapely.strtree import STRtree
 from pyproj import CRS, Transformer
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parent
 ADMIN_DIR = ROOT/'data'/'admin'
 TOPO_DIR = ROOT/'data'/'topology'
 DOCS_DIR = ROOT/'docs'/'diagnostics'
 TOPO_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
-TARGET_YEARS = [1939]
+TARGET_YEARS = [1700,1719,1724,1727,1783,1805,1821,1838,1848,1918,1923]
 MIN_BOUNDARY_M = 1000.0
 SNAP_TOL_M = 180.0  # catches sub-pixel/gis digitising gaps without spanning real corridors
 NEAR_MIN_BOUNDARY_M = 5000.0  # near-gap repair is intentionally stricter than exact/overlap contiguity
@@ -543,16 +543,16 @@ manifest.setdefault('layers',{})['multiyear_metrics']='data/topology/multiyear_m
 write_json(manifest_path, manifest, indent=2)
 
 # Docs CSVs.
-with open(DOCS_DIR/'v119_topology_graph_summary.csv','w',encoding='utf-8',newline='') as f:
+with open(DOCS_DIR/'v94_topology_graph_summary.csv','w',encoding='utf-8',newline='') as f:
     fields=list(summaries[0].keys())
     w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(summaries)
-with open(DOCS_DIR/'v119_topology_graph_edges.csv','w',encoding='utf-8',newline='') as f:
+with open(DOCS_DIR/'v94_topology_graph_edges.csv','w',encoding='utf-8',newline='') as f:
     fields=['year','source_id','source_name','source_parent','target_id','target_name','target_parent','boundary_km','relation','contact_method','is_bridge']
     w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(all_edges)
-with open(DOCS_DIR/'v119_topology_graph_excluded_features.csv','w',encoding='utf-8',newline='') as f:
+with open(DOCS_DIR/'v94_topology_graph_excluded_features.csv','w',encoding='utf-8',newline='') as f:
     fields=['year','unit_id','name','unit_type','area_km2','reason','special_status_code']
     w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(all_excluded)
 
-print('v119 topology rebuild for 1939 done')
+print('v94 rebuild done')
 for s in summaries:
     print(s['year'], 'nodes', s['nodes_in_graph'], 'edges', s['edges'], 'excluded', s['excluded'], 'removed', s['removed_features'])

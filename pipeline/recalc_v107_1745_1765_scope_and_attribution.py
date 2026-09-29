@@ -28,8 +28,8 @@ import networkx as nx
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "data" / "admin"
 TOPO = ROOT / "data" / "topology"
-DOCS = ROOT / "docs"
-DOCS.mkdir(exist_ok=True)
+DOCS = ROOT / "docs" / "diagnostics"
+DOCS.mkdir(parents=True, exist_ok=True)
 MIN_AREA_KM2 = 50.0
 
 # Historical/statistical exclusions requested before + new v107 scope corrections.

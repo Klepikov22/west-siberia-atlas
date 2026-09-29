@@ -21,8 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 ADMIN = DATA / "admin"
 METRICS_PATH = DATA / "topology" / "multiyear_metrics_by_year.json"
-DOCS = ROOT / "docs"
-DOCS.mkdir(exist_ok=True)
+DOCS = ROOT / "docs" / "diagnostics"
+DOCS.mkdir(parents=True, exist_ok=True)
 
 MIN_AREA_KM2 = 50.0
 

@@ -18,7 +18,7 @@ DATA = ROOT / 'data'
 ADMIN_DIR = DATA / 'admin'
 NB_DIR = DATA / 'natural_boundaries'
 SEG_DIR = NB_DIR / 'segments'
-DOCS = ROOT / 'docs'
+DOCS = ROOT / 'docs' / 'diagnostics'
 REF_DIR = NB_DIR / 'reference'
 
 PROJ4 = '+proj=eqdc +lat_1=50 +lat_2=70 +lat_0=60 +lon_0=75 +datum=WGS84 +units=m +no_defs'
@@ -398,7 +398,7 @@ def write_method_json():
 
 
 def main():
-    SEG_DIR.mkdir(parents=True,exist_ok=True); DOCS.mkdir(exist_ok=True)
+    SEG_DIR.mkdir(parents=True,exist_ok=True); DOCS.mkdir(parents=True, exist_ok=True)
     trees=build_trees(); summaries=[]; all_rows=[]
     paths=sorted(ADMIN_DIR.glob('admin_*.geojson'), key=lambda p:int(p.stem.split('_')[-1]))
     for path in paths:

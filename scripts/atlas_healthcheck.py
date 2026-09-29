@@ -12,6 +12,7 @@ MANIFEST = ROOT / "data" / "manifest.json"
 INDEX = ROOT / "index.html"
 APP = ROOT / "app.js"
 RUNTIME = ROOT / "map-runtime.js"
+GEOMETRY = ROOT / "atlas-geometry.js"
 
 
 def main() -> None:
@@ -24,9 +25,13 @@ def main() -> None:
     version = match.group(1)
     if manifest.get("app_version") != version or manifest.get("version") != f"v{version}":
         raise SystemExit("Версии app.js и data/manifest.json различаются")
-    for asset in ("app.js", "style.css", "map-runtime.js", "selection-sketch.js"):
+    for asset in ("atlas-geometry.js", "app.js", "style.css", "selection-sketch.js", "map-runtime.js", "timeline-axis.js"):
         if f'{asset}?v={version}' not in html:
             raise SystemExit(f"В index.html не синхронизирован {asset}")
+    order = [html.index(f'{asset}?v={version}') for asset in
+             ("atlas-geometry.js", "app.js", "selection-sketch.js", "map-runtime.js", "timeline-axis.js")]
+    if order != sorted(order):
+        raise SystemExit("Неверный порядок JS: geometry → app → sketch → runtime → timeline")
 
     paths: set[str] = set()
 
@@ -48,10 +53,10 @@ def main() -> None:
     if missing:
         raise SystemExit("Отсутствуют пути из manifest:\n" + "\n".join(missing[:20]))
 
-    for script in (APP, RUNTIME, ROOT / "selection-sketch.js"):
+    for script in (GEOMETRY, APP, ROOT / "selection-sketch.js", RUNTIME, ROOT / "timeline-axis.js"):
         subprocess.run(["node", "--check", str(script)], check=True, cwd=ROOT)
 
-    print(f"OK: v{version}, {len(paths)} путей данных, синтаксис двух JS-файлов")
+    print(f"OK: v{version}, {len(paths)} путей данных, синтаксис пяти JS-файлов")
 
 
 if __name__ == "__main__":

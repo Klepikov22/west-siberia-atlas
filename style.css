@@ -4319,3 +4319,62 @@ body[data-tool="rectangle"] #map.leaflet-grab,body[data-tool="polygon"] #map.lea
 
 .selection-options{grid-template-columns:1fr!important}
 .selection-options select{font-size:13px}
+
+/* v153: compact panels, continuous year axis and interactive population symbols. */
+#leftPanel > *:not(.panel-brand){box-sizing:border-box;max-width:calc(100% - 8px)}
+#selectionBox:empty,#featureInfo:empty{display:none}
+#leftPanel .export-mode-btn{margin-top:18px;margin-bottom:8px}
+#leftPanel .special-layer-item,#rightPanel .info-row{min-width:0;overflow-wrap:anywhere}
+#leftPanel .special-layer-item select{min-width:0;max-width:100%}
+#featureInfo details.object-attrs{max-height:none;overflow:visible}
+#featureInfo details.object-attrs[open]{max-height:min(42vh,420px);overflow:auto;scrollbar-width:thin}
+#featureInfo details.object-attrs summary{cursor:pointer;color:var(--accent-strong);font-size:11px;font-weight:850;letter-spacing:.02em}
+#featureInfo details.object-attrs summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#yearTimeline.timeline-track::before{
+  left:var(--timeline-axis-left,18px)!important;
+  right:auto!important;
+  width:var(--timeline-axis-width,calc(100% - 36px))!important;
+  background:var(--line-strong,var(--line))!important;
+}
+#map .leaflet-populationSymbolPane-pane .leaflet-interactive{cursor:pointer}
+body[data-tool="rectangle"] #map .leaflet-populationSymbolPane-pane .leaflet-interactive,
+body[data-tool="polygon"] #map .leaflet-populationSymbolPane-pane .leaflet-interactive{cursor:crosshair!important}
+.selection-sketch{z-index:830}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 66px 30px;
+  gap:5px;align-items:center;min-width:0;width:100%;margin:0!important;padding:0!important;
+}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139 > span{grid-column:1 / -1;min-width:0;line-height:1.2}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139 input[type="range"]{grid-column:1;min-width:0;width:100%;margin:0}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139 .advanced-filter-number-v139{
+  width:100%;min-width:0;max-width:100%;padding:5px 3px;box-sizing:border-box;text-align:center;
+}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139 b{min-width:0;text-align:right}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-impedance-row-v139{grid-template-columns:minmax(0,1fr) 80px}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-impedance-row-v139 select{min-width:0;max-width:100%;font-size:11px}
+.advanced-connectivity-filter-panel-v136 .advanced-filter-impedance-row-v139 .advanced-filter-number-v139{grid-column:2}
+@media(min-width:981px){
+  :root{--atlas-left-panel:clamp(280px,18.25vw,350px);--atlas-right-panel:clamp(290px,19.6vw,376px);--left-panel-w:var(--atlas-left-panel);--right-panel-w:var(--atlas-right-panel);--panel-gap:14px}
+  #leftPanel.floating-panel{width:var(--atlas-left-panel)!important}
+  #rightPanel.floating-panel{width:var(--atlas-right-panel)!important}
+  .map-topbar{left:calc(var(--atlas-left-panel) + 30px);right:calc(var(--atlas-right-panel) + 30px)}
+  #timelineBar.timeline-v77,
+  html[class*="compact-1080"] #timelineBar.timeline-v77{
+    width:min(760px,calc(100vw - var(--atlas-left-panel) - var(--atlas-right-panel) - 80px))!important;
+    max-width:calc(100vw - var(--atlas-left-panel) - var(--atlas-right-panel) - 80px)!important;
+    min-width:300px!important;
+  }
+}
+@media(max-width:980px){
+  html[class*="compact-1080"] #timelineBar.timeline-v77{
+    left:10px!important;right:10px!important;width:auto!important;
+    max-width:none!important;min-width:0!important;transform:none!important;
+  }
+}
+@media(max-height:900px) and (min-width:981px){
+  .panel-brand{padding-top:12px;padding-bottom:10px;margin-bottom:10px!important}
+  .panel-brand p{display:none}
+  #leftPanel .layer-manager{margin-top:10px!important}
+  #rightPanel .section-title{margin-top:12px!important}
+}

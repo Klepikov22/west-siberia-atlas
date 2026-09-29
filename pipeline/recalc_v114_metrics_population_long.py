@@ -5,7 +5,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 import networkx as nx
 ROOT=Path(__file__).resolve().parents[1]
-ADMIN=ROOT/'data'/'admin'; TOPO=ROOT/'data'/'topology'; DOCS=ROOT/'docs'; DOCS.mkdir(exist_ok=True)
+ADMIN=ROOT/'data'/'admin'; TOPO=ROOT/'data'/'topology'; DOCS=ROOT/'docs'/'diagnostics'; DOCS.mkdir(parents=True, exist_ok=True)
 STAT_EXCL={1926:{'Шадринский округ','Курганский округ','Ирбитский округ'},1930:{'Ачинский округ'},2021:{'Курганская область'}}
 
 def num(x):

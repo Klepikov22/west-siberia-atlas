@@ -14,8 +14,8 @@ BASE = Path(__file__).resolve().parents[1]
 DATA = BASE / 'data'
 ADMIN = DATA / 'admin'
 TOPO = DATA / 'topology'
-DOCS = BASE / 'docs'
-DOCS.mkdir(exist_ok=True)
+DOCS = BASE / 'docs' / 'diagnostics'
+DOCS.mkdir(parents=True, exist_ok=True)
 
 OLD = 'Щегловский округ'
 NEW = 'Кузнецкий округ'

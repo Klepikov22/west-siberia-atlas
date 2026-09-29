@@ -4,6 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
+const AtlasGeometry=require('../atlas-geometry.js');
 
 const source=fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8');
 function functionSource(name){
@@ -17,14 +18,12 @@ function functionSource(name){
   throw new Error(`Unclosed function: ${name}`);
 }
 
-const names=['selectionOperation','featureMatchesSelection','featureIntersectsRing',
-  'getPolygonRings','pointInFeaturePolygon','pointInPolygonWithHoles','pointInRing',
-  'orient','onSegment','segmentsIntersect','boundsToLngLatRing','applyIds',
+const names=['selectionOperation','featureMatchesSelection','boundsToLngLatRing','applyIds',
   'applySpatialSelectionByBounds','applySpatialSelectionByPolygon'];
 const selection={value:'replace'}, spatial={value:'intersects'};
 const state={selectedIds:new Set(),layers:{admin:null}};
 const context=vm.createContext({
-  state,$:id=>id==='selectionOperation'?selection:id==='selectionSpatialRule'?spatial:null,
+  AtlasGeometry,state,$:id=>id==='selectionOperation'?selection:id==='selectionSpatialRule'?spatial:null,
   isSelectableFeature:f=>f.properties.include_in_selection!==false,
   featureId:f=>f.properties.unit_id,
   refreshSelectionStyles(){},updateStatsAndSelection(){},
@@ -74,5 +73,16 @@ test('polygon hole does not count as an interior hit',()=>{
     [[1,1],[1,3],[3,3],[3,1],[1,1]]
   ]};
   const ring=[[1.4,1.4],[2.6,1.4],[2.6,2.6],[1.4,2.6],[1.4,1.4]];
-  assert.equal(context.featureIntersectsRing({geometry:doughnut},ring),false);
+  assert.equal(AtlasGeometry.featureIntersectsRing({geometry:doughnut},ring),false);
+});
+
+test('independent GeoJSON module handles separate polygons',()=>{
+  const geometry={type:'MultiPolygon',coordinates:[
+    [[[0,0],[1,0],[1,1],[0,1],[0,0]]],
+    [[[3,0],[4,0],[4,1],[3,1],[3,0]]]
+  ]};
+  const first=[[-.1,-.1],[1.1,-.1],[1.1,1.1],[-.1,1.1],[-.1,-.1]];
+  assert.equal(AtlasGeometry.featureMatchesSelection({geometry},first,'intersects'),true);
+  assert.equal(AtlasGeometry.featureMatchesSelection({geometry},first,'within'),false);
+  assert.equal(AtlasGeometry.pointInFeaturePolygon([3.5,.5],geometry),true);
 });

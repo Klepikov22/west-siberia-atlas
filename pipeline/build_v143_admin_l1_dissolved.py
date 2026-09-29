@@ -188,8 +188,8 @@ def main():
         'min_part_area_square_degrees': MIN_PART_AREA,
         'years': rows,
     }
-    (ROOT / 'docs').mkdir(exist_ok=True)
-    (ROOT / 'docs' / 'v143_l1_dissolve_diagnostics.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
+    (ROOT / 'docs' / 'diagnostics').mkdir(parents=True, exist_ok=True)
+    (ROOT / 'docs' / 'diagnostics' / 'v143_l1_dissolve_diagnostics.json').write_text(json.dumps(diag, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps(diag, ensure_ascii=False, indent=2))
 
 

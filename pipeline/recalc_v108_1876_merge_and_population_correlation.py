@@ -22,8 +22,8 @@ from shapely.validation import make_valid
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / 'data' / 'admin'
 TOPO = ROOT / 'data' / 'topology'
-DOCS = ROOT / 'docs'
-DOCS.mkdir(exist_ok=True)
+DOCS = ROOT / 'docs' / 'diagnostics'
+DOCS.mkdir(parents=True, exist_ok=True)
 ADMIN_1876 = ADMIN / 'admin_1876.geojson'
 
 
@@ -130,7 +130,7 @@ def exec_module_until(path: Path, stop_marker: str):
 
 def rebuild_1876_topology():
     # Reuse the existing v94 topology algorithm, but call only rebuild_year(1876)
-    ns = exec_module_until(ROOT / 'scripts_topology_v94.py', '# Rebuild target topology/admin layers.')
+    ns = exec_module_until(ROOT / 'pipeline' / 'scripts_topology_v94.py', '# Rebuild target topology/admin layers.')
     summary, metrics, edge_rows, excluded = ns['rebuild_year'](1876)
 
     metrics_path = TOPO / 'topology_metrics_by_year.json'

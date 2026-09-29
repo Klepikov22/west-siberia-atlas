@@ -1,7 +1,7 @@
 import json,csv
 from pathlib import Path
 ROOT=Path('.')
-DOCS=ROOT/'docs'; DOCS.mkdir(exist_ok=True)
+DOCS=ROOT/'docs'/'diagnostics'; DOCS.mkdir(parents=True, exist_ok=True)
 ADMIN=ROOT/'data/admin'
 YEARS=sorted(int(p.stem.split('_')[1]) for p in ADMIN.glob('admin_*.geojson'))
 METHOD={

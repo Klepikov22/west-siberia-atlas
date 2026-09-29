@@ -12,8 +12,8 @@ import networkx as nx
 ROOT=Path(__file__).resolve().parents[1]
 ADMIN_DIR=ROOT/'data'/'admin'
 TOPO_DIR=ROOT/'data'/'topology'
-DOCS_DIR=ROOT/'docs'
-DOCS_DIR.mkdir(exist_ok=True)
+DOCS_DIR=ROOT/'docs'/'diagnostics'
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Year-specific statistical-frame exclusions requested by Victor.
 EXCLUSIONS={
