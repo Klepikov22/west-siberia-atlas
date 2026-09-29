@@ -1,4 +1,4 @@
-const APP_VERSION = '153';
+const APP_VERSION = '154';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -936,21 +936,15 @@ function buildPopulationBarMarker(latlng, f, height, s){
 }
 function buildCircles(admin, gj){
   clearLayer('circles');
-  // A dedicated pane keeps population symbols above administrative paths and
-  // below the interactive graph nodes. Otherwise visible circles can lose hits.
-  let symbolPane=state.map.getPane('populationSymbolPane');
-  if(!symbolPane){
-    symbolPane=state.map.createPane('populationSymbolPane');
-    symbolPane.style.zIndex='665';
-    symbolPane.style.pointerEvents='auto';
-  }
   const s=styleVars(); const vals=gj.features.filter(isAnalyticsFeature).map(f=>Number(f.properties.population)||0).filter(v=>v>0);
   const maxPop=Math.max(...vals,1); const minPop=Math.min(...vals, maxPop);
   state.maxPop=maxPop; state.minPop=minPop; state.layers.circles=L.layerGroup();
   admin.eachLayer(layer=>{
     const f=layer.feature; if(!isAnalyticsFeature(f)) return; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
     const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop, vals);
-    const m=L.circleMarker(c,{pane:'populationSymbolPane',interactive:true,bubblingMouseEvents:true,radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
+    // Keep the Leaflet overlay pane that rendered these circles reliably before
+    // v153. The visibility manager brings the group above the admin polygons.
+    const m=L.circleMarker(c,{interactive:true,bubblingMouseEvents:false,radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
     m.feature=f;
     m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:'круг населения', population:pop, density:p.density}, e.originalEvent));
     m.on('mousemove',(e)=>moveHover(e.originalEvent));

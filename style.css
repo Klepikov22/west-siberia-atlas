@@ -4336,9 +4336,9 @@ body[data-tool="rectangle"] #map.leaflet-grab,body[data-tool="polygon"] #map.lea
   width:var(--timeline-axis-width,calc(100% - 36px))!important;
   background:var(--line-strong,var(--line))!important;
 }
-#map .leaflet-populationSymbolPane-pane .leaflet-interactive{cursor:pointer}
-body[data-tool="rectangle"] #map .leaflet-populationSymbolPane-pane .leaflet-interactive,
-body[data-tool="polygon"] #map .leaflet-populationSymbolPane-pane .leaflet-interactive{cursor:crosshair!important}
+#map .leaflet-overlay-pane path.leaflet-interactive{cursor:pointer}
+body[data-tool="rectangle"] #map .leaflet-overlay-pane path.leaflet-interactive,
+body[data-tool="polygon"] #map .leaflet-overlay-pane path.leaflet-interactive{cursor:crosshair!important}
 .selection-sketch{z-index:830}
 .advanced-connectivity-filter-panel-v136 .advanced-filter-row-v139{
   display:grid!important;

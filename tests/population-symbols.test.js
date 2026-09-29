@@ -9,22 +9,20 @@ const start=source.indexOf('function buildCircles(admin, gj){');
 const end=source.indexOf('\nfunction buildLabels(',start);
 assert.ok(start>=0 && end>start);
 
-test('population circles use their own interactive Leaflet pane',()=>{
-  const panes={};
+test('population circles use the visible Leaflet overlay and remain interactive',()=>{
   const markers=[];
   const feature={properties:{unit_id:'one',name:'Район',population:12000}};
   const context=vm.createContext({
-    state:{layers:{},map:{getPane:name=>panes[name],createPane:name=>(panes[name]={style:{}})}},
+    state:{layers:{}},
     clearLayer(){},hideHover(){},styleVars:()=>({circleLine:'#113355',circleFill:'#f8bb33'}),
     isAnalyticsFeature:()=>true,populationSymbolSize:()=>12,
     L:{layerGroup:()=>({addLayer(marker){markers.push(marker)}}),circleMarker:(center,options)=>({center,options,on(){},feature:null})}
   });
   vm.runInContext(source.slice(start,end),context);
   context.buildCircles({eachLayer(fn){fn({feature,getBounds(){return {getCenter(){return {lat:58,lng:82}}}}})}}, {features:[feature]});
-  assert.equal(panes.populationSymbolPane.style.zIndex,'665');
   assert.equal(markers.length,1);
-  assert.equal(markers[0].options.pane,'populationSymbolPane');
+  assert.equal(markers[0].options.pane,undefined);
   assert.equal(markers[0].options.interactive,true);
-  assert.equal(markers[0].options.bubblingMouseEvents,true);
+  assert.equal(markers[0].options.bubblingMouseEvents,false);
   assert.equal(markers[0].feature,feature);
 });
