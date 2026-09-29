@@ -13,7 +13,7 @@ from shapely.geometry import shape, mapping, LineString, MultiLineString
 from shapely.ops import transform as shp_transform, substring
 from shapely.strtree import STRtree
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
 ADMIN_DIR = DATA / 'admin'
 NB_DIR = DATA / 'natural_boundaries'

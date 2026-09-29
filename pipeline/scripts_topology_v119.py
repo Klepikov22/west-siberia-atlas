@@ -12,14 +12,14 @@ from shapely.validation import make_valid
 from shapely.strtree import STRtree
 from pyproj import CRS, Transformer
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ADMIN_DIR = ROOT/'data'/'admin'
 TOPO_DIR = ROOT/'data'/'topology'
 DOCS_DIR = ROOT/'docs'
 TOPO_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
-TARGET_YEARS = [1918,1923,1926,1930]
+TARGET_YEARS = [1939]
 MIN_BOUNDARY_M = 1000.0
 SNAP_TOL_M = 180.0  # catches sub-pixel/gis digitising gaps without spanning real corridors
 NEAR_MIN_BOUNDARY_M = 5000.0  # near-gap repair is intentionally stricter than exact/overlap contiguity
@@ -553,6 +553,6 @@ with open(DOCS_DIR/'v94_topology_graph_excluded_features.csv','w',encoding='utf-
     fields=['year','unit_id','name','unit_type','area_km2','reason','special_status_code']
     w=csv.DictWriter(f,fieldnames=fields); w.writeheader(); w.writerows(all_excluded)
 
-print('v114 topology rebuild done')
+print('v119 topology rebuild for 1939 done')
 for s in summaries:
     print(s['year'], 'nodes', s['nodes_in_graph'], 'edges', s['edges'], 'excluded', s['excluded'], 'removed', s['removed_features'])

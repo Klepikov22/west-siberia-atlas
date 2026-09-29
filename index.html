@@ -80,7 +80,7 @@
 
     <aside id="leftPanel" class="panel floating-panel">
       <div class="panel-brand">
-        <div class="panel-brand-row"><span class="panel-brand-icon" aria-hidden="true">WS</span><div><div class="eyebrow">Дипломный веб-атлас · v151</div><h1>Западная Сибирь</h1></div></div>
+        <div class="panel-brand-row"><span class="panel-brand-icon" aria-hidden="true">WS</span><div><div class="eyebrow">Веб-атлас · ВКР</div><h1>Западная Сибирь</h1></div></div>
         <p>Административно-территориальное деление, население и пространственные связи</p>
         <div class="year-card"><span>Активный временной срез</span><b id="activeYearLabel">1914</b></div>
       </div>
@@ -112,6 +112,7 @@
         <option value="unit_type">Тип единицы</option>
       </select>
 
+      <div id="legacyControls" hidden>
       <label class="control-label" for="regionStyleSelect">Стиль районов</label>
       <select id="regionStyleSelect">
         <option value="soft">Спокойный атлас</option>
@@ -153,6 +154,8 @@
         </span>
       </button>
 
+      </div>
+
       <div class="tool-button-row" aria-label="Инструменты карты">
         <button type="button" data-tool-button="pan" class="tool-btn active">Курсор</button>
         <button type="button" data-tool-button="rectangle" class="tool-btn">Рамка</button>
@@ -167,7 +170,7 @@
           <select id="selectionSpatialRule"><option value="intersects">Пересекает контур</option><option value="within">Полностью внутри</option></select>
         </label>
       </div>
-      <div id="selectionToolHelp" class="tool-help">Курсор: кликайте по объектам для одиночной выборки. Карту можно двигать обычным перетаскиванием.</div>
+      <div id="selectionToolHelp" class="tool-help">Курсор: клик по АТЕ показывает данные и выделяет объект. Зажмите и тяните — карта сдвинется.</div>
       <div id="selectionDrawActions" class="button-row draw-actions" style="display:none">
         <button id="finishPolygon" type="button">Завершить полигон</button>
         <button id="cancelSelectionDraw" type="button">Отменить контур</button>
@@ -197,14 +200,14 @@
         <label><input type="checkbox" id="toggleTopologyCentroids"> Узлы графа / JSON-точки</label>
         <label><input type="checkbox" id="toggleAdvancedConnectivityEdges"> Рёбра потенциальной связности</label>
         <label><input type="checkbox" id="toggleAdvancedConnectivityNodes"> Узлы продвинутого графа / JSON-точки</label>
-        <div id="labelSettingsPanel" class="label-settings-panel" aria-label="Настройки динамических подписей">
+        <div hidden id="labelSettingsPanel" class="label-settings-panel" aria-label="Настройки динамических подписей">
           <div class="label-settings-head"><span>Динамические подписи</span><b id="labelStatus">автоматически</b></div>
           <label class="label-inline-control"><span>Плотность</span><select id="labelDensitySelect"><option value="sparse">Редкая</option><option value="balanced" selected>Сбалансированная</option><option value="dense">Плотная</option><option value="maximum">Максимальная</option></select></label>
           <label class="label-inline-control"><span>Размер</span><input id="labelBaseSizeRange" type="range" min="9" max="16" step="0.5" value="11"><b id="labelBaseSizeValue">11.0</b></label>
           <label class="label-option"><input type="checkbox" id="toggleLabelValues" checked><span>Показывать значение активного показателя</span></label>
           <div class="mini-muted">Подписи автоматически прореживаются по масштабу, размеру АТЕ и взаимным пересечениям.</div>
         </div>
-        <div class="topology-layer-controls-v92" aria-label="Настройки топологического графа АТЕ">
+        <div hidden class="topology-layer-controls-v92" aria-label="Настройки топологического графа АТЕ">
           <div class="topology-layer-title-v92">Топологический граф · настройки</div>
           <input type="checkbox" id="toggleTopologyGraph" hidden>
           <input type="checkbox" id="toggleTopologyEdges" hidden>
@@ -240,7 +243,7 @@
         <div class="mini-muted">Оверлеи не участвуют в статистике и выборке основных АТЕ.</div>
       </section>
 
-      <section class="population-symbol-controls" aria-label="Настройки символов населения">
+      <section hidden class="population-symbol-controls" aria-label="Настройки символов населения">
         <div class="symbol-controls-title">Символы населения</div>
         <div class="symbol-static-type">Тип символа: <b>круги населения</b></div>
         <label class="control-label" for="populationScaleMethod">Нормирование <span class="info-hint" tabindex="0" aria-label="Справка по нормированию">?</span></label>
@@ -270,8 +273,8 @@
 
 
 
+      <div class="button-row"><button id="openTopologyTrendsMain" type="button" onclick="document.getElementById('openTopologyTrends').click()">Динамика метрик</button><button id="openMetricTablesMain" type="button" onclick="document.getElementById('openMetricTables').click()">Таблицы метрик</button></div>
       <button id="openExportMode" type="button" class="export-mode-btn">Режим экспорта карты</button>
-      <div class="mini-muted export-mode-hint">Соберите чистый макет карты с заголовком, контекстом, легендой и выгрузкой в PNG для диплома.</div>
 
       <button id="resetView" type="button">Вернуть обзорный вид</button>
       <div class="button-row">
@@ -280,7 +283,7 @@
       </div>
 
       <section class="stats" id="statsBox"></section>
-      <button id="toggleAttributePanel" type="button">Структура атрибутов слоя</button>
+      <button hidden id="toggleAttributePanel" type="button">Структура атрибутов слоя</button>
       <section class="legend" id="legendBox"></section>
     </aside>
 
@@ -295,13 +298,13 @@
 
       <h2 class="section-title">Статистика слоя / выборки</h2>
       <section class="stats right-stats" id="rightStatsBox"></section>
-      <label class="control-label" for="pieLevelSelect">Круговые диаграммы</label>
-      <select id="pieLevelSelect">
+      <label hidden class="control-label" for="pieLevelSelect">Круговые диаграммы</label>
+      <select id="pieLevelSelect" hidden>
         <option value="upper" selected>По верхнему уровню АТД</option>
         <option value="lower">По нижнему уровню АТД</option>
       </select>
-      <label class="control-label" for="piePaletteSelect">Палитра диаграмм</label>
-      <select id="piePaletteSelect">
+      <label hidden class="control-label" for="piePaletteSelect">Палитра диаграмм</label>
+      <select id="piePaletteSelect" hidden>
         <option value="softPastel" selected>Мягкая пастель</option>
         <option value="classic">Классическая</option>
         <option value="earth">Земляная</option>
@@ -311,13 +314,14 @@
       </select>
       <section class="feature-info group-analytics" id="groupAnalyticsBox"></section>
 
-      <h2 class="section-title">Атрибуты слоя</h2>
-      <div id="attributePanel" class="feature-info attr-panel muted">Нажмите кнопку «Структура атрибутов слоя» слева.</div>
+      <h2 hidden class="section-title">Атрибуты слоя</h2>
+      <div hidden id="attributePanel" class="feature-info attr-panel muted">Нажмите кнопку «Структура атрибутов слоя» слева.</div>
     </aside>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="app.js?v=151"></script>
-  <script src="map-runtime-v149.js?v=151"></script>
+  <script src="selection-sketch.js?v=151"></script>
+  <script src="map-runtime.js?v=151"></script>
 </body>
 </html>

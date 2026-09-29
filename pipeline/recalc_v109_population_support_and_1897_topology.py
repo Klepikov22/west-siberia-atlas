@@ -26,7 +26,7 @@ from shapely.ops import transform
 from shapely.validation import make_valid
 from shapely.strtree import STRtree
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
 ADMIN = DATA / 'admin'
 TOPO = DATA / 'topology'
@@ -86,8 +86,8 @@ def exec_module_until(path: Path, stop_marker: str):
 
 
 TOPO_NS = exec_module_until(ROOT / 'scripts_topology_v94.py', '# Rebuild target topology/admin layers.')
-V104_NS = exec_module_until(ROOT / 'recalc_v104_stat_exclusions.py', 'def main():')
-V105_NS = exec_module_until(ROOT / 'recalc_v105_area_dispersion.py', 'if __name__ == "__main__":')
+V104_NS = exec_module_until(ROOT / 'pipeline' / 'recalc_v104_stat_exclusions.py', 'def main():')
+V105_NS = exec_module_until(ROOT / 'pipeline' / 'recalc_v105_area_dispersion.py', 'if __name__ == "__main__":')
 
 # Projection functions from v94 topology script.
 to_m = TOPO_NS['to_m']

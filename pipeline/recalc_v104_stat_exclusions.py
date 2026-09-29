@@ -9,7 +9,7 @@ from pathlib import Path
 from collections import Counter, defaultdict
 import networkx as nx
 
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(__file__).resolve().parents[1]
 ADMIN_DIR=ROOT/'data'/'admin'
 TOPO_DIR=ROOT/'data'/'topology'
 DOCS_DIR=ROOT/'docs'

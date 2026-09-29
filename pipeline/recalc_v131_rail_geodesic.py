@@ -10,7 +10,7 @@ from shapely.strtree import STRtree
 from shapely.validation import make_valid
 from pyproj import CRS, Transformer, Geod
 
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'data'
 ADMIN=DATA/'admin'
 RAIL=DATA/'railways'/'railways.geojson'

@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-const source=fs.readFileSync(path.join(__dirname,'..','map-runtime-v149.js'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'..','map-runtime.js'),'utf8');
 const classStart=source.indexOf('class AtlasRuntimeV149 {');
 const classEnd=source.indexOf('\n  const runtime=new AtlasRuntimeV149();',classStart);
 assert.ok(classStart>=0 && classEnd>classStart);

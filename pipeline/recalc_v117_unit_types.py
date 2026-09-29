@@ -4,7 +4,7 @@
 from pathlib import Path
 import json, csv, re, math, collections
 
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(__file__).resolve().parents[1]
 ADMIN=ROOT/'data'/'admin'
 DOCS=ROOT/'docs'; DOCS.mkdir(exist_ok=True)
 

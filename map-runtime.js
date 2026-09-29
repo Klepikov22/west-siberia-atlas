@@ -305,75 +305,71 @@
       const container=map.getContainer();
       this.map=map;
       this.mapContainer=container;
-      try{
-        if(!map.getPane('selectionPaneV149')){
-          this.selectionPane=map.createPane('selectionPaneV149');
-          this.selectionPane.style.zIndex='645';
-          this.selectionPane.style.pointerEvents='none';
-        }else this.selectionPane=map.getPane('selectionPaneV149');
-      }catch(_){ }
+      this.sketch=AtlasSketch.create(map);
+      this.cursorPoint=null;
+      const isLeft=(event)=>!event.originalEvent || event.originalEvent.button===0;
 
+      // --- рамка: зажать кнопку, тянуть, отпустить -------------------------
       map.on('mousedown',(event)=>{
-        const original=event.originalEvent;
-        if(original?.button===1){
+        if(event.originalEvent?.button===1){
           try{ startMiddlePan(event); }catch(_){ }
           return;
         }
-        if(state.tool!=='rectangle' || (original && original.button!==0)) return;
+        if(state.tool!=='rectangle' || !isLeft(event)) return;
         this.hideHover();
         this.clearSelectionSketch(false);
         state.dragStart=event.latlng;
-        try{ L.DomEvent.preventDefault(original); }catch(_){ }
+        this.dragOrigin=event.containerPoint;
+        try{ L.DomEvent.preventDefault(event.originalEvent); }catch(_){ }
         container.classList.add('selection-drawing-v149');
       });
 
       map.on('mousemove',(event)=>{
-        if(state.tool!=='rectangle' || !state.dragStart) return;
-        const bounds=L.latLngBounds(state.dragStart,event.latlng);
-        if(!state.dragRect){
-          state.dragRect=L.rectangle(bounds,{
-            pane:'selectionPaneV149',
-            color:'#173d70',weight:1.8,dashArray:'6 4',
-            fillColor:'#4a85bc',fillOpacity:.13,interactive:false
-          }).addTo(map);
-        }else state.dragRect.setBounds(bounds);
+        this.cursorPoint=event.containerPoint;
+        if(state.tool==='rectangle' && state.dragStart) this.sketch.rect(this.dragOrigin,event.containerPoint);
+        else if(state.tool==='polygon' && state.polygonPoints?.length) this.redrawPolygonSketch();
       });
 
       map.on('mouseup',(event)=>{
-        if(state.tool!=='rectangle' || !state.dragStart) return;
-        this.completeRectangle(event.latlng,event.originalEvent);
+        if(state.tool==='rectangle' && state.dragStart) this.completeRectangle(event.latlng,event.originalEvent);
       });
-      // Leaflet does not emit map mouseup when the pointer is released outside
-      // its container. Finish the same gesture through the document as well.
+      // Отпускание кнопки за пределами карты Leaflet не сообщает — ловим на document.
       document.addEventListener('mouseup',(original)=>{
         if(state.tool!=='rectangle' || !state.dragStart || original.button!==0) return;
         this.completeRectangle(map.mouseEventToLatLng(original),original);
       });
 
+      // Эскиз полигона хранится в географических координатах и пересчитывается при движении карты.
+      map.on('move zoom',()=>{ if(state.tool==='polygon') this.redrawPolygonSketch(); });
+
+      // --- клик: одиночная выборка (курсор) и область АТД-1 -----------------
       map.on('click',(event)=>{
         if(state.tool==='pan' || state.tool==='parent'){
-          // A visible noninteractive overlay can receive the DOM click instead
-          // of an administrative path. Resolve the geographical hit directly.
-          const candidates=(state.currentGeoJSON?.features||[]).filter(feature=>
-            feature?.geometry && pointInFeaturePolygon([event.latlng.lng,event.latlng.lat],feature.geometry)
-          );
-          const feature=candidates.filter(f=>isSelectableFeature(f)).sort((a,b)=>
-            (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity)
-          )[0] || candidates[0];
+          const point=[event.latlng.lng,event.latlng.lat];
+          const hits=(state.currentGeoJSON?.features||[]).filter(f=>f?.geometry && pointInFeaturePolygon(point,f.geometry));
+          const feature=hits.filter(f=>isSelectableFeature(f)).sort((a,b)=>
+            (Number(a.properties?.area_km2)||Infinity)-(Number(b.properties?.area_km2)||Infinity))[0] || hits[0];
           if(feature && isChecked('toggleAdmin',true)) this.selectAdminFeature(feature,event.originalEvent);
-          else if(state.tool==='pan') this.hideHover();
+          else this.hideHover();
           return;
         }
-        if(state.tool!=='polygon') return;
-        const original=event.originalEvent;
-        if(original?.button!=null && original.button!==0) return;
+        if(state.tool!=='polygon' || !isLeft(event)) return;
         this.hideHover();
+        const first=state.polygonPoints?.[0];
+        // Клик рядом с первой вершиной замыкает контур.
+        if(first && state.polygonPoints.length>=3 &&
+           map.latLngToContainerPoint(first).distanceTo(event.containerPoint)<=10){
+          this.finishPolygon(event.originalEvent||{});
+          return;
+        }
         this.addPolygonVertex(event.latlng);
       });
 
       map.on('dblclick',(event)=>{
         if(state.tool!=='polygon') return;
         try{ L.DomEvent.preventDefault(event.originalEvent); }catch(_){ }
+        // Два клика двойного щелчка уже добавили одну и ту же вершину — убираем дубль.
+        if(state.polygonPoints?.length>3) state.polygonPoints.pop();
         this.finishPolygon(event.originalEvent||{});
       });
 
@@ -389,6 +385,7 @@
       container.addEventListener('contextmenu',(event)=>{
         if(state.tool==='polygon') event.preventDefault();
       });
+
       document.addEventListener('keydown',(event)=>{
         if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
         if(state.tool==='polygon' && event.key==='Enter'){
@@ -407,19 +404,21 @@
     }
 
     completeRectangle(end,original){
-        if(!state.dragStart) return;
-        const start=state.dragStart;
-        const bounds=L.latLngBounds(start,end);
-        state.dragStart=null;
-        this.mapContainer.classList.remove('selection-drawing-v149');
-        const p1=this.map.latLngToContainerPoint(start);
-        const p2=this.map.latLngToContainerPoint(end);
-        const meaningful=Math.abs(p2.x-p1.x)>=4 && Math.abs(p2.y-p1.y)>=4;
-        if(meaningful){
-          try{ applySpatialSelectionByBounds(bounds,original||{}); }catch(error){ console.warn('rectangle selection failed',error); }
-        }
-        this.clearSelectionSketch(false);
-        this.flashSelectionCount();
+      if(!state.dragStart) return;
+      const start=state.dragStart;
+      const bounds=L.latLngBounds(start,end);
+      state.dragStart=null;
+      this.mapContainer.classList.remove('selection-drawing-v149');
+      const p1=this.map.latLngToContainerPoint(start);
+      const p2=this.map.latLngToContainerPoint(end);
+      // Случайный клик без протягивания рамкой не считается.
+      const meaningful=Math.abs(p2.x-p1.x)>=4 && Math.abs(p2.y-p1.y)>=4;
+      if(meaningful){
+        try{ applySpatialSelectionByBounds(bounds,original||{}); }
+        catch(error){ console.warn('rectangle selection failed',error); }
+      }
+      this.clearSelectionSketch(false);
+      this.flashSelectionCount();
     }
 
     addPolygonVertex(latlng){
@@ -431,21 +430,9 @@
     }
 
     redrawPolygonSketch(){
-      if(!this.map) return;
-      if(state.polygonLine){ try{ this.map.removeLayer(state.polygonLine); }catch(_){ } state.polygonLine=null; }
-      if(state.polygonMarkers){ try{ this.map.removeLayer(state.polygonMarkers); }catch(_){ } state.polygonMarkers=null; }
-      const points=state.polygonPoints || [];
-      if(!points.length) return;
-      state.polygonMarkers=L.layerGroup().addTo(this.map);
-      points.forEach((latlng,index)=>{
-        L.circleMarker(latlng,{
-          pane:'selectionPaneV149',radius:index===0?4.8:4,
-          color:'#173d70',weight:1.5,fillColor:'#ffffff',fillOpacity:1,interactive:false
-        }).addTo(state.polygonMarkers);
-      });
-      state.polygonLine=L.polyline(points,{
-        pane:'selectionPaneV149',color:'#173d70',weight:2,dashArray:'6 4',interactive:false
-      }).addTo(this.map);
+      if(!this.map || !this.sketch) return;
+      const points=(state.polygonPoints||[]).map(ll=>this.map.latLngToContainerPoint(ll));
+      this.sketch.polygon(points,points.length ? this.cursorPoint : null);
       const help=byId('selectionToolHelp');
       if(help) help.dataset.vertexCount=String(points.length);
     }
@@ -454,16 +441,14 @@
       const points=state.polygonPoints || [];
       if(state.tool!=='polygon' || points.length<3) return;
       try{ applySpatialSelectionByPolygon(points,event); }
-      catch(error){ console.warn('v149 polygon selection failed',error); }
+      catch(error){ console.warn('polygon selection failed',error); }
       this.clearSelectionSketch(true);
       this.flashSelectionCount();
     }
 
     clearSelectionSketch(removePoints=true){
-      if(state?.dragRect){ try{ this.map?.removeLayer(state.dragRect); }catch(_){ } state.dragRect=null; }
+      this.sketch?.clear();
       state.dragStart=null;
-      if(state?.polygonLine){ try{ this.map?.removeLayer(state.polygonLine); }catch(_){ } state.polygonLine=null; }
-      if(state?.polygonMarkers){ try{ this.map?.removeLayer(state.polygonMarkers); }catch(_){ } state.polygonMarkers=null; }
       if(removePoints) state.polygonPoints=[];
       this.mapContainer?.classList.remove('selection-drawing-v149');
       const help=byId('selectionToolHelp');

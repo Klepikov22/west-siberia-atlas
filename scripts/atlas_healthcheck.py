@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "data" / "manifest.json"
 INDEX = ROOT / "index.html"
 APP = ROOT / "app.js"
-RUNTIME = ROOT / "map-runtime-v149.js"
+RUNTIME = ROOT / "map-runtime.js"
 
 
 def main() -> None:
@@ -24,7 +24,7 @@ def main() -> None:
     version = match.group(1)
     if manifest.get("app_version") != version or manifest.get("version") != f"v{version}":
         raise SystemExit("Версии app.js и data/manifest.json различаются")
-    for asset in ("app.js", "style.css", "map-runtime-v149.js"):
+    for asset in ("app.js", "style.css", "map-runtime.js", "selection-sketch.js"):
         if f'{asset}?v={version}' not in html:
             raise SystemExit(f"В index.html не синхронизирован {asset}")
 
@@ -48,7 +48,7 @@ def main() -> None:
     if missing:
         raise SystemExit("Отсутствуют пути из manifest:\n" + "\n".join(missing[:20]))
 
-    for script in (APP, RUNTIME):
+    for script in (APP, RUNTIME, ROOT / "selection-sketch.js"):
         subprocess.run(["node", "--check", str(script)], check=True, cwd=ROOT)
 
     print(f"OK: v{version}, {len(paths)} путей данных, синтаксис двух JS-файлов")

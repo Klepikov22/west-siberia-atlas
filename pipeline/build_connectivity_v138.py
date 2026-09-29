@@ -8,7 +8,7 @@ from shapely.strtree import STRtree
 from shapely.ops import unary_union, nearest_points
 
 warnings.filterwarnings('ignore')
-BASE=Path(__file__).resolve().parent
+BASE=Path(__file__).resolve().parents[1]
 DATA=BASE/'data'
 OUT=DATA/'connectivity'
 OUT.mkdir(exist_ok=True)

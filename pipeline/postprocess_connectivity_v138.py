@@ -3,7 +3,7 @@ from pathlib import Path
 import networkx as nx
 import pandas as pd
 
-BASE=Path(__file__).resolve().parent
+BASE=Path(__file__).resolve().parents[1]
 DATA=BASE/'data'
 OUT=DATA/'connectivity'
 VERSION='v138_component_connectivity_length_weighted_fast_postprocess'

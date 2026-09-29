@@ -19,7 +19,7 @@ from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 from shapely.validation import make_valid
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / 'data' / 'admin'
 TOPO = ROOT / 'data' / 'topology'
 DOCS = ROOT / 'docs'
@@ -159,7 +159,7 @@ def rebuild_1876_topology():
 
 def refresh_multiyear_1876():
     # Use the v104/v103-compatible metric calculator for the single affected year.
-    ns = exec_module_until(ROOT / 'recalc_v104_stat_exclusions.py', "def main():")
+    ns = exec_module_until(ROOT / 'pipeline' / 'recalc_v104_stat_exclusions.py', "def main():")
     path = TOPO / 'multiyear_metrics_by_year.json'
     rows = load_json(path)
     before = next((dict(r) for r in rows if int(r.get('year')) == 1876), {})
@@ -218,8 +218,8 @@ def main():
     summary, metrics = rebuild_1876_topology()
     before, after = refresh_multiyear_1876()
     # Recalculate area-dispersion metrics after the 1876 geometry merge.
-    ns105 = {'__file__': str(ROOT / 'recalc_v105_area_dispersion.py'), '__name__': '_v108_recalc_v105'}
-    exec(compile((ROOT / 'recalc_v105_area_dispersion.py').read_text(encoding='utf-8'), str(ROOT / 'recalc_v105_area_dispersion.py'), 'exec'), ns105)
+    ns105 = {'__file__': str(ROOT / 'pipeline' / 'recalc_v105_area_dispersion.py'), '__name__': '_v108_recalc_v105'}
+    exec(compile((ROOT / 'pipeline' / 'recalc_v105_area_dispersion.py').read_text(encoding='utf-8'), str(ROOT / 'pipeline' / 'recalc_v105_area_dispersion.py'), 'exec'), ns105)
     ns105['main']()
     corr = write_population_correlation_diagnostics()
     print('v108 1876 merge and topology refresh complete')

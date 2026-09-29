@@ -4280,18 +4280,6 @@ html[data-theme="dark"] .label-engine-health-v149>small{color:#aebdcd;}
   .label-engine-health-v149>small{grid-column:1/-1;padding-left:14px;}
 }
 
-/* v149 selection-engine states */
-#map.selection-drawing-v149,
-body[data-tool="rectangle"] #map,
-body[data-tool="polygon"] #map{
-  cursor:crosshair;
-}
-body[data-tool="pan"] #map{cursor:grab;}
-body[data-tool="pan"] #map:active{cursor:grabbing;}
-body[data-tool="parent"] #map{cursor:pointer;}
-.leaflet-selectionPaneV149-pane path{
-  vector-effect:non-scaling-stroke;
-}
 #selectionBox.selection-flash-v149{
   animation:selectionFlashV149 .48s ease-out;
 }
@@ -4311,3 +4299,23 @@ body[data-tool="parent"] #map{cursor:pointer;}
 .selection-options label{display:grid;gap:5px;min-width:0;color:var(--muted,#566579);font-size:11px;font-weight:650}
 .selection-options select{width:100%;min-width:0;font-size:12px}
 @media (max-width:430px){.selection-options{grid-template-columns:1fr}}
+
+/* ---------- Курсоры и эскиз выборки ----------
+ * Стрелка — обычный режим; указатель — над объектом; «рука» — только пока
+ * карта действительно перетаскивается; перекрестие — рамка и полигон. */
+[hidden]{display:none!important}
+#map.leaflet-grab,#map.leaflet-grab .leaflet-pane{cursor:default!important}
+#map .leaflet-interactive{cursor:pointer!important}
+body[data-tool="rectangle"] #map,body[data-tool="polygon"] #map,
+body[data-tool="rectangle"] #map .leaflet-interactive,body[data-tool="polygon"] #map .leaflet-interactive,
+body[data-tool="rectangle"] #map.leaflet-grab,body[data-tool="polygon"] #map.leaflet-grab{cursor:crosshair!important}
+#map.leaflet-dragging.leaflet-grab,#map.leaflet-dragging .leaflet-interactive,#map.middle-panning{cursor:grabbing!important}
+
+.selection-sketch{position:absolute;inset:0;width:100%;height:100%;z-index:450;pointer-events:none;overflow:visible}
+.selection-sketch .sketch-fill{fill:rgba(29,110,190,.18);stroke:none}
+.selection-sketch .sketch-line{fill:none;stroke:#0f4c9a;stroke-width:2;stroke-dasharray:7 4;stroke-linejoin:round}
+.selection-sketch .sketch-dot{fill:#fff;stroke:#0f4c9a;stroke-width:2}
+.selection-sketch .sketch-dot.first{fill:#0f4c9a;stroke:#fff}
+
+.selection-options{grid-template-columns:1fr!important}
+.selection-options select{font-size:13px}

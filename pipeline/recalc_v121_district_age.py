@@ -13,7 +13,7 @@ from shapely.ops import transform
 from shapely.validation import make_valid
 from pyproj import Transformer
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / 'data' / 'admin'
 DOCS = ROOT / 'docs'
 DOCS.mkdir(exist_ok=True)

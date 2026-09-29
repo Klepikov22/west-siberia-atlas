@@ -25,7 +25,7 @@ from statistics import mean
 
 import networkx as nx
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 ADMIN = ROOT / "data" / "admin"
 TOPO = ROOT / "data" / "topology"
 DOCS = ROOT / "docs"
@@ -453,7 +453,7 @@ def import_module(path: Path, name: str):
 
 
 def recalc_base_multiyear_metrics():
-    v104 = import_module(ROOT / "recalc_v104_stat_exclusions.py", "v104_recalc")
+    v104 = import_module(ROOT / 'pipeline' / "recalc_v104_stat_exclusions.py", "v104_recalc")
     v104.EXCLUSIONS = {k: set(v) for k, v in EXCLUSIONS_EXTENDED.items()}
     metrics_path = TOPO / "multiyear_metrics_by_year.json"
     rows = load_json(metrics_path)
@@ -512,7 +512,7 @@ def recalc_base_multiyear_metrics():
 
 
 def recalc_area_dispersion_v107():
-    v105 = import_module(ROOT / "recalc_v105_area_dispersion.py", "v105_recalc")
+    v105 = import_module(ROOT / 'pipeline' / "recalc_v105_area_dispersion.py", "v105_recalc")
     v105.STAT_EXCLUDED_BY_YEAR = {k: set(v) for k, v in EXCLUSIONS_EXTENDED.items()}
     rows = load_json(TOPO / "multiyear_metrics_by_year.json")
     by_year = {int(r["year"]): r for r in rows}

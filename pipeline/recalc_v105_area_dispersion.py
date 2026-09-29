@@ -17,7 +17,7 @@ from pathlib import Path
 from statistics import median
 from typing import Iterable, Dict, List, Optional, Tuple
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 ADMIN = DATA / "admin"
 METRICS_PATH = DATA / "topology" / "multiyear_metrics_by_year.json"

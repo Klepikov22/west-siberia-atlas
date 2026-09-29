@@ -10,7 +10,7 @@ from shapely.ops import unary_union, transform
 from shapely.prepared import prep
 from pyproj import Transformer
 
-BASE = Path(__file__).resolve().parent
+BASE = Path(__file__).resolve().parents[1]
 DATA = BASE / 'data'
 ADMIN = DATA / 'admin'
 TOPO = DATA / 'topology'
