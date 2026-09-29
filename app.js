@@ -1,4 +1,4 @@
-const APP_VERSION = '154';
+const APP_VERSION = '156';
 const BASE_MIN_ZOOM = 3.5;
 const WHEEL_ZOOM_STEP = 0.25;
 const MIN_ZOOM_WHEEL_STEPS_IN = 6;
@@ -925,32 +925,27 @@ function populationSymbolSize(pop, vals){
   const t=Math.max(0, Math.min(1, populationScaleValue(pop, vals)));
   return min + t*(max-min);
 }
-function populationRadius(pop,maxPop){
-  const vals=state.currentGeoJSON?.features?.filter(isAnalyticsFeature).map(f=>Number(f.properties?.population)||0).filter(v=>v>0) || [maxPop||1];
-  return populationSymbolSize(pop, vals);
-}
-function buildPopulationBarMarker(latlng, f, height, s){
-  const width=Math.max(8, Math.min(18, Math.round(height*.32)));
-  const html=`<div class="population-bar-symbol" style="width:${width}px;height:${height}px;background:${s.barFill};border-color:${s.barLine};"></div>`;
-  return L.marker(latlng,{interactive:true, icon:L.divIcon({className:'population-bar-icon', html, iconSize:[width+8,height+8], iconAnchor:[Math.round((width+8)/2), height+6]})});
-}
 function buildCircles(admin, gj){
   clearLayer('circles');
-  const s=styleVars(); const vals=gj.features.filter(isAnalyticsFeature).map(f=>Number(f.properties.population)||0).filter(v=>v>0);
+  const s=styleVars(); const vals=gj.features.filter(isAnalyticsFeature).map(f=>Number(f.properties.population)||0).filter(v=>Number.isFinite(v) && v>0);
   const maxPop=Math.max(...vals,1); const minPop=Math.min(...vals, maxPop);
-  state.maxPop=maxPop; state.minPop=minPop; state.layers.circles=L.layerGroup();
+  state.maxPop=maxPop; state.minPop=minPop;
+  const items=[];
   admin.eachLayer(layer=>{
     const f=layer.feature; if(!isAnalyticsFeature(f)) return; const p=f.properties; const pop=Number(p.population)||0; if(!pop) return;
     const c=layer.getBounds().getCenter(); const size=populationSymbolSize(pop, vals);
-    // Keep the Leaflet overlay pane that rendered these circles reliably before
-    // v153. The visibility manager brings the group above the admin polygons.
-    const m=L.circleMarker(c,{interactive:true,bubblingMouseEvents:false,radius:size, color:s.circleLine, weight:1.65, fillColor:s.circleFill, fillOpacity:.74, opacity:.98});
-    m.feature=f;
-    m.on('mouseover',(e)=>showHoverLater({title:p.name||'объект', subtitle:'круг населения', population:pop, density:p.density}, e.originalEvent));
-    m.on('mousemove',(e)=>moveHover(e.originalEvent));
-    m.on('mouseout', hideHover);
-    m.on('click',(e)=>{L.DomEvent.stopPropagation(e); if(state.tool !== 'pan') return; toggleSelection(f); showFeature(f);});
-    state.layers.circles.addLayer(m);
+    if(Number.isFinite(pop) && pop>0) items.push({feature:f,latlng:c,radius:size});
+  });
+  state.layers.circles=AtlasPopulationSymbols.create(L,{
+    items,style:{color:s.circleLine,weight:1.65,fillColor:s.circleFill,fillOpacity:.74},
+    getTool:()=>state.tool,getYear:()=>state.year,
+    isSelected:f=>state.selectedIds.has(featureId(f)),
+    onHoverStart(){hideHover();window.__WS_ATLAS_RUNTIME_V149__?.hideHover();},
+    onSelect(f,event){
+      const runtime=window.__WS_ATLAS_RUNTIME_V149__;
+      if(runtime) runtime.selectAdminFeature(f,event);
+      else{toggleSelection(f);showFeature(f);}
+    }
   });
 }
 function buildLabels(admin, gj){
@@ -1492,7 +1487,20 @@ function updateLegend(gj, vals){
   if(state.mode==='admin_parent'||state.mode==='admin_intermediate'||state.mode==='admin_superparent'||state.mode==='unit_type'){ const field=state.mode; const cats=[...new Set(gj.features.map(f=>f.properties[field]).filter(Boolean))].slice(0,14); cats.forEach(c=>{html+=`<div class="legend-row"><span class="swatch" style="background:${catColor(c)}"></span>${c}</div>`}); }
   else { activeValueRamp().forEach((c,i,arr)=>{html+=`<div class="legend-row"><span class="swatch" style="background:${c}"></span>${i===0?'меньше':i===arr.length-1?'больше':''}</div>`}); }
   html+=`<div class="legend-section">Гидрография</div><div class="legend-row"><span class="swatch water-swatch"></span>океан, озёра и водохранилища</div><div class="legend-row"><span class="river-swatch"></span>реки</div>`;
-  if($('toggleCircles')?.checked){ const max=state.maxPop||0; const mid=max/4; const vals=state.currentGeoJSON?.features?.map(f=>Number(f.properties?.population)||0).filter(v=>v>0)||[]; html+=`<div class="legend-section">Круги населения</div>`; [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(8, populationSymbolSize(v, vals)); html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`; }); const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale; html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`; }
+  if($('toggleCircles')?.checked){
+    html+='<div class="legend-section">Круги населения</div>';
+    const vals=(state.currentGeoJSON?.features||[]).filter(isAnalyticsFeature).map(f=>Number(f.properties?.population)||0).filter(v=>Number.isFinite(v) && v>0);
+    if(!vals.length) html+='<div class="mini-muted">В видимых АТЕ нет значений населения.</div>';
+    else{
+      const max=state.maxPop||0,mid=max/4;
+      [[max,'макс.'],[mid,'примерно 1/4 макс.']].forEach(([v,label])=>{
+        const size=Math.max(8,populationSymbolSize(v,vals));
+        html+=`<div class="legend-row"><span class="circle-swatch" style="width:${size*1.25}px;height:${size*1.25}px"></span>${label}: ${num(v)}</div>`;
+      });
+      const scaleName={sqrt:'квадратный корень',linear:'линейное',log:'логарифмическое',quantile:'квантильное'}[state.populationSymbol.scale]||state.populationSymbol.scale;
+      html+=`<div class="mini-muted">Нормирование: ${scaleName}. Диапазон размера: ${Math.round(state.populationSymbol.minSize)}–${Math.round(state.populationSymbol.maxSize)} px.</div>`;
+    }
+  }
   if($('toggleCenters')?.checked && state.maxCenterPop){ const cmax=state.maxCenterPop; const cmid=cmax/4; html+=`<div class="legend-section">Центры</div>`; [[cmax,'макс.'],[cmid,'примерно 1/4 макс.']].forEach(([v,label])=>{ const size=Math.max(7, centerRadius(v,cmax)*1.45); html+=`<div class="legend-row"><span class="center-circle-swatch" style="width:${size}px;height:${size}px"></span>${label}: ${num(v)}</div>`; }); }
   box.innerHTML=html;
 }

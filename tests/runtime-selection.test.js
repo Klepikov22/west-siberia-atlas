@@ -58,26 +58,18 @@ test('nonselectable unit can show information without joining selection',()=>{
   assert.equal(shown,features[3]);
 });
 
-test('population symbol shows a hover card and selects its administrative unit',()=>{
-  const handlers={};
-  const layer={feature:{properties:{unit_id:'a',name:'Томский район',population:12000,year:1914}},
-    options:{color:'#633',weight:1.65,fillColor:'#fb5',fillOpacity:.74,opacity:.98},
-    radius:9,getRadius(){return this.radius},setRadius(value){this.radius=value},
-    setStyle(style){Object.assign(this.options,style)},off(){},on(name,handler){handlers[name]=handler},
-    getElement(){return null}
-  };
-  state.layers={circles:{eachLayer(fn){fn(layer)},hasLayer(candidate){return candidate===layer}}};
-  let hover=null;
-  runtime.showHover=content=>{hover=content};
-  runtime.hideHover=()=>{hover=null};
-  runtime.bindCircleInteractions();
-  state.tool='pan';operation='replace';
-  handlers.mouseover({originalEvent:{clientX:20,clientY:20}});
-  assert.equal(hover.title,'Томский район');
-  assert.equal(layer.radius,11.4);
-  handlers.click({originalEvent:{}});
-  assert.deepEqual([...state.selectedIds],['a']);
-  assert.equal(shown,layer.feature);
-  handlers.mouseout();
-  assert.equal(layer.radius,10.1);
+test('admin hover and selection do not move polygon above population symbol',()=>{
+  let moved=0;
+  const admin={feature:features[0],setStyle(){},bringToFront(){moved++}};
+  state.adminLayerById=new Map([['a',admin]]);
+  context.adminStyle=()=>({weight:1,fillOpacity:.65});
+  context.regionStyleConfig=()=>({weight:1});
+  runtime.showHover=()=>{};
+  state.tool='pan';
+  runtime.onAdminEnter('a',admin,{originalEvent:{clientX:10,clientY:10}});
+  state.selectedIds.add('a');
+  runtime.applyAdminVisualState('a');
+  assert.equal(moved,0);
+  runtime.onAdminLeave('a');
+  state.selectedIds.clear();
 });

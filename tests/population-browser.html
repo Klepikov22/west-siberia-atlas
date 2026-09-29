@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Проверка символов населения</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="../population-symbols.css">
+<style>
+body{font:14px/1.5 system-ui;margin:20px;color:#18324b}h1{font-size:20px}
+#map{width:min(900px,95vw);height:480px;background:#e5edf1}
+label{margin-right:15px}li.pass{color:#16723a}li.fail{color:#b52323}
+</style>
+<h1>Браузерная проверка слоя населения</h1>
+<p>Использует настоящий Leaflet и модуль атласа. Интернет нужен только для Leaflet. Результаты появляются после загрузки; наведите на круги для ручной проверки.</p>
+<p><label><input id="enabled" type="checkbox" checked> Слой включён</label>
+<label>Инструмент <select id="tool"><option value="pan">Курсор</option><option value="parent">Область АТД-1</option><option value="rectangle">Рамка</option><option value="polygon">Полигон</option></select></label>
+<label>Год <select id="year"><option>1914</option><option>1959</option></select></label></p>
+<div id="map"></div><p id="selected">Выборка пуста</p><ol id="results"><li>Ожидание Leaflet…</li></ol>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../population-symbols.js"></script>
+<script>
+(async()=>{
+  const results=document.getElementById('results');results.replaceChildren();
+  const check=(name,ok)=>{const row=document.createElement('li');row.className=ok?'pass':'fail';row.textContent=(ok?'OK: ':'Ошибка: ')+name;results.append(row);};
+  if(!window.L){check('Leaflet не загрузился из CDN',false);return;}
+  const map=L.map('map',{zoomControl:false}).setView([58,82],6);
+  const polygon=L.rectangle([[57.7,81.7],[58.3,82.3]],{fillOpacity:.5,color:'#3679b5'}).addTo(map);
+  const chosen=new Set();let calls=0,mapClicks=0;
+  map.on('click',()=>{mapClicks++;});
+  const tool=document.getElementById('tool'),year=document.getElementById('year');
+  const makeLayer=()=>AtlasPopulationSymbols.create(L,{
+    items:[35,18].map((radius,i)=>({radius,latlng:L.latLng(58,82),feature:{properties:{unit_id:String(i),name:i?'Малая АТЕ':'Крупная АТЕ',population:(i?12000:90000)*(year.value==='1959'?2:1),year:year.value}}})),
+    style:{color:'#70411d',fillColor:'#ffc46c',fillOpacity:.8},getTool:()=>tool.value,getYear:()=>year.value,
+    isSelected:f=>chosen.has(f.properties.unit_id),onSelect(f){calls++;chosen.add(f.properties.unit_id);document.getElementById('selected').textContent='Выбрано: '+f.properties.name;}
+  });
+  let layer=makeLayer().addTo(map);
+  const tick=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const center=()=>{const p=map.latLngToContainerPoint([58,82]),r=map.getContainer().getBoundingClientRect();return {x:r.left+p.x,y:r.top+p.y};};
+  const hit=()=>{const p=center();return document.elementFromPoint(p.x,p.y);};
+  await tick();
+  check('Меньший круг доступен поверх большего',hit()?.dataset.unitId==='1');
+  polygon.bringToFront();check('Полигон не перехватывает события поверх кругов',hit()?.classList.contains('population-symbol'));
+  const p=center();hit().dispatchEvent(new PointerEvent('pointerenter',{clientX:p.x,clientY:p.y}));
+  check('Карточка наведения содержит население и год',!layer._tooltip.hidden && /12\s000/.test(layer._tooltip.textContent) && layer._tooltip.textContent.includes('1914'));
+  hit().click();check('Один выбор без повторного клика по карте',calls===1 && mapClicks===0 && hit().getAttribute('aria-pressed')==='true');
+  tool.value='polygon';layer.setTool();check('Полигон получает события через символы',!hit()?.classList.contains('population-symbol') && layer.getLayers().every(s=>s.getElement().disabled));
+  tool.value='pan';layer.setTool();
+  layer.remove();check('Выключение удаляет круги и карточку',!document.querySelector('.population-symbol-layer') && !document.querySelector('.population-symbol-tooltip'));
+  layer.addTo(map);check('Повторное включение не дублирует DOM',document.querySelectorAll('.population-symbol-layer').length===1);
+  map.panBy([50,20],{animate:false});await tick();
+  const point=center(),rect=layer.getLayers()[1].getElement().getBoundingClientRect();
+  check('Положение обновляется после перемещения карты',Math.abs(rect.left+rect.width/2-point.x)<2 && Math.abs(rect.top+rect.height/2-point.y)<2);
+  layer.remove();year.value='1959';layer=makeLayer().addTo(map);await tick();
+  const p2=center();hit().dispatchEvent(new PointerEvent('pointerenter',{clientX:p2.x,clientY:p2.y}));
+  check('Смена года обновляет население и подсказку',/24\s000/.test(layer._tooltip.textContent) && layer._tooltip.textContent.includes('1959'));
+  layer.hideHover();
+  tool.addEventListener('change',()=>layer.setTool());
+  document.getElementById('enabled').addEventListener('change',event=>event.target.checked?layer.addTo(map):layer.remove());
+  year.addEventListener('change',()=>{layer.remove();layer=makeLayer();if(document.getElementById('enabled').checked)layer.addTo(map);});
+})();
+</script>
+</html>

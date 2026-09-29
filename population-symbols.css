@@ -1,0 +1,24 @@
+.population-symbol-layer{
+  position:absolute;inset:0;z-index:650;overflow:hidden;pointer-events:none;
+}
+.population-symbol-layer > .population-symbol{
+  all:unset;box-sizing:border-box;display:block;position:absolute;left:0;top:0;
+  border-style:solid;border-radius:50%;cursor:pointer;pointer-events:auto;
+  touch-action:none;user-select:none;
+}
+.population-symbol-layer > .population-symbol[hidden]{display:none!important}
+.population-symbol-layer > .population-symbol.is-hovered{z-index:1;box-shadow:0 0 0 3px rgba(255,255,255,.8)}
+.population-symbol-layer > .population-symbol:focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 6px #163e73}
+body[data-tool="rectangle"] .population-symbol,
+body[data-tool="polygon"] .population-symbol{pointer-events:none!important}
+.population-symbol-tooltip{
+  position:absolute;left:0;top:0;z-index:980;pointer-events:none;
+  width:max-content;max-width:min(310px,calc(100% - 24px));padding:10px 12px;
+  border:1px solid rgba(18,47,82,.18);border-radius:10px;
+  background:rgba(255,255,255,.97);color:#10233f;box-shadow:0 10px 28px rgba(12,31,55,.22);
+  font:12px/1.4 "Segoe UI",Arial,sans-serif;
+}
+.population-symbol-tooltip b{display:block;font-size:13px;margin-bottom:3px}
+.population-symbol-tooltip span{display:block;color:#566579;margin-bottom:5px}
+.population-symbol-tooltip[hidden]{display:none!important}
+.population-symbol-status{display:block;margin-top:3px;font-size:10px;line-height:1.25;color:var(--muted,#566579)}
